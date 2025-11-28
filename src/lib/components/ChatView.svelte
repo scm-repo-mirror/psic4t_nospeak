@@ -51,6 +51,26 @@
         }
     }
 
+    function getRelativeTime(timestamp: number): string {
+        const now = Date.now();
+        const diff = now - timestamp;
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const weeks = Math.floor(days / 7);
+        const months = Math.floor(days / 30);
+        const years = Math.floor(days / 365);
+
+        if (seconds < 60) return 'just now';
+        if (minutes < 60) return `${minutes} min${minutes !== 1 ? 's' : ''} ago`;
+        if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+        if (days < 7) return `${days} day${days !== 1 ? 's' : ''} ago`;
+        if (weeks < 4) return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+        if (months < 12) return `${months} month${months !== 1 ? 's' : ''} ago`;
+        return `${years} year${years !== 1 ? 's' : ''} ago`;
+    }
+
     async function send() {
         if (!partnerNpub || !inputText.trim()) return;
         
@@ -107,8 +127,11 @@
                         }`}
                 >
                     <div class="whitespace-pre-wrap break-words">{msg.message}</div>
-                    <div class={`text-[10px] mt-1 text-right ${msg.direction === 'sent' ? 'text-blue-100' : 'text-gray-400'}`}>
-                        {new Date(msg.sentAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    <div 
+                        class={`text-[10px] mt-1 text-right ${msg.direction === 'sent' ? 'text-blue-100' : 'text-gray-400'} cursor-help`}
+                        title={new Date(msg.sentAt).toLocaleString()}
+                    >
+                        {getRelativeTime(msg.sentAt)}
                     </div>
                 </div>
 
