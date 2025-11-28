@@ -5,6 +5,7 @@ import { signer, currentUser } from '$lib/stores/auth';
 import { get } from 'svelte/store';
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { discoverUserRelays } from './connection/Discovery';
+import { notificationService } from './NotificationService';
 
 export class MessagingService {
     private debug: boolean = true;
@@ -103,6 +104,11 @@ export class MessagingService {
             direction,
             createdAt: Date.now()
         });
+
+        // Show notification for received messages
+        if (direction === 'received') {
+            await notificationService.showNewMessageNotification(partnerNpub, rumor.content);
+        }
     }
 
     // Explicitly fetch history to fill gaps
