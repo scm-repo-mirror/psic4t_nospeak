@@ -1,0 +1,44 @@
+import { db, type Message } from './db';
+import Dexie from 'dexie';
+
+export class MessageRepository {
+    public async getMessages(recipientNpub: string, limit: number = 50, beforeTimestamp?: number): Promise<Message[]> {
+        let collection;
+        
+        if (recipientNpub === 'ALL') {
+             collection = db.messages.orderBy('sentAt').reverse();
+        } else {
+             collection = db.messages
+                .where('[recipientNpub+sentAt]')
+                .between(
+                    [recipientNpub, Dexie.minKey],
+                    [recipientNpub, beforeTimestamp || Dexie.maxKey],
+                    true, // include lower
+                    false // exclude upper
+                )
+                .reverse();
+        }
+
+        const items = await collection.limit(limit).toArray();
+        return items.reverse(); // Return in chronological order
+    }
+
+    public async saveMessage(msg: Message) {
+        try {
+            await db.messages.put(msg);
+        } catch (e: any) {
+            if (e.name === 'ConstraintError') {
+                // Ignore duplicate
+                return;
+            }
+            throw e;
+        }
+    }
+    
+    public async hasMessage(eventId: string): Promise<boolean> {
+        const count = await db.messages.where('eventId').equals(eventId).count();
+        return count > 0;
+    }
+}
+
+export const messageRepo = new MessageRepository();
