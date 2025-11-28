@@ -14,6 +14,7 @@
     let isSending = $state(false);
     let chatContainer: HTMLElement;
     let inputElement: HTMLInputElement;
+    let currentTime = $state(Date.now());
 
     // Resolve profile info
     $effect(() => {
@@ -42,6 +43,15 @@
         }
     });
 
+    // Update current time every minute to refresh relative times
+    $effect(() => {
+        const interval = setInterval(() => {
+            currentTime = Date.now();
+        }, 60000); // Update every minute
+
+        return () => clearInterval(interval);
+    });
+
     function scrollToBottom() {
         if (chatContainer) {
             // Use timeout to ensure DOM has updated height
@@ -52,7 +62,7 @@
     }
 
     function getRelativeTime(timestamp: number): string {
-        const now = Date.now();
+        const now = currentTime;
         const diff = now - timestamp;
         const seconds = Math.floor(diff / 1000);
         const minutes = Math.floor(seconds / 60);
