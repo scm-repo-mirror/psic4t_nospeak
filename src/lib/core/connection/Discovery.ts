@@ -6,7 +6,8 @@ export const DEFAULT_DISCOVERY_RELAYS = [
     'wss://nostr.data.haus',
     'wss://relay.damus.io',
     'wss://nos.lol',
-    'wss://relay.primal.net'
+    'wss://relay.primal.net',
+    'wss://purplepag.es'
 ];
 
 export async function discoverUserRelays(npub: string) {
