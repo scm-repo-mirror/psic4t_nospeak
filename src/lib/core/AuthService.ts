@@ -6,6 +6,7 @@ import { discoverUserRelays } from '$lib/core/connection/Discovery';
 import { nip19 } from 'nostr-tools';
 import { goto } from '$app/navigation';
 import { connectionManager } from './connection/instance';
+import { messagingService } from './Messaging';
 
 const STORAGE_KEY = 'nospeak:nsec';
 const AUTH_METHOD_KEY = 'nospeak:auth_method'; // 'local' | 'nip07'
@@ -28,6 +29,9 @@ export class AuthService {
             // Start discovery
             await discoverUserRelays(npub);
             
+            // Fetch message history to fill cache gaps
+            messagingService.fetchHistory().catch(console.error);
+            
             goto('/chat');
         } catch (e) {
             console.error('Login failed:', e);
@@ -49,6 +53,10 @@ export class AuthService {
             }
 
             await discoverUserRelays(npub);
+            
+            // Fetch message history to fill cache gaps
+            messagingService.fetchHistory().catch(console.error);
+            
             goto('/chat');
         } catch (e) {
             console.error('Extension login failed:', e);
@@ -72,6 +80,10 @@ export class AuthService {
                 currentUser.set({ npub });
                 
                 discoverUserRelays(npub).catch(e => console.error('Restoration discovery failed:', e));
+                
+                // Fetch message history after restoration
+                messagingService.fetchHistory().catch(e => console.error('Restoration history fetch failed:', e));
+                
                 return true;
             } else if (method === 'nip07') {
                 // For NIP-07, we need to wait for extension to inject?
@@ -94,6 +106,10 @@ export class AuthService {
                 currentUser.set({ npub });
 
                 discoverUserRelays(npub).catch(e => console.error('Restoration discovery failed:', e));
+                
+                // Fetch message history after restoration
+                messagingService.fetchHistory().catch(e => console.error('Restoration history fetch failed:', e));
+                
                 return true;
             }
         } catch (e) {
@@ -111,6 +127,9 @@ export class AuthService {
         signer.set(null);
         currentUser.set(null);
         connectionManager.stop();
+        
+        // Clear NIP-07 cache to allow re-authentication
+        Nip07Signer.clearCache();
         
         goto('/');
     }

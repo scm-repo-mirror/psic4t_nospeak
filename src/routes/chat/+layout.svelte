@@ -47,10 +47,8 @@
                 }
             }
             
-            // Backfill history
-            setTimeout(() => {
-                messagingService.fetchHistory().catch(console.error);
-            }, 2000);
+            // Fetch message history immediately to fill cache gaps
+            messagingService.fetchHistory().catch(console.error);
         };
 
         setup();

@@ -27,6 +27,9 @@
         const setup = async () => {
             if (!myPubkey) myPubkey = await s.getPublicKey();
             
+            // Fetch message history to ensure we have the latest messages
+            messagingService.fetchHistory().catch(console.error);
+            
             // Subscribe to DB changes for SPECIFIC partner
             subDb = liveQuery(async () => {
                  return await messageRepo.getMessages(currentPartner, 50); 

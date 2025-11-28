@@ -6,9 +6,13 @@ import { get } from 'svelte/store';
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { discoverUserRelays } from './connection/Discovery';
 import { notificationService } from './NotificationService';
+import { contactRepo } from '$lib/db/ContactRepository';
 
 export class MessagingService {
     private debug: boolean = true;
+    private isFetchingHistory: boolean = false;
+    private lastHistoryFetch: number = 0;
+    private readonly HISTORY_FETCH_DEBOUNCE = 5000; // 5 seconds
 
     // Listen for incoming messages
     public listenForMessages(publicKey: string): () => void {
@@ -105,16 +109,32 @@ export class MessagingService {
             createdAt: Date.now()
         });
 
-        // Show notification for received messages
+        // Show notification for received messages (but not for history messages)
         if (direction === 'received') {
-            await notificationService.showNewMessageNotification(partnerNpub, rumor.content);
+            // Don't show notifications for messages fetched during history sync
+            if (!this.isFetchingHistory) {
+                await notificationService.showNewMessageNotification(partnerNpub, rumor.content);
+            }
+            
+            // Auto-add unknown contacts
+            await this.autoAddContact(partnerNpub);
         }
     }
 
     // Explicitly fetch history to fill gaps
     public async fetchHistory() {
         const s = get(signer);
-        if (!s) return;
+        if (!s) return { totalFetched: 0, processed: 0 };
+
+        // Debounce: prevent multiple rapid calls
+        const now = Date.now();
+        if (this.isFetchingHistory || (now - this.lastHistoryFetch) < this.HISTORY_FETCH_DEBOUNCE) {
+            if (this.debug) console.log('History fetch debounced, skipping');
+            return { totalFetched: 0, processed: 0 };
+        }
+
+        this.isFetchingHistory = true;
+        this.lastHistoryFetch = now;
         const myPubkey = await s.getPublicKey();
 
         // 1. Get user relays
@@ -129,21 +149,59 @@ export class MessagingService {
         }
         await new Promise(r => setTimeout(r, 1000));
 
-        const filters = [{
-            kinds: [1059],
-            '#p': [myPubkey],
-            limit: 100 // Fetch last 100 messages
-        }];
+        // 3. Fetch in batches to get comprehensive history
+        const batchSize = 100;
+        let allEvents: NostrEvent[] = [];
+        let until = Math.floor(Date.now() / 1000);
+        let hasMore = true;
+        let totalFetched = 0;
 
-        if (this.debug) console.log('Fetching message history...', filters);
+        while (hasMore && totalFetched < 1000) { // Limit to prevent infinite loops
+            const filters = [{
+                kinds: [1059],
+                '#p': [myPubkey],
+                limit: batchSize,
+                until
+            }];
 
-        const events = await connectionManager.fetchEvents(filters);
-        if (this.debug) console.log(`Fetched ${events.length} historical events`);
+            if (this.debug) console.log(`Fetching message history batch... (until: ${until}, total: ${totalFetched})`);
 
-        for (const event of events) {
+            const events = await connectionManager.fetchEvents(filters);
+            
+            if (events.length === 0) {
+                hasMore = false;
+            } else {
+                allEvents.push(...events);
+                totalFetched += events.length;
+                
+                // Update until to the oldest event's created_at for next batch
+                const oldestEvent = events.reduce((oldest, event) => 
+                    event.created_at < oldest.created_at ? event : oldest
+                );
+                until = oldestEvent.created_at - 1;
+                
+                // If we got less than batch size, we might be at the end
+                if (events.length < batchSize) {
+                    hasMore = false;
+                }
+            }
+        }
+
+        if (this.debug) console.log(`Fetched ${allEvents.length} total historical events`);
+
+        // 4. Process events (deduplication happens in handleGiftWrap)
+        let processedCount = 0;
+        for (const event of allEvents) {
             if (await messageRepo.hasMessage(event.id)) continue;
             await this.handleGiftWrap(event);
+            processedCount++;
         }
+
+        if (this.debug) console.log(`Processed ${processedCount} new historical messages`);
+        
+        const result = { totalFetched: allEvents.length, processed: processedCount };
+        this.isFetchingHistory = false;
+        return result;
     }
 
     public async sendMessage(recipientNpub: string, text: string) {
@@ -213,6 +271,9 @@ export class MessagingService {
             direction: 'sent',
             createdAt: Date.now()
         });
+
+        // Auto-add unknown contacts when sending messages
+        await this.autoAddContact(recipientNpub);
     }
 
     private async createGiftWrap(rumor: Partial<NostrEvent>, recipientPubkey: string, s: any): Promise<NostrEvent> {
@@ -266,6 +327,21 @@ export class MessagingService {
             profile = await profileRepo.getProfile(npub);
         }
         return profile?.writeRelays || [];
+    }
+
+    private async autoAddContact(npub: string) {
+        try {
+            // Check if contact already exists
+            const existingContacts = await contactRepo.getContacts();
+            const contactExists = existingContacts.some(contact => contact.npub === npub);
+            
+            if (!contactExists) {
+                await contactRepo.addContact(npub);
+                if (this.debug) console.log(`Auto-added new contact: ${npub}`);
+            }
+        } catch (error) {
+            console.error('Failed to auto-add contact:', error);
+        }
     }
 }
 
