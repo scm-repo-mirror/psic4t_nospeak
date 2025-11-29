@@ -65,13 +65,6 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
             </button>
-            <button 
-                onclick={() => authService.logout()} 
-                class="text-xs text-red-500 hover:text-red-600"
-                aria-label="Logout"
-            >
-                Logout
-            </button>
         </div>
     </div>
     
