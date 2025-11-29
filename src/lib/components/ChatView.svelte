@@ -6,6 +6,7 @@
     import Avatar from './Avatar.svelte';
     import MessageContent from './MessageContent.svelte';
     import { currentUser } from '$lib/stores/auth';
+    import { emojis } from '$lib/utils/emojis';
     
     let { messages = [], partnerNpub } = $props<{ messages: Message[], partnerNpub?: string }>();
     let inputText = $state('');
@@ -18,6 +19,74 @@
     let chatContainer: HTMLElement;
     let inputElement: HTMLInputElement;
     let currentTime = $state(Date.now());
+
+    // Emoji picker state
+    let showEmojiPicker = $state(false);
+    let emojiSearch = $state('');
+    let emojiSelectedIndex = $state(0);
+    let filteredEmojis = $derived(
+        emojiSearch 
+            ? emojis.filter(e => e.name.toLowerCase().includes(emojiSearch.toLowerCase())).slice(0, 5)
+            : []
+    );
+
+    function handleInput(e: Event) {
+        const input = e.target as HTMLInputElement;
+        const cursorPosition = input.selectionStart || 0;
+        const textBeforeCursor = inputText.slice(0, cursorPosition);
+        
+        // Find the last word segment before cursor
+        const match = textBeforeCursor.match(/:(\w*)$/);
+        
+        if (match) {
+            showEmojiPicker = true;
+            emojiSearch = match[1];
+            emojiSelectedIndex = 0;
+        } else {
+            showEmojiPicker = false;
+        }
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        if (showEmojiPicker && filteredEmojis.length > 0) {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                emojiSelectedIndex = (emojiSelectedIndex - 1 + filteredEmojis.length) % filteredEmojis.length;
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                emojiSelectedIndex = (emojiSelectedIndex + 1) % filteredEmojis.length;
+            } else if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                selectEmoji(filteredEmojis[emojiSelectedIndex]);
+            } else if (e.key === 'Escape') {
+                showEmojiPicker = false;
+            }
+        }
+    }
+
+    function selectEmoji(emoji: { name: string, char: string }) {
+        if (!inputElement) return;
+        
+        const cursorPosition = inputElement.selectionStart || 0;
+        const textBeforeCursor = inputText.slice(0, cursorPosition);
+        const textAfterCursor = inputText.slice(cursorPosition);
+        
+        // Replace the :search part with the emoji
+        const match = textBeforeCursor.match(/:(\w*)$/);
+        if (match) {
+            const prefix = textBeforeCursor.slice(0, match.index);
+            inputText = prefix + emoji.char + ' ' + textAfterCursor;
+            
+            // Restore focus and cursor position
+            setTimeout(() => {
+                const newCursorPos = prefix.length + emoji.char.length + 1;
+                inputElement.setSelectionRange(newCursorPos, newCursorPos);
+                inputElement.focus();
+            }, 0);
+        }
+        
+        showEmojiPicker = false;
+    }
 
     function openProfile(npub: string) {
         profileModalNpub = npub;
@@ -180,7 +249,22 @@
     </div>
 
     <div class="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
-        <form onsubmit={(e) => { e.preventDefault(); send(); }} class="flex gap-3 items-end">
+        <form onsubmit={(e) => { e.preventDefault(); send(); }} class="flex gap-3 items-end relative">
+            {#if showEmojiPicker && filteredEmojis.length > 0}
+                <div class="absolute bottom-full mb-2 left-12 bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-lg rounded-lg overflow-hidden w-64 z-50">
+                    {#each filteredEmojis as emoji, i}
+                        <button 
+                            type="button"
+                            class={`w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${i === emojiSelectedIndex ? 'bg-blue-50 dark:bg-gray-700' : ''}`}
+                            onclick={() => selectEmoji(emoji)}
+                        >
+                            <span class="text-xl">{emoji.char}</span>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">:{emoji.name}:</span>
+                        </button>
+                    {/each}
+                </div>
+            {/if}
+
             {#if $currentUser}
                 <button type="button" class="flex-shrink-0 h-10 hover:opacity-80 transition-opacity cursor-pointer" onclick={() => $currentUser && openProfile($currentUser.npub)}>
                     <Avatar npub={$currentUser.npub} src={myPicture} size="md" />
@@ -189,7 +273,9 @@
             <div class="flex-1 flex gap-2">
                 <input 
                     bind:this={inputElement}
-                    bind:value={inputText} 
+                    bind:value={inputText}
+                    oninput={handleInput}
+                    onkeydown={handleKeydown} 
                     disabled={isSending}
                     class="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Type a message..."

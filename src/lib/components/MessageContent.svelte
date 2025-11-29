@@ -22,9 +22,14 @@
     }
     
     let parts = $derived(content.split(urlRegex));
+    
+    // Check if the content is a single emoji
+    // Emoji regex to match a single emoji character (including composite ones)
+    const singleEmojiRegex = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)$/u;
+    let isSingleEmoji = $derived(singleEmojiRegex.test(content.trim()));
 </script>
 
-<div class="whitespace-pre-wrap break-words">
+<div class={`whitespace-pre-wrap break-words ${isSingleEmoji ? 'text-4xl' : ''}`}>
     {#each parts as part}
         {#if part.match(/^https?:\/\//)}
             {#if isImage(part)}
