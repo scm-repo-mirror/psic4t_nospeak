@@ -6,6 +6,7 @@
   import Avatar from "./Avatar.svelte";
   import MessageContent from "./MessageContent.svelte";
   import ContextMenu from "./ContextMenu.svelte";
+  import MediaUploadButton from "./MediaUploadButton.svelte";
   import { currentUser } from "$lib/stores/auth";
   import { emojis } from "$lib/utils/emojis";
 
@@ -281,6 +282,24 @@
   function handleContextMenu(e: MouseEvent, messageContent: string) {
     openContextMenu(e, messageContent);
   }
+
+  function handleFileSelect(file: File, type: 'image' | 'video', url?: string) {
+    if (url) {
+      // Insert the full file URL into the message input (no markdown)
+      inputText = (inputText ? inputText + '\n' : '') + url;
+      
+      // Focus input and set cursor to end
+      setTimeout(() => {
+        if (inputElement) {
+          inputElement.focus();
+          inputElement.setSelectionRange(inputText.length, inputText.length);
+          // Auto-resize if needed
+          inputElement.style.height = "auto";
+          inputElement.style.height = Math.min(inputElement.scrollHeight, 150) + "px";
+        }
+      }, 0);
+    }
+  }
 </script>
 
 <svelte:head>
@@ -394,15 +413,8 @@
         </div>
       {/if}
 
-      {#if $currentUser}
-        <button
-          type="button"
-          class="flex-shrink-0 h-10 hover:opacity-80 transition-opacity cursor-pointer"
-          onclick={() => $currentUser && openProfile($currentUser.npub)}
-        >
-          <Avatar npub={$currentUser.npub} src={myPicture} size="md" />
-        </button>
-      {/if}
+
+      <MediaUploadButton onFileSelect={handleFileSelect} />
       <div class="flex-1 flex gap-2">
         <textarea
           bind:this={inputElement}
