@@ -119,5 +119,22 @@ describe('Nip07Signer', () => {
         expect(mockEncrypt).toHaveBeenCalledTimes(1); // Only called once
     });
 
+    it('should request NIP-44 permissions by performing encrypt/decrypt cycle', async () => {
+        const pubkey = 'test-pubkey';
+        mockGetPublicKey.mockResolvedValue(pubkey);
+        mockEncrypt.mockResolvedValue('ciphertext');
+        mockDecrypt.mockResolvedValue('plaintext');
+
+        await signer.requestNip44Permissions();
+
+        // Should fetch pubkey
+        expect(mockGetPublicKey).toHaveBeenCalled();
+        
+        // Should call encrypt with pubkey and a check message
+        expect(mockEncrypt).toHaveBeenCalledWith(pubkey, expect.any(String));
+        
+        // Should call decrypt with pubkey and the result of encrypt
+        expect(mockDecrypt).toHaveBeenCalledWith(pubkey, 'ciphertext');
+    });
     
 });

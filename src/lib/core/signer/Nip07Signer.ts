@@ -146,6 +146,22 @@ export class Nip07Signer implements Signer {
         }
     }
 
+
+    async requestNip44Permissions(): Promise<void> {
+        try {
+            const pubkey = await this.getPublicKey();
+            console.log('[NIP-07] Triggering NIP-44 permissions check...');
+            // Encrypt to self to trigger encryption permission
+            const ciphertext = await this.encrypt(pubkey, 'NIP-44 Permission Check');
+            // Decrypt immediately to trigger decryption permission
+            await this.decrypt(pubkey, ciphertext);
+            console.log('[NIP-07] NIP-44 permissions confirmed');
+        } catch (e) {
+            console.warn('[NIP-07] Failed to acquire NIP-44 permissions:', e);
+            // We don't throw here to allow flow to continue even if rejected
+        }
+    }
+
     private async queueOperation<T>(operation: () => Promise<T>, minDelay: number = 200): Promise<T> {
         // Add operation to queue to serialize them
         Nip07Signer.operationQueue = Nip07Signer.operationQueue.then(async () => {

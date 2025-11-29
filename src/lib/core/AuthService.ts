@@ -45,6 +45,9 @@ export class AuthService {
             const pubkey = await s.getPublicKey();
             const npub = nip19.npubEncode(pubkey);
 
+            // Request NIP-44 permissions upfront
+            await s.requestNip44Permissions();
+
             signer.set(s);
             currentUser.set({ npub });
 
@@ -101,6 +104,9 @@ export class AuthService {
                 // but typically getPublicKey is silent if already authorized or prompts.
                 const pubkey = await s.getPublicKey(); 
                 const npub = nip19.npubEncode(pubkey);
+
+                // Request NIP-44 permissions upfront
+                await s.requestNip44Permissions();
 
                 signer.set(s);
                 currentUser.set({ npub });
