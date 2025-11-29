@@ -181,7 +181,7 @@
     <div class="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
         <form onsubmit={(e) => { e.preventDefault(); send(); }} class="flex gap-3 items-end">
             {#if $currentUser}
-                <button class="flex-shrink-0 h-10 hover:opacity-80 transition-opacity cursor-pointer" onclick={() => $currentUser && openProfile($currentUser.npub)}>
+                <button type="button" class="flex-shrink-0 h-10 hover:opacity-80 transition-opacity cursor-pointer" onclick={() => $currentUser && openProfile($currentUser.npub)}>
                     <Avatar npub={$currentUser.npub} src={myPicture} size="md" />
                 </button>
             {/if}
