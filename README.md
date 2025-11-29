@@ -186,13 +186,28 @@ rsync -av build/ user@server:/var/www/nospeak/
 
 ## Nostr Integration
 
-Nospeak implements the following NIPs (Nostr Implementation Proposals):
+Nospeak Web implements the following NIPs (Nostr Implementation Proposals):
 
-- **NIP-01**: Basic protocol flow
-- **NIP-04**: Encrypted direct messages  
-- **NIP-05**: Mapping Nostr keys to DNS-based internet identifiers
-- **NIP-19**: bech32-encoded entities
-- **NIP-28**: Relay list metadata
+### Core Protocol
+- **NIP-01**: Basic protocol flow and event structure
+- **NIP-04**: Encrypted direct messages (seal-based)
+- **NIP-05**: Mapping Nostr keys to DNS-based internet identifiers (nip05)
+- **NIP-19**: bech32-encoded entities for keys and identifiers
+
+### Metadata & Profiles
+- **NIP-28**: Relay list metadata for server discovery
+- **NIP-40**: Reaction events for emoji responses
+
+### Content & Media
+- **NIP-17**: Direct message encryption (versioned)
+- **NIP-44**: Outbox model for draft message management
+- **NIP-59**: Gift wrapper events for media sharing
+- **NIP-65**: Relay list filtering and management
+
+### Advanced Features
+- **NIP-07**: Windowed messages for rate limiting
+- **NIP-09**: Event delegation for key management
+- **NIP-26**: Parameterized replaceable events
 
 ## Support
 
