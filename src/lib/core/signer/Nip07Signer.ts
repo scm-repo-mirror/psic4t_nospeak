@@ -95,7 +95,7 @@ export class Nip07Signer implements Signer {
         // Create and cache encryption promise
         const encryptPromise = this.queueOperation(async () => {
             return window.nostr!.nip44!.encrypt(recipient, message);
-        });
+        }, 0); // Minimize delay for encryption
         Nip07Signer.encryptionCache.set(cacheKey, encryptPromise);
         
         try {
@@ -131,7 +131,7 @@ export class Nip07Signer implements Signer {
         // Create and cache decryption promise
         const decryptPromise = this.queueOperation(async () => {
             return window.nostr!.nip44!.decrypt(sender, ciphertext);
-        });
+        }, 0); // Minimize delay for decryption to speed up history fetching
         Nip07Signer.decryptionCache.set(cacheKey, decryptPromise);
         
         try {
@@ -146,16 +146,18 @@ export class Nip07Signer implements Signer {
         }
     }
 
-    private async queueOperation<T>(operation: () => Promise<T>): Promise<T> {
+    private async queueOperation<T>(operation: () => Promise<T>, minDelay: number = 200): Promise<T> {
         // Add operation to queue to serialize them
         Nip07Signer.operationQueue = Nip07Signer.operationQueue.then(async () => {
             // Add delay between operations to give user time to accept prompts
             const now = Date.now();
             const timeSinceLastOp = now - Nip07Signer.lastOperationTime;
             
-            if (timeSinceLastOp < 200) { // 200ms between operations (reduced from 1s)
-                const delay = 200 - timeSinceLastOp;
-                console.log(`[NIP-07] Delaying operation for ${delay}ms to prevent overwhelming user`);
+            if (timeSinceLastOp < minDelay) {
+                const delay = minDelay - timeSinceLastOp;
+                if (delay > 10) { // Only log significant delays
+                     console.log(`[NIP-07] Delaying operation for ${delay}ms to prevent overwhelming user`);
+                }
                 await new Promise(resolve => setTimeout(resolve, delay));
             }
             
