@@ -12,10 +12,16 @@
     let partnerPicture = $state<string | undefined>(undefined);
     let myPicture = $state<string | undefined>(undefined);
     let isProfileOpen = $state(false);
+    let profileModalNpub = $state<string | undefined>(undefined);
     let isSending = $state(false);
     let chatContainer: HTMLElement;
     let inputElement: HTMLInputElement;
     let currentTime = $state(Date.now());
+
+    function openProfile(npub: string) {
+        profileModalNpub = npub;
+        isProfileOpen = true;
+    }
 
     // Resolve profile info
     $effect(() => {
@@ -117,7 +123,7 @@
     {#if partnerNpub}
         <div class="p-3 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800 flex-shrink-0">
             <button 
-                onclick={() => isProfileOpen = true}
+                onclick={() => partnerNpub && openProfile(partnerNpub)}
                 class="font-bold hover:underline dark:text-white text-left"
             >
                 {partnerName || partnerNpub.slice(0, 10) + '...'}
@@ -136,9 +142,9 @@
         {#each messages as msg}
             <div class={`flex ${msg.direction === 'sent' ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                 {#if msg.direction === 'received' && partnerNpub}
-                    <div class="mb-1">
+                    <button class="mb-1 hover:opacity-80 transition-opacity cursor-pointer" onclick={() => partnerNpub && openProfile(partnerNpub)}>
                         <Avatar npub={partnerNpub} src={partnerPicture} size="sm" />
-                    </div>
+                    </button>
                 {/if}
                 
                 <div 
@@ -158,9 +164,9 @@
                 </div>
 
                 {#if msg.direction === 'sent' && $currentUser}
-                    <div class="mb-1">
+                    <button class="mb-1 hover:opacity-80 transition-opacity cursor-pointer" onclick={() => $currentUser && openProfile($currentUser.npub)}>
                         <Avatar npub={$currentUser.npub} src={myPicture} size="sm" />
-                    </div>
+                    </button>
                 {/if}
             </div>
         {/each}
@@ -169,9 +175,9 @@
     <div class="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
         <form onsubmit={(e) => { e.preventDefault(); send(); }} class="flex gap-3 items-end">
             {#if $currentUser}
-                <div class="flex-shrink-0 h-10">
+                <button class="flex-shrink-0 h-10 hover:opacity-80 transition-opacity cursor-pointer" onclick={() => $currentUser && openProfile($currentUser.npub)}>
                     <Avatar npub={$currentUser.npub} src={myPicture} size="md" />
-                </div>
+                </button>
             {/if}
             <div class="flex-1 flex gap-2">
                 <input 
@@ -193,6 +199,6 @@
     </div>
 </div>
 
-{#if partnerNpub}
-    <ProfileModal isOpen={isProfileOpen} close={() => isProfileOpen = false} npub={partnerNpub} />
+{#if partnerNpub || profileModalNpub}
+    <ProfileModal isOpen={isProfileOpen} close={() => isProfileOpen = false} npub={profileModalNpub || partnerNpub || ''} />
 {/if}
