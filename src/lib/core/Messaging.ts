@@ -189,12 +189,14 @@ export class MessagingService {
         this.lastHistoryFetch = now;
         const myPubkey = await s.getPublicKey();
 
-        // 1. Use existing persistent connections - no need to create temporary ones
-        // User relays should already be connected from discovery process
+        // 1. Wait for relays to be connected before fetching
         const relays = await this.getReadRelays(nip19.npubEncode(myPubkey));
         if (relays.length === 0) {
             console.warn('No user relays found, history fetching may be incomplete');
         }
+
+        // Wait for at least one relay to be connected
+        await this.waitForRelayConnection(relays);
 
         // 3. Fetch in batches to get comprehensive history
         const fetchBatchSize = 100;
@@ -402,6 +404,24 @@ export class MessagingService {
             profile = await profileRepo.getProfile(npub);
         }
         return profile?.writeRelays || [];
+    }
+
+    private async waitForRelayConnection(relayUrls: string[], timeoutMs: number = 10000): Promise<void> {
+        if (relayUrls.length === 0) return;
+        
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+            const connectedRelays = connectionManager.getConnectedRelays();
+            if (connectedRelays.length > 0) {
+                if (this.debug) console.log(`Found ${connectedRelays.length} connected relays, proceeding with history fetch`);
+                return;
+            }
+            
+            if (this.debug) console.log('Waiting for relays to connect before fetching history...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        console.warn('Timeout waiting for relay connections, proceeding with history fetch anyway');
     }
 
     private async autoAddContact(npub: string) {
