@@ -1,11 +1,87 @@
 <script lang="ts">
     import { notificationService } from '$lib/core/NotificationService';
+    import { relaySettingsService } from '$lib/core/RelaySettingsService';
+    import { currentUser } from '$lib/stores/auth';
+    import { profileRepo } from '$lib/db/ProfileRepository';
     
     let { isOpen = false, close = () => {} } = $props<{ isOpen: boolean; close: () => void }>();
     
     let notificationsEnabled = $state(false);
     let isSupported = $state(false);
     let isLoaded = $state(false);
+    
+    type Category = 'General' | 'Mailbox Relays';
+    let activeCategory = $state<Category>('General');
+
+    // Relay settings
+    type RelayConfig = {
+        url: string;
+        read: boolean;
+        write: boolean;
+    };
+    let relays = $state<RelayConfig[]>([]);
+    let newRelayUrl = $state('');
+
+    async function loadRelaySettings() {
+        let readRelays: string[] = [];
+        let writeRelays: string[] = [];
+        
+        if ($currentUser?.npub) {
+            const profile = await profileRepo.getProfileIgnoreTTL($currentUser.npub);
+            if (profile) {
+                readRelays = profile.readRelays || [];
+                writeRelays = profile.writeRelays || [];
+            }
+        }
+
+        const allUrls = new Set([...readRelays, ...writeRelays]);
+        
+        relays = Array.from(allUrls).map(url => ({
+            url,
+            read: readRelays.includes(url),
+            write: writeRelays.includes(url)
+        })).sort((a, b) => a.url.localeCompare(b.url));
+    }
+
+    async function saveRelaySettings() {
+        const readRelays = relays.filter(r => r.read).map(r => r.url);
+        const writeRelays = relays.filter(r => r.write).map(r => r.url);
+        await relaySettingsService.updateSettings(readRelays, writeRelays);
+    }
+
+    function addRelay() {
+        if (!newRelayUrl) return;
+        let url = newRelayUrl.trim();
+        
+        // Basic URL validation/normalization
+        if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+            url = 'wss://' + url;
+        }
+
+        if (!relays.find(r => r.url === url)) {
+            relays = [...relays, { url, read: true, write: true }];
+            saveRelaySettings();
+        }
+        newRelayUrl = '';
+    }
+
+    function removeRelay(url: string) {
+        relays = relays.filter(r => r.url !== url);
+        saveRelaySettings();
+    }
+
+    function toggleRelayPermission(url: string, type: 'read' | 'write') {
+        const index = relays.findIndex(r => r.url === url);
+        if (index !== -1) {
+            const relay = relays[index];
+            const updated = { ...relay, [type]: !relay[type] };
+            
+            const newRelays = [...relays];
+            newRelays[index] = updated;
+            relays = newRelays;
+            saveRelaySettings();
+        }
+    }
 
     // Load settings from localStorage
     $effect(() => {
@@ -16,27 +92,15 @@
                 const settings = JSON.parse(saved);
                 notificationsEnabled = settings.notificationsEnabled || false;
             }
+            
+            loadRelaySettings();
             isLoaded = true;
         }
     });
 
-    // Save settings to localStorage when notificationsEnabled changes (after initial load)
+    // Save notification settings
     $effect(() => {
         if (isLoaded && isOpen) {
-            const saved = localStorage.getItem('nospeak-settings');
-            const existingSettings = saved ? JSON.parse(saved) : {};
-            const settings = {
-                ...existingSettings,
-                notificationsEnabled
-            };
-            localStorage.setItem('nospeak-settings', JSON.stringify(settings));
-        }
-    });
-
-    // Save settings to localStorage when notificationsEnabled changes
-    $effect(() => {
-        // Only save if the modal is open (to avoid saving during initial load)
-        if (isOpen) {
             const saved = localStorage.getItem('nospeak-settings');
             const existingSettings = saved ? JSON.parse(saved) : {};
             const settings = {
@@ -82,10 +146,31 @@
         aria-labelledby="settings-title"
         tabindex="-1"
     >
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 id="settings-title" class="text-xl font-bold dark:text-white">Settings</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl mx-4 h-[600px] flex overflow-hidden">
+            <!-- Sidebar -->
+            <div class="w-64 bg-gray-50 dark:bg-gray-900 border-r dark:border-gray-700 p-4 flex flex-col">
+                <h2 id="settings-title" class="text-xl font-bold mb-6 dark:text-white px-2">Settings</h2>
+                
+                <nav class="space-y-1">
+                    <button 
+                        class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === 'General' ? 'bg-gray-200 dark:bg-gray-700 font-medium dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        onclick={() => activeCategory = 'General'}
+                    >
+                        General
+                    </button>
+                    <button 
+                        class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === 'Mailbox Relays' ? 'bg-gray-200 dark:bg-gray-700 font-medium dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        onclick={() => activeCategory = 'Mailbox Relays'}
+                    >
+                        Mailbox Relays
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 flex flex-col min-w-0">
+                <div class="p-6 flex justify-between items-center border-b dark:border-gray-700">
+                    <h3 class="text-lg font-semibold dark:text-white">{activeCategory}</h3>
                     <button 
                         onclick={close}
                         class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -97,35 +182,105 @@
                     </button>
                 </div>
 
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <label for="notifications-toggle" class="font-medium dark:text-white">Browser Notifications</label>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">
-                                {isSupported ? 'Get notified when you receive new messages' : 'Browser notifications not supported in this browser'}
-                            </p>
+                <div class="flex-1 overflow-y-auto p-6">
+                    {#if activeCategory === 'General'}
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label for="notifications-toggle" class="font-medium dark:text-white">Browser Notifications</label>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                                        {isSupported ? 'Get notified when you receive new messages' : 'Browser notifications not supported in this browser'}
+                                    </p>
+                                </div>
+                                {#if isSupported}
+                                    <button
+                                        id="notifications-toggle"
+                                        onclick={toggleNotifications}
+                                        class={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                            notificationsEnabled 
+                                                ? 'bg-blue-500' 
+                                                : 'bg-gray-200 dark:bg-gray-600'
+                                        }`}
+                                        aria-label={notificationsEnabled ? 'Disable notifications' : 'Enable notifications'}
+                                    >
+                                        <span
+                                            class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                        ></span>
+                                    </button>
+                                {:else}
+                                    <span class="text-sm text-gray-400 dark:text-gray-500">Not supported</span>
+                                {/if}
+                            </div>
                         </div>
-                        {#if isSupported}
-                            <button
-                                id="notifications-toggle"
-                                onclick={toggleNotifications}
-                                class={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    notificationsEnabled 
-                                        ? 'bg-blue-500' 
-                                        : 'bg-gray-200 dark:bg-gray-600'
-                                }`}
-                                aria-label={notificationsEnabled ? 'Disable notifications' : 'Enable notifications'}
-                            >
-                                <span
-                                    class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        notificationsEnabled ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
-                                ></span>
-                            </button>
-                        {:else}
-                            <span class="text-sm text-gray-400 dark:text-gray-500">Not supported</span>
-                        {/if}
-                    </div>
+                    {:else if activeCategory === 'Mailbox Relays'}
+                        <div class="space-y-6">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Configure your NIP-65 Mailbox Relays. These relays inform others where to send you messages (Read) and where to find your messages (Write).
+                            </p>
+
+                            <div class="flex gap-2">
+                                <input 
+                                    bind:value={newRelayUrl}
+                                    placeholder="wss://relay.example.com" 
+                                    class="flex-1 px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    onkeydown={(e) => e.key === 'Enter' && addRelay()}
+                                />
+                                <button 
+                                    onclick={addRelay}
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                                >
+                                    Add
+                                </button>
+                            </div>
+
+                            <div class="space-y-2 border rounded-md dark:border-gray-700 divide-y dark:divide-gray-700">
+                                {#each relays as relay}
+                                    <div class="p-3 flex items-center justify-between bg-white dark:bg-gray-800">
+                                        <div class="flex-1 min-w-0 pr-4">
+                                            <p class="text-sm font-medium dark:text-white truncate" title={relay.url}>
+                                                {relay.url}
+                                            </p>
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <label class="flex items-center gap-2 cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={relay.read} 
+                                                    onchange={() => toggleRelayPermission(relay.url, 'read')}
+                                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span class="text-sm text-gray-600 dark:text-gray-400">Read</span>
+                                            </label>
+                                            <label class="flex items-center gap-2 cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={relay.write} 
+                                                    onchange={() => toggleRelayPermission(relay.url, 'write')}
+                                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span class="text-sm text-gray-600 dark:text-gray-400">Write</span>
+                                            </label>
+                                            <button 
+                                                onclick={() => removeRelay(relay.url)}
+                                                class="text-red-500 hover:text-red-700 p-1"
+                                                title="Remove relay"
+                                            >
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {:else}
+                                    <div class="p-4 text-center text-gray-500 dark:text-gray-400">
+                                        No relays configured
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
                 </div>
             </div>
         </div>

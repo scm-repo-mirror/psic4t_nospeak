@@ -4,59 +4,30 @@ import { connectionManager } from './connection/instance';
 import { DEFAULT_DISCOVERY_RELAYS } from './connection/Discovery';
 import { Relay } from 'nostr-tools';
 import { ConnectionType } from './connection/ConnectionManager';
-
-const STORAGE_KEY = 'nospeak:relay_settings';
-
-export interface RelaySettings {
-    readRelays: string[];
-    writeRelays: string[];
-}
+import { profileRepo } from '$lib/db/ProfileRepository';
 
 export class RelaySettingsService {
-    private settings: RelaySettings = {
-        readRelays: [],
-        writeRelays: []
-    };
-
-    constructor() {
-        this.loadSettings();
-    }
-
-    private loadSettings(): void {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                this.settings = JSON.parse(stored);
-            }
-        } catch (e) {
-            console.error('Failed to load relay settings:', e);
-        }
-    }
-
-    private saveSettings(): void {
-        try {
-            if (typeof localStorage !== 'undefined') {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
-            }
-        } catch (e) {
-            console.error('Failed to save relay settings:', e);
-        }
-    }
-
-    public getSettings(): RelaySettings {
-        return { ...this.settings };
-    }
-
     public async updateSettings(readRelays: string[], writeRelays: string[]): Promise<void> {
-        this.settings.readRelays = [...new Set(readRelays.filter(r => r.trim()))];
-        this.settings.writeRelays = [...new Set(writeRelays.filter(r => r.trim()))];
-        this.saveSettings();
+        // 1. Update Profile Repo Cache
+        const currentUserData = get(currentUser);
+        if (currentUserData) {
+            const profile = await profileRepo.getProfileIgnoreTTL(currentUserData.npub);
+            await profileRepo.cacheProfile(
+                currentUserData.npub,
+                profile?.metadata, // keep existing metadata
+                readRelays,
+                writeRelays
+            );
+        }
 
-        // Publish NIP-65 event
-        await this.publishRelayList();
+        // 2. Publish NIP-65 event
+        await this.publishRelayList(readRelays, writeRelays);
+
+        // 3. Apply settings to current connections
+        await this.applyRelaySettings(readRelays, writeRelays);
     }
 
-    private async publishRelayList(): Promise<void> {
+    private async publishRelayList(readRelays: string[], writeRelays: string[]): Promise<void> {
         const currentSigner = get(signer);
         const currentUserData = get(currentUser);
         
@@ -68,21 +39,21 @@ export class RelaySettingsService {
         const tags: string[][] = [];
         
         // Add read relays
-        for (const relay of this.settings.readRelays) {
-            if (!this.settings.writeRelays.includes(relay)) {
+        for (const relay of readRelays) {
+            if (!writeRelays.includes(relay)) {
                 tags.push(['r', relay, 'read']);
             }
         }
         
         // Add write relays
-        for (const relay of this.settings.writeRelays) {
-            if (!this.settings.readRelays.includes(relay)) {
+        for (const relay of writeRelays) {
+            if (!readRelays.includes(relay)) {
                 tags.push(['r', relay, 'write']);
             }
         }
         
         // Add relays that are both read and write (no marker)
-        const bothRelays = this.settings.readRelays.filter(r => this.settings.writeRelays.includes(r));
+        const bothRelays = readRelays.filter(r => writeRelays.includes(r));
         for (const relay of bothRelays) {
             tags.push(['r', relay]);
         }
@@ -97,36 +68,32 @@ export class RelaySettingsService {
         try {
             const signedEvent = await currentSigner.signEvent(event);
             
-            // Publish to all relays: discovery + blaster
-            const allRelays = [
+            // Publish to all relays: discovery + blaster + connected + configured
+            const allRelays = new Set([
                 ...DEFAULT_DISCOVERY_RELAYS,
-                'wss://sendit.nosflare.com'
-            ];
+                'wss://sendit.nosflare.com',
+                ...connectionManager.getAllRelayHealth().map(h => h.url),
+                ...readRelays,
+                ...writeRelays
+            ]);
 
             for (const relayUrl of allRelays) {
                 try {
                     // Connect temporarily if not already connected
                     let relay = connectionManager.getRelayHealth(relayUrl)?.relay;
                     if (!relay) {
-                        relay = await Relay.connect(relayUrl);
+                        try {
+                            relay = await Relay.connect(relayUrl);
+                        } catch (e) {
+                            console.warn(`Could not connect to ${relayUrl} to publish relay list`);
+                            continue;
+                        }
                     }
                     
-                    await new Promise<void>((resolve, reject) => {
-                        const pub = relay.publish(signedEvent);
-                        pub.on('ok', () => {
-                            console.log(`Published relay list to ${relayUrl}`);
-                            resolve();
-                        });
-                        pub.on('failed', (reason: any) => {
-                            console.error(`Failed to publish to ${relayUrl}:`, reason);
-                            reject(new Error(reason));
-                        });
-                        
-                        // Timeout after 5 seconds
-                        setTimeout(() => {
-                            reject(new Error('Publish timeout'));
-                        }, 5000);
-                    });
+                    // nostr-tools v2 publish returns a Promise that resolves when OK is received
+                    await relay.publish(signedEvent);
+                    console.log(`Published relay list to ${relayUrl}`);
+                    
                 } catch (e) {
                     console.error(`Failed to publish relay list to ${relayUrl}:`, e);
                     // Continue with other relays even if one fails
@@ -138,26 +105,29 @@ export class RelaySettingsService {
         }
     }
 
-    public async applyRelaySettings(): Promise<void> {
+    public async applyRelaySettings(readRelays: string[], writeRelays: string[]): Promise<void> {
         // Get current relay healths from the store
         const { relayHealths } = await import('$lib/stores/connection');
         const currentHealths = get(relayHealths);
         
-        // Remove existing persistent relays that were from settings
-        // (This is a simple approach - in a more sophisticated system we'd track which relays came from where)
+        // Remove existing persistent relays that are not in the new list
+        // (and not default discovery relays)
+        const newRelays = new Set([...readRelays, ...writeRelays]);
+        
         for (const health of currentHealths) {
             if (health.type === ConnectionType.Persistent && 
-                !DEFAULT_DISCOVERY_RELAYS.includes(health.url)) {
+                !DEFAULT_DISCOVERY_RELAYS.includes(health.url) &&
+                !newRelays.has(health.url)) {
                 connectionManager.removeRelay(health.url);
             }
         }
 
         // Add new relays from settings
-        for (const relay of this.settings.readRelays) {
+        for (const relay of readRelays) {
             connectionManager.addPersistentRelay(relay);
         }
-        for (const relay of this.settings.writeRelays) {
-            if (!this.settings.readRelays.includes(relay)) {
+        for (const relay of writeRelays) {
+            if (!readRelays.includes(relay)) {
                 connectionManager.addPersistentRelay(relay);
             }
         }
