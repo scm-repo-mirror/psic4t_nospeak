@@ -5,6 +5,7 @@
     import { messagingService } from '$lib/core/Messaging';
     import Avatar from './Avatar.svelte';
     import MessageContent from './MessageContent.svelte';
+    import ContextMenu from './ContextMenu.svelte';
     import { currentUser } from '$lib/stores/auth';
     import { emojis } from '$lib/utils/emojis';
     
@@ -19,6 +20,15 @@
     let chatContainer: HTMLElement;
     let inputElement: HTMLTextAreaElement;
     let currentTime = $state(Date.now());
+    
+    // Context menu state
+    let contextMenu = $state({
+        isOpen: false,
+        x: 0,
+        y: 0,
+        messageContent: ''
+    });
+    let longPressTimer: number | null = null;
 
     // Emoji picker state
     let showEmojiPicker = $state(false);
@@ -204,6 +214,60 @@
             isSending = false;
         }
     }
+
+    function openContextMenu(e: MouseEvent, messageContent: string) {
+        e.preventDefault();
+        contextMenu = {
+            isOpen: true,
+            x: e.clientX,
+            y: e.clientY,
+            messageContent
+        };
+    }
+
+    function closeContextMenu() {
+        contextMenu.isOpen = false;
+    }
+
+    function citeMessage() {
+        const citedContent = contextMenu.messageContent
+            .split('\n')
+            .map(line => '> ' + line)
+            .join('\n');
+        
+        inputText = (inputText ? inputText + '\n\n' : '') + citedContent + '\n';
+        
+        // Focus input and set cursor to end
+        setTimeout(() => {
+            if (inputElement) {
+                inputElement.focus();
+                inputElement.setSelectionRange(inputText.length, inputText.length);
+                // Auto-resize if needed
+                inputElement.style.height = 'auto';
+                inputElement.style.height = Math.min(inputElement.scrollHeight, 150) + 'px';
+            }
+        }, 0);
+    }
+
+    function handleMouseDown(e: MouseEvent, messageContent: string) {
+        // Start long press timer for touch devices
+        longPressTimer = window.setTimeout(() => {
+            openContextMenu(e, messageContent);
+            longPressTimer = null; // Clear timer after opening menu
+        }, 500);
+    }
+
+    function handleMouseUp() {
+        // Clear long press timer only if menu hasn't opened
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    function handleContextMenu(e: MouseEvent, messageContent: string) {
+        openContextMenu(e, messageContent);
+    }
 </script>
 
 <svelte:head>
@@ -240,21 +304,27 @@
                     </button>
                 {/if}
                 
-                <div 
-                    class={`max-w-[70%] p-3 rounded-lg shadow-sm
-                        ${msg.direction === 'sent' 
-                            ? 'bg-blue-500 text-white rounded-br-none' 
-                            : 'bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded-bl-none'
-                        }`}
-                >
-                    <MessageContent content={msg.message} />
-                    <div 
-                        class={`text-[10px] mt-1 text-right ${msg.direction === 'sent' ? 'text-blue-100' : 'text-gray-400'} cursor-help`}
-                        title={new Date(msg.sentAt).toLocaleString()}
-                    >
-                        {getRelativeTime(msg.sentAt)}
-                    </div>
-                </div>
+                 <div 
+                     role="button"
+                     tabindex="0"
+                     class={`max-w-[70%] p-3 rounded-lg shadow-sm cursor-pointer transition-colors
+                         ${msg.direction === 'sent' 
+                             ? 'bg-blue-500 text-white rounded-br-none hover:bg-blue-600' 
+                             : 'bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded-bl-none hover:bg-gray-50 dark:hover:bg-gray-600'
+                         }`}
+                     oncontextmenu={(e) => handleContextMenu(e, msg.message)}
+                     onmousedown={(e) => handleMouseDown(e, msg.message)}
+                     onmouseup={handleMouseUp}
+                     onmouseleave={handleMouseUp}
+                 >
+                     <MessageContent content={msg.message} />
+                     <div 
+                         class={`text-[10px] mt-1 text-right ${msg.direction === 'sent' ? 'text-blue-100' : 'text-gray-400'} cursor-help`}
+                         title={new Date(msg.sentAt).toLocaleString()}
+                     >
+                         {getRelativeTime(msg.sentAt)}
+                     </div>
+                 </div>
 
                 {#if msg.direction === 'sent' && $currentUser}
                     <button class="mb-1 hover:opacity-80 transition-opacity cursor-pointer" onclick={() => $currentUser && openProfile($currentUser.npub)}>
@@ -310,6 +380,14 @@
     </div>
 </div>
 
-{#if partnerNpub || profileModalNpub}
-    <ProfileModal isOpen={isProfileOpen} close={() => isProfileOpen = false} npub={profileModalNpub || partnerNpub || ''} />
-{/if}
+ {#if partnerNpub || profileModalNpub}
+     <ProfileModal isOpen={isProfileOpen} close={() => isProfileOpen = false} npub={profileModalNpub || partnerNpub || ''} />
+ {/if}
+
+ <ContextMenu 
+     isOpen={contextMenu.isOpen}
+     x={contextMenu.x}
+     y={contextMenu.y}
+     onClose={closeContextMenu}
+     onCite={citeMessage}
+ />

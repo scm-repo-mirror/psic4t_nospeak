@@ -22,6 +22,9 @@
     }
 
     function parseMarkdown(text: string) {
+        // Process citations (> text)
+        text = text.replace(/^> (.+)$/gm, '<div class="border-l-2 border-gray-300 pl-3 italic">$1</div>');
+        
         // Process strikethrough first (~~text~~)
         text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
         
