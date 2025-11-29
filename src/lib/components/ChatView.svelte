@@ -4,6 +4,7 @@
     import ProfileModal from './ProfileModal.svelte';
     import { messagingService } from '$lib/core/Messaging';
     import Avatar from './Avatar.svelte';
+    import MessageContent from './MessageContent.svelte';
     import { currentUser } from '$lib/stores/auth';
     
     let { messages = [], partnerNpub } = $props<{ messages: Message[], partnerNpub?: string }>();
@@ -160,7 +161,7 @@
                             : 'bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded-bl-none'
                         }`}
                 >
-                    <div class="whitespace-pre-wrap break-words">{msg.message}</div>
+                    <MessageContent content={msg.message} />
                     <div 
                         class={`text-[10px] mt-1 text-right ${msg.direction === 'sent' ? 'text-blue-100' : 'text-gray-400'} cursor-help`}
                         title={new Date(msg.sentAt).toLocaleString()}
