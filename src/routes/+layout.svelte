@@ -11,6 +11,18 @@
   let isInitialized = $state(false);
 
   onMount(async () => {
+    // Register PWA Service Worker
+    const { registerSW } = await import('virtual:pwa-register');
+    registerSW({
+      immediate: true,
+      onRegistered(r) {
+        console.log('SW Registered');
+      },
+      onRegisterError(error) {
+        console.error('SW registration error', error);
+      }
+    });
+
     const restored = await authService.restore();
     isInitialized = true;
 

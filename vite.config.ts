@@ -7,17 +7,24 @@ export default defineConfig({
 		sveltekit(),
 		VitePWA({
 			registerType: 'autoUpdate',
-			includeAssets: ['favicon.svg', 'robots.txt'],
+			includeAssets: ['favicon.svg', 'robots.txt', 'favicons/*.png', 'favicons/*.ico'],
 			manifest: {
-				name: 'Nospeak Web',
-				short_name: 'Nospeak',
-				description: 'Nostr chat client',
-				theme_color: '#ffffff',
+				name: 'nospeak-web',
+				short_name: 'nospeak',
+				description: 'A Nostr-based messaging application',
+				theme_color: '#000000',
+				background_color: '#ffffff',
+				display: 'standalone',
 				icons: [
 					{
-						src: 'favicon.svg',
+						src: '/favicons/favicon-192x192.png',
 						sizes: '192x192',
-						type: 'image/svg+xml'
+						type: 'image/png'
+					},
+					{
+						src: '/favicons/favicon-512x512.png',
+						sizes: '512x512',
+						type: 'image/png'
 					}
 				]
 			}
