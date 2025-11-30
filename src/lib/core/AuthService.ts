@@ -62,7 +62,7 @@ export class AuthService {
         try {
             const localSecret = generateSecretKey();
             const localPubkey = getPublicKey(localSecret);
-            const relays = ['wss://relay.nsec.app', 'wss://relay.damus.io', 'wss://nos.lol', 'wss://nostr.data.haus'];
+            const relays = ['wss://relay.nsec.app', 'wss://nostr.data.haus', 'wss://nos.lol'];
             
             // Generate a random 16-byte hex secret for the connection
             const secret = bytesToHex(generateSecretKey()).substring(0, 32);
