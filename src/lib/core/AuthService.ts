@@ -27,6 +27,8 @@ const STORAGE_KEY = 'nospeak:nsec';
 const AUTH_METHOD_KEY = 'nospeak:auth_method'; // 'local' | 'nip07' | 'nip46'
 const NIP46_SECRET_KEY = 'nospeak:nip46_secret';
 const NIP46_URI_KEY = 'nospeak:nip46_uri';
+const NIP46_BUNKER_PUBKEY_KEY = 'nospeak:nip46_bunker_pubkey';
+const NIP46_BUNKER_RELAYS_KEY = 'nospeak:nip46_bunker_relays';
 
 export class AuthService {
     public async login(nsec: string, remember: boolean = true) {
@@ -60,7 +62,7 @@ export class AuthService {
         try {
             const localSecret = generateSecretKey();
             const localPubkey = getPublicKey(localSecret);
-            const relays = ['wss://relay.nsecbunker.com', 'wss://relay.damus.io', 'wss://nos.lol'];
+            const relays = ['wss://relay.nsec.app', 'wss://relay.damus.io', 'wss://nos.lol', 'wss://nostr.data.haus'];
             
             // Generate a random 16-byte hex secret for the connection
             const secret = bytesToHex(generateSecretKey()).substring(0, 32);
@@ -68,7 +70,7 @@ export class AuthService {
             const params: NostrConnectParams = {
                 clientPubkey: localPubkey,
                 relays,
-                name: 'Nospeak Web',
+                name: 'nospeak',
                 url: window.location.origin,
                 perms: ['sign_event:1', 'sign_event:0', 'sign_event:13', 'sign_event:10002', 'nip44_encrypt', 'nip44_decrypt'],
                 secret,
@@ -88,7 +90,22 @@ export class AuthService {
 
     private async waitForNip46Connection(localSecret: Uint8Array, uri: string) {
         const pool = new SimplePool();
-        const s = await BunkerSigner.fromURI(localSecret, uri, { pool });
+        const s = await BunkerSigner.fromURI(localSecret, uri, {
+            pool,
+            onauth: (url: string) => {
+                try {
+                    window.open(url, '_blank');
+                } catch (e) {
+                    console.warn('Failed to open NIP-46 auth URL', e, url);
+                }
+            }
+        });
+        
+        try {
+            await s.connect();
+        } catch (e) {
+            console.warn('NIP-46 connect() failed:', e);
+        }
         
         const pubkey = await s.getPublicKey();
         const npub = nip19.npubEncode(pubkey);
@@ -100,6 +117,8 @@ export class AuthService {
         localStorage.setItem(AUTH_METHOD_KEY, 'nip46');
         localStorage.setItem(NIP46_SECRET_KEY, bytesToHex(localSecret));
         localStorage.setItem(NIP46_URI_KEY, uri);
+        localStorage.setItem(NIP46_BUNKER_PUBKEY_KEY, s.bp.pubkey);
+        localStorage.setItem(NIP46_BUNKER_RELAYS_KEY, s.bp.relays.join(','));
 
         await discoverUserRelays(npub);
         messagingService.fetchHistory().catch(console.error);
@@ -176,14 +195,26 @@ export class AuthService {
                 return true;
             } else if (method === 'nip46') {
                 const secretHex = localStorage.getItem(NIP46_SECRET_KEY);
-                const uri = localStorage.getItem(NIP46_URI_KEY);
+                const bunkerPubkey = localStorage.getItem(NIP46_BUNKER_PUBKEY_KEY);
+                const bunkerRelaysCsv = localStorage.getItem(NIP46_BUNKER_RELAYS_KEY);
                 
-                if (!secretHex || !uri) return false;
+                if (!secretHex || !bunkerPubkey || !bunkerRelaysCsv) return false;
 
                 const localSecret = hexToBytes(secretHex);
+                const relays = bunkerRelaysCsv.split(',').map(r => r.trim()).filter(Boolean);
+                if (relays.length === 0) return false;
                 const pool = new SimplePool();
                 
-                const s = await BunkerSigner.fromURI(localSecret, uri, { pool });
+                const s = BunkerSigner.fromBunker(localSecret, { pubkey: bunkerPubkey, relays, secret: null }, {
+                    pool,
+                    onauth: (url: string) => {
+                        try {
+                            window.open(url, '_blank');
+                        } catch (e) {
+                            console.warn('Failed to open NIP-46 auth URL', e, url);
+                        }
+                    }
+                });
                 
                 const pubkey = await s.getPublicKey();
                 const npub = nip19.npubEncode(pubkey);
