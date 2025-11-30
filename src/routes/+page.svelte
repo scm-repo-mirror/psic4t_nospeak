@@ -30,6 +30,17 @@
         }
     }
 
+    async function loginAmber() {
+        try {
+            isLoading = true;
+            const uri = await authService.loginWithAmber();
+            window.location.href = uri;
+        } catch (e) {
+            error = (e as Error).message;
+            isLoading = false;
+        }
+    }
+
     async function loginExtension() {
         try {
             isLoading = true;
@@ -70,6 +81,18 @@
                 class="w-full mt-2 bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors disabled:opacity-50"
             >
                 {isLoading ? 'Connecting...' : 'Login'}
+            </button>
+        </div>
+
+        <div class="text-center my-4 text-gray-500 dark:text-gray-400">OR</div>
+
+        <div>
+            <button 
+                onclick={loginAmber}
+                disabled={isLoading}
+                class="w-full bg-orange-500 text-white p-2 rounded hover:bg-orange-600 transition-colors disabled:opacity-50"
+            >
+                Login with Amber
             </button>
         </div>
 
