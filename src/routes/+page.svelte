@@ -56,7 +56,7 @@
 
 <div class="flex flex-col items-center justify-center h-full p-4">
     <div class="p-8 bg-white dark:bg-gray-800 w-full max-w-md">
-        <h1 class="text-2xl font-bold mb-4 text-center dark:text-white">Nospeak Web</h1>
+        <h1 class="text-2xl font-bold mb-4 text-center dark:text-white">nospeak</h1>
         
         {#if error}
             <div class="text-red-500 mb-4 text-sm">{error}</div>
