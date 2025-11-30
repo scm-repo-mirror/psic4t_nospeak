@@ -70,7 +70,7 @@ export class AuthService {
                 relays,
                 name: 'Nospeak Web',
                 url: window.location.origin,
-                perms: ['sign_event:1', 'nip04_encrypt', 'nip04_decrypt'],
+                perms: ['sign_event:1', 'sign_event:0', 'sign_event:13', 'sign_event:10002', 'nip44_encrypt', 'nip44_decrypt'],
                 secret,
             };
 
