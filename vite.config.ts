@@ -6,6 +6,9 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		VitePWA({
+			strategies: 'injectManifest',
+			srcDir: 'src',
+			filename: 'service-worker.ts',
 			registerType: 'autoUpdate',
 			includeAssets: ['favicon.svg', 'robots.txt', 'favicons/*.png', 'favicons/*.ico'],
 			manifest: {

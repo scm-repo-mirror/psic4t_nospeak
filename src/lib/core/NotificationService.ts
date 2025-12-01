@@ -50,29 +50,59 @@ export class NotificationService {
             }
 
             // Create notification
-            const notification = new Notification(`New message from ${senderName}`, {
-                body: message,
-                icon: senderPicture || '/favicon.svg',
-                badge: '/favicon.svg',
-                tag: `message-${senderNpub}`, // Group notifications by sender
-                requireInteraction: false,
-                silent: false
-            });
+            let swRegistration: ServiceWorkerRegistration | undefined;
 
-            // Click handler to focus the chat window
-            notification.onclick = () => {
-                if (typeof window !== 'undefined') {
-                    window.focus();
-                    // Navigate to the sender's chat
-                    window.location.href = `/chat/${senderNpub}`;
+            if ('serviceWorker' in navigator) {
+                try {
+                    // Wait for service worker to be ready with a timeout
+                    // This prevents hanging if no SW is registered (e.g. dev mode or desktop without PWA)
+                    swRegistration = await Promise.race([
+                        navigator.serviceWorker.ready,
+                        new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1000))
+                    ]);
+                } catch (e) {
+                    console.warn('Service Worker check failed:', e);
                 }
-                notification.close();
-            };
+            }
 
-            // Auto-close after 5 seconds
-            setTimeout(() => {
-                notification.close();
-            }, 5000);
+            if (swRegistration) {
+                await swRegistration.showNotification(`New message from ${senderName}`, {
+                    body: message,
+                    icon: senderPicture || '/favicon.svg',
+                    badge: '/favicon.svg',
+                    tag: `message-${senderNpub}`, // Group notifications by sender
+                    requireInteraction: false,
+                    silent: false,
+                    data: {
+                        url: `/chat/${senderNpub}`
+                    }
+                });
+            } else {
+                // Fallback for non-SW environments
+                const notification = new Notification(`New message from ${senderName}`, {
+                    body: message,
+                    icon: senderPicture || '/favicon.svg',
+                    badge: '/favicon.svg',
+                    tag: `message-${senderNpub}`, // Group notifications by sender
+                    requireInteraction: false,
+                    silent: false
+                });
+
+                // Click handler to focus the chat window
+                notification.onclick = () => {
+                    if (typeof window !== 'undefined') {
+                        window.focus();
+                        // Navigate to the sender's chat
+                        window.location.href = `/chat/${senderNpub}`;
+                    }
+                    notification.close();
+                };
+
+                // Auto-close after 5 seconds
+                setTimeout(() => {
+                    notification.close();
+                }, 5000);
+            }
 
         } catch (e) {
             console.error('Failed to show notification:', e);
