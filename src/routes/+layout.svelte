@@ -6,9 +6,19 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import { softVibrate } from "$lib/utils/haptics";
 
   let { children } = $props();
   let isInitialized = $state(false);
+
+  // Global click handler for link vibration
+  function handleGlobalClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    const anchor = target.closest('a');
+    if (anchor) {
+        softVibrate();
+    }
+  }
 
   onMount(async () => {
     // Register PWA Service Worker
@@ -90,6 +100,7 @@
 <svelte:window
   ononline={() => isOnline.set(true)}
   onoffline={() => isOnline.set(false)}
+  onclick={handleGlobalClick}
 />
 
 {#if isInitialized}

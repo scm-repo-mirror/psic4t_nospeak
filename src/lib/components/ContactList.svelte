@@ -10,6 +10,7 @@
     import { page } from '$app/state';
     import Avatar from './Avatar.svelte';
     import SettingsModal from './SettingsModal.svelte';
+    import { softVibrate } from '$lib/utils/haptics';
     
     let isModalOpen = $state(false);
     let isSettingsOpen = $state(false);
@@ -47,6 +48,7 @@
     });
 
     function selectContact(npub: string) {
+        softVibrate();
         goto(`/chat/${npub}`, { invalidateAll: true }); 
     }
 </script>
@@ -56,7 +58,10 @@
         <div class="font-bold dark:text-white">Contacts</div>
         <div class="flex gap-2">
             <button 
-                onclick={() => isSettingsOpen = true} 
+                onclick={() => {
+                    softVibrate();
+                    isSettingsOpen = true;
+                }} 
                 class="text-xs text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300"
                 aria-label="Open settings"
             >
@@ -86,7 +91,12 @@
                     : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
             >
-                <Avatar npub={contact.npub} src={contact.picture} size="md" />
+                <Avatar 
+                    npub={contact.npub} 
+                    src={contact.picture} 
+                    size="md" 
+                    class="!w-12 !h-12 md:!w-10 md:!h-10 transition-all duration-200"
+                />
                 
                 <div class="flex-1 min-w-0">
                     <div class="font-medium dark:text-gray-200 truncate">{contact.name}</div>
@@ -101,7 +111,10 @@
 
     <div class="p-2 border-t dark:border-gray-700">
         <button 
-            onclick={() => isModalOpen = true}
+            onclick={() => {
+                softVibrate();
+                isModalOpen = true;
+            }}
             class="w-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 py-1 px-2 rounded text-sm hover:bg-blue-200 dark:hover:bg-blue-800"
         >
             Manage Contacts

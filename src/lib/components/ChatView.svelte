@@ -10,6 +10,7 @@
   import { currentUser } from "$lib/stores/auth";
   import { emojis } from "$lib/utils/emojis";
   import { goto } from '$app/navigation';
+  import { softVibrate } from '$lib/utils/haptics';
 
   let { messages = [], partnerNpub } = $props<{
     messages: Message[];
@@ -319,7 +320,10 @@
     >
       <div class="flex items-center gap-3">
         <button 
-            onclick={() => goto('/chat')}
+            onclick={() => {
+                softVibrate();
+                goto('/chat');
+            }}
             class="md:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             aria-label="Back to contacts"
         >

@@ -1,5 +1,10 @@
 <script lang="ts">
-    let { src, npub, size = 'md' } = $props<{ src?: string, npub: string, size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' }>();
+    let { src, npub, size = 'md', class: className = '' } = $props<{ 
+        src?: string, 
+        npub: string, 
+        size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl',
+        class?: string 
+    }>();
 
     const robotUrl = $derived(`https://robohash.org/${npub}.png?set=set1&bgset=bg2`);
     
@@ -24,7 +29,7 @@
     };
 </script>
 
-<div class={`${sizeClasses[size as keyof typeof sizeClasses]} rounded-md overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700`}>
+<div class={`${sizeClasses[size as keyof typeof sizeClasses]} ${className} rounded-md overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700`}>
     <img 
         src={finalSrc} 
         alt="Avatar" 

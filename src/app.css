@@ -1,3 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Global tap feedback */
+a:active, button:active {
+    opacity: 0.7;
+    transition: opacity 0.1s;
+}
+
+/* Ensure better touch handling */
+a, button {
+    touch-action: manipulation;
+}
