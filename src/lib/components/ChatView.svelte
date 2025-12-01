@@ -361,7 +361,12 @@
             class="mb-1 hover:opacity-80 transition-opacity cursor-pointer"
             onclick={() => partnerNpub && openProfile(partnerNpub)}
           >
-            <Avatar npub={partnerNpub} src={partnerPicture} size="sm" />
+            <Avatar 
+                npub={partnerNpub} 
+                src={partnerPicture} 
+                size="sm" 
+                class="!w-14 !h-14 md:!w-8 md:!h-8 transition-all duration-200"
+            />
           </button>
         {/if}
 
@@ -393,7 +398,12 @@
             class="mb-1 hover:opacity-80 transition-opacity cursor-pointer"
             onclick={() => $currentUser && openProfile($currentUser.npub)}
           >
-            <Avatar npub={$currentUser.npub} src={myPicture} size="sm" />
+            <Avatar 
+                npub={$currentUser.npub} 
+                src={myPicture} 
+                size="sm" 
+                class="!w-14 !h-14 md:!w-8 md:!h-8 transition-all duration-200"
+            />
           </button>
         {/if}
       </div>

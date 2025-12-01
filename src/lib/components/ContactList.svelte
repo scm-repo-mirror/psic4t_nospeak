@@ -95,7 +95,7 @@
                     npub={contact.npub} 
                     src={contact.picture} 
                     size="md" 
-                    class="!w-12 !h-12 md:!w-10 md:!h-10 transition-all duration-200"
+                    class="!w-14 !h-14 md:!w-10 md:!h-10 transition-all duration-200"
                 />
                 
                 <div class="flex-1 min-w-0">
