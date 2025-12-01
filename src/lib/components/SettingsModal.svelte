@@ -5,6 +5,7 @@
   import { authService } from "$lib/core/AuthService";
   import { currentUser } from "$lib/stores/auth";
   import { profileRepo } from "$lib/db/ProfileRepository";
+  import MediaUploadButton from './MediaUploadButton.svelte';
   const packageVersion = "0.6.1";
 
   let { isOpen = false, close = () => {} } = $props<{
@@ -38,6 +39,20 @@
   };
   let relays = $state<RelayConfig[]>([]);
   let newRelayUrl = $state("");
+
+  function handlePictureUpload(file: File, type: 'image' | 'video', url?: string) {
+    if (url) {
+      profilePicture = url;
+      saveProfile();
+    }
+  }
+
+  function handleBannerUpload(file: File, type: 'image' | 'video', url?: string) {
+    if (url) {
+      profileBanner = url;
+      saveProfile();
+    }
+  }
 
   async function loadProfile() {
     if ($currentUser?.npub) {
@@ -421,13 +436,16 @@
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >Picture URL</label
                   >
-                  <input
-                    id="profile-picture"
-                    bind:value={profilePicture}
-                    type="url"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/avatar.jpg"
-                  />
+                  <div class="flex gap-2">
+                    <MediaUploadButton onFileSelect={handlePictureUpload} />
+                    <input
+                      id="profile-picture"
+                      bind:value={profilePicture}
+                      type="url"
+                      class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://example.com/avatar.jpg"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -436,13 +454,16 @@
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >Banner URL</label
                   >
-                  <input
-                    id="profile-banner"
-                    bind:value={profileBanner}
-                    type="url"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/banner.jpg"
-                  />
+                  <div class="flex gap-2">
+                    <MediaUploadButton onFileSelect={handleBannerUpload} />
+                    <input
+                      id="profile-banner"
+                      bind:value={profileBanner}
+                      type="url"
+                      class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://example.com/banner.jpg"
+                    />
+                  </div>
                 </div>
 
                 <div>
