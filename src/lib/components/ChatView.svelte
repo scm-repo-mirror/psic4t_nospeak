@@ -161,10 +161,10 @@
     scrollToBottom();
   });
 
-  // Auto-focus input
+  // Auto-focus input (desktop only)
   $effect(() => {
     partnerNpub; // Trigger on chat switch
-    if (!isSending && inputElement) {
+    if (!isSending && inputElement && window.innerWidth >= 768) {
       inputElement.focus();
     }
   });
@@ -441,7 +441,7 @@
         <button
           type="submit"
           disabled={isSending || !inputText.trim()}
-          class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-blue-500 transition-colors"
+          class="hidden md:block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-blue-500 transition-colors"
         >
           {isSending ? "..." : "Send"}
         </button>
