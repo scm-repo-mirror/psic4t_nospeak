@@ -94,7 +94,7 @@
 
 {#if isInitialized}
   <div
-    class="h-screen bg-gray-100 dark:bg-gray-900 flex justify-center overflow-hidden"
+    class="h-dvh bg-gray-100 dark:bg-gray-900 flex justify-center overflow-hidden"
   >
     <div class="w-full max-w-full lg:max-w-7xl xl:max-w-6xl h-full relative">
       {@render children()}
