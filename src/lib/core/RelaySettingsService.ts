@@ -110,14 +110,12 @@ export class RelaySettingsService {
         const { relayHealths } = await import('$lib/stores/connection');
         const currentHealths = get(relayHealths);
         
-        // Remove existing persistent relays that are not in the new list
-        // (and not default discovery relays)
-        const newRelays = new Set([...readRelays, ...writeRelays]);
+        // Remove existing persistent relays that are not in the read list
+        const persistentRelaysToKeep = new Set(readRelays);
         
         for (const health of currentHealths) {
             if (health.type === ConnectionType.Persistent && 
-                !DEFAULT_DISCOVERY_RELAYS.includes(health.url) &&
-                !newRelays.has(health.url)) {
+                !persistentRelaysToKeep.has(health.url)) {
                 connectionManager.removeRelay(health.url);
             }
         }
@@ -125,11 +123,6 @@ export class RelaySettingsService {
         // Add new relays from settings
         for (const relay of readRelays) {
             connectionManager.addPersistentRelay(relay);
-        }
-        for (const relay of writeRelays) {
-            if (!readRelays.includes(relay)) {
-                connectionManager.addPersistentRelay(relay);
-            }
         }
     }
 }

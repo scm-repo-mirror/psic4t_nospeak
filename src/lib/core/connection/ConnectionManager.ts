@@ -67,6 +67,11 @@ export class ConnectionManager {
                 this.onRelayListUpdate(Array.from(this.relays.values()));
             }
         }, 500);
+
+        if (typeof window !== 'undefined') {
+            window.addEventListener('online', this.handleOnline);
+            window.addEventListener('offline', this.handleOffline);
+        }
     }
 
     public stop() {
@@ -74,6 +79,11 @@ export class ConnectionManager {
         if (this.healthCheckTimer) clearInterval(this.healthCheckTimer);
         if (this.uiUpdateTimer) clearInterval(this.uiUpdateTimer);
         
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('online', this.handleOnline);
+            window.removeEventListener('offline', this.handleOffline);
+        }
+
         for (const health of this.relays.values()) {
             if (health.relay) {
                 health.relay.close();
@@ -82,6 +92,19 @@ export class ConnectionManager {
         
         if (this.debug) console.log('Connection manager stopped');
     }
+
+    private handleOnline = () => {
+        if (this.debug) console.log('Network online, checking relays...');
+        for (const [url, health] of this.relays.entries()) {
+            if (!health.isConnected && health.type === ConnectionType.Persistent) {
+                this.handleReconnection(url);
+            }
+        }
+    };
+
+    private handleOffline = () => {
+        if (this.debug) console.log('Network offline');
+    };
 
     public addPersistentRelay(url: string) {
         if (!this.relays.has(url)) {
@@ -223,7 +246,10 @@ export class ConnectionManager {
         health.consecutiveFails++;
         health.lastAttempt = Date.now();
 
-        if (health.consecutiveFails >= 3) {
+        // Always try to reconnect persistent relays (handleReconnection manages backoff)
+        if (health.type === ConnectionType.Persistent) {
+            this.handleReconnection(url);
+        } else if (health.consecutiveFails >= 3) {
             this.handleReconnection(url);
         }
 
@@ -369,7 +395,7 @@ export class ConnectionManager {
 
     private checkAllRelayHealth() {
         for (const [url, health] of this.relays.entries()) {
-            if (!health.isConnected || (Date.now() - health.lastConnected) > this.config.healthCheckInterval * 2) {
+            if (!health.isConnected) {
                 if (health.consecutiveFails < 5 || health.consecutiveFails % 5 === 0) {
                     this.handleReconnection(url);
                 }
