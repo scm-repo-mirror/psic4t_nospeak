@@ -313,7 +313,7 @@
   {/if}
 </svelte:head>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full overflow-hidden">
   {#if partnerNpub}
     <div
       class="p-3 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800 flex-shrink-0"
