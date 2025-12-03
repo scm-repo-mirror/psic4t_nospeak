@@ -334,11 +334,11 @@ export class MessagingService {
             await messageRepo.saveMessages(messagesToSave);
             if (this.debug) console.log(`Saved ${messagesToSave.length} messages from batch`);
             
-            // Auto-add contacts from historical messages
+            // Auto-add contacts from historical messages (both sent and received)
+            // For received: recipientNpub is the sender
+            // For sent: recipientNpub is the recipient
             for (const message of messagesToSave) {
-              if (message.direction === 'received') {
-                await this.autoAddContact(message.recipientNpub, false); // Don't mark as unread for history
-              }
+              await this.autoAddContact(message.recipientNpub, false); // Don't mark as unread for history
             }
           }
         }

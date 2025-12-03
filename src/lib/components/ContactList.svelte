@@ -12,16 +12,25 @@
     import Avatar from './Avatar.svelte';
     import SettingsModal from './SettingsModal.svelte';
     import { softVibrate } from '$lib/utils/haptics';
+    import { onMount } from 'svelte';
     
     let isModalOpen = $state(false);
     let isSettingsOpen = $state(false);
 
     // Sync contacts from DB to store
-    $effect(() => {
-        const sub = liveQuery(async () => {
-            const dbContacts = await contactRepo.getContacts();
+    // Use onMount instead of $effect to avoid infinite loop when updating store
+    onMount(() => {
+        console.log('ContactList: Setting up liveQuery subscription');
+        
+        // Only watch contacts table changes for reactivity
+        // IMPORTANT: liveQuery callback must be SYNCHRONOUS for proper table tracking
+        const sub = liveQuery(() => {
+            console.log('ContactList: liveQuery triggered - contacts table changed');
+            return contactRepo.getContacts();
+        }).subscribe(async (dbContacts) => {
+            console.log('ContactList: Processing contacts from DB:', dbContacts.length);
             
-            // Map with async profile resolution
+            // Handle async data enrichment separately in subscribe callback
             const contactsData = await Promise.all(dbContacts.map(async (c) => {
                 const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
                 const lastMsgs = await messageRepo.getMessages(c.npub, 1);
@@ -44,11 +53,15 @@
                 };
             }));
             
-            return contactsData.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-        }).subscribe(mapped => {
-            contactsStore.set(mapped);
+            const sortedContacts = contactsData.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+            console.log('ContactList: Updating store with', sortedContacts.length, 'contacts');
+            contactsStore.set(sortedContacts);
         });
-        return () => sub.unsubscribe();
+        
+        return () => {
+            console.log('ContactList: Cleaning up liveQuery subscription');
+            sub.unsubscribe();
+        };
     });
 
     function selectContact(npub: string) {

@@ -8,11 +8,13 @@
     import { messageRepo } from '$lib/db/MessageRepository';
     import { syncState } from '$lib/stores/sync';
     import SyncProgressModal from '$lib/components/SyncProgressModal.svelte';
+    import { untrack } from 'svelte';
 
     let { children } = $props();
     
     let isMobile = $state(false);
-    let previousSyncState = $state({ isSyncing: false, isFirstSync: false });
+    // Use regular object (not $state) to avoid triggering effect re-runs
+    let previousSyncState = { isSyncing: false, isFirstSync: false };
 
     onMount(() => {
         // Detect mobile
@@ -52,8 +54,13 @@
     
     // Watch for sync completion to auto-navigate on desktop
     $effect(() => {
+        // Read current sync state (this creates the dependency)
+        const currentIsSyncing = $syncState.isSyncing;
+        const currentIsFirstSync = $syncState.isFirstSync;
+        
+        // Check if first sync just ended (read previous state without tracking)
         const wasFirstSync = previousSyncState.isSyncing && previousSyncState.isFirstSync;
-        const syncJustEnded = wasFirstSync && !$syncState.isSyncing;
+        const syncJustEnded = wasFirstSync && !currentIsSyncing;
         
         if (syncJustEnded) {
             // First sync just completed - auto-navigate to newest contact on desktop
@@ -67,8 +74,8 @@
             }
         }
         
-        // Update previous state
-        previousSyncState = { isSyncing: $syncState.isSyncing, isFirstSync: $syncState.isFirstSync };
+        // Update previous state (not reactive, won't trigger re-run)
+        previousSyncState = { isSyncing: currentIsSyncing, isFirstSync: currentIsFirstSync };
     });
     
     let isChatOpen = $derived(page.url.pathname !== '/chat');
