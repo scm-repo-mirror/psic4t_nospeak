@@ -39,8 +39,9 @@
             const pubkey = await s.getPublicKey();
             unsub = messagingService.listenForMessages(pubkey);
             
-            // Auto-navigate to last message recipient if on chat root
-            if (page.url.pathname === '/chat') {
+            // Auto-navigate to last message recipient if on chat root AND on desktop
+            const isDesktop = window.innerWidth >= 768;
+            if (page.url.pathname === '/chat' && isDesktop) {
                 const lastRecipient = await messageRepo.getLastMessageRecipient();
                 if (lastRecipient) {
                     goto(`/chat/${lastRecipient}`);

@@ -1,6 +1,6 @@
 # Messaging Specification Deltas
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Message Interface Layout
 The chat interface SHALL maintain a fixed layout on all screen sizes.
