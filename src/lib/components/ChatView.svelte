@@ -12,10 +12,11 @@
   import { goto } from '$app/navigation';
   import { softVibrate } from '$lib/utils/haptics';
 
-  let { messages = [], partnerNpub, onLoadMore } = $props<{
+  let { messages = [], partnerNpub, onLoadMore, isFetchingHistory = false } = $props<{
     messages: Message[];
     partnerNpub?: string;
     onLoadMore?: () => void;
+    isFetchingHistory?: boolean;
   }>();
   let inputText = $state("");
   let partnerName = $state("");
@@ -373,7 +374,12 @@
   {/if}
 
   <div bind:this={chatContainer} class="flex-1 overflow-y-auto p-4 space-y-4" onscroll={handleScroll}>
-    {#if messages.length === 0}
+    {#if isFetchingHistory}
+      <div class="flex justify-center p-2">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+      </div>
+    {/if}
+    {#if messages.length === 0 && !isFetchingHistory}
       <div class="text-center text-gray-400 mt-10">No messages yet</div>
     {/if}
 

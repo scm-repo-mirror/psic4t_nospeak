@@ -8,10 +8,30 @@ import { get } from 'svelte/store';
 // Mock dependencies
 vi.mock('$lib/db/ContactRepository');
 vi.mock('$lib/db/MessageRepository');
+vi.mock('$lib/db/ProfileRepository', () => ({
+    profileRepo: {
+        getProfile: vi.fn().mockResolvedValue({ readRelays: ['wss://relay.test'] }),
+        getProfileIgnoreTTL: vi.fn(),
+        updateProfile: vi.fn()
+    }
+}));
 vi.mock('./NotificationService');
 vi.mock('$lib/stores/auth');
 vi.mock('svelte/store');
 vi.mock('./ProfileResolver');
+
+vi.mock('./connection/instance', () => ({
+    connectionManager: {
+        fetchEvents: vi.fn().mockResolvedValue([]),
+        subscribe: vi.fn(),
+        getConnectedRelays: vi.fn().mockReturnValue(['wss://relay.example.com']),
+        addTemporaryRelay: vi.fn(),
+        cleanupTemporaryConnections: vi.fn()
+    },
+    retryQueue: {
+        enqueue: vi.fn()
+    }
+}));
 
 describe('MessagingService - Auto-add Contacts', () => {
     let messagingService: MessagingService;
@@ -22,7 +42,7 @@ describe('MessagingService - Auto-add Contacts', () => {
         messagingService = new MessagingService();
         
         mockSigner = {
-            getPublicKey: vi.fn().mockResolvedValue('79dff8f426826fdd7c32deb1d9e1f9c0d1234567890abcdef1234567890abcdef12'),
+            getPublicKey: vi.fn().mockResolvedValue('79dff8f426826fdd7c32deb1d9e1f9c01234567890abcdef1234567890abcdef'), // 64 chars
             decrypt: vi.fn(),
             encrypt: vi.fn(),
             signEvent: vi.fn()
@@ -107,6 +127,34 @@ describe('MessagingService - Auto-add Contacts', () => {
             
             // Reset for other tests
             (messagingService as any).isFetchingHistory = false;
+        });
+    });
+
+    describe('fetchOlderMessages', () => {
+        it('should call fetchMessages with correct parameters', async () => {
+            // We spy on the private method fetchMessages by casting to any
+            const spy = vi.spyOn(messagingService as any, 'fetchMessages').mockResolvedValue({ totalFetched: 10, processed: 10 });
+            
+            await messagingService.fetchOlderMessages(1234567890);
+            
+            expect(spy).toHaveBeenCalledWith(expect.objectContaining({
+                until: 1234567890,
+                limit: 20,
+                abortOnDuplicates: false
+            }));
+        });
+        
+        it('should set isFetchingHistory flag while running', async () => {
+             // Mock fetchMessages to take some time
+            vi.spyOn(messagingService as any, 'fetchMessages').mockImplementation(async () => {
+                await new Promise(resolve => setTimeout(resolve, 10));
+                return { totalFetched: 0, processed: 0 };
+            });
+
+            const fetchPromise = messagingService.fetchOlderMessages(1234567890);
+            expect((messagingService as any).isFetchingHistory).toBe(true);
+            await fetchPromise;
+            expect((messagingService as any).isFetchingHistory).toBe(false);
         });
     });
 });

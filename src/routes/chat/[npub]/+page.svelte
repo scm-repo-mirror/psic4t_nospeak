@@ -15,6 +15,7 @@
     let currentPartner = $derived(page.params.npub);
     let previousPartner = '';
     let limit = $state(50);
+    let isFetchingHistory = $state(false);
     
     let myPubkey = '';
 
@@ -26,8 +27,26 @@
         limit = 50;
     });
 
-    function handleLoadMore() {
+    async function handleLoadMore() {
+        const currentCount = messages.length;
         limit += 50;
+
+        if (currentPartner) {
+            const totalLocal = await messageRepo.countMessages(currentPartner);
+            if (currentCount >= totalLocal) {
+                const oldest = messages[0];
+                if (oldest) {
+                    isFetchingHistory = true;
+                    try {
+                        await messagingService.fetchOlderMessages(Math.floor(oldest.sentAt / 1000));
+                    } catch (e) {
+                        console.error('Failed to fetch older messages:', e);
+                    } finally {
+                        isFetchingHistory = false;
+                    }
+                }
+            }
+        }
     }
 
     // Effect to update subscription when partner changes or component mounts
@@ -84,4 +103,4 @@
     });
 </script>
 
-<ChatView {messages} partnerNpub={currentPartner} onLoadMore={handleLoadMore} />
+<ChatView {messages} partnerNpub={currentPartner} onLoadMore={handleLoadMore} {isFetchingHistory} />

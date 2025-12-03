@@ -78,6 +78,16 @@ export class MessageRepository {
         const lastMessage = await db.messages.orderBy('sentAt').reverse().first();
         return lastMessage?.recipientNpub || null;
     }
+
+    public async countMessages(recipientNpub: string): Promise<number> {
+        if (recipientNpub === 'ALL') {
+            return await db.messages.count();
+        }
+        return await db.messages.where('[recipientNpub+sentAt]').between(
+            [recipientNpub, Dexie.minKey],
+            [recipientNpub, Dexie.maxKey]
+        ).count();
+    }
 }
 
 export const messageRepo = new MessageRepository();

@@ -187,34 +187,90 @@ export class MessagingService {
 
         this.isFetchingHistory = true;
         this.lastHistoryFetch = now;
-        const myPubkey = await s.getPublicKey();
+        
+        try {
+            const myPubkey = await s.getPublicKey();
 
-        // 1. Wait for relays to be connected before fetching
-        const relays = await this.getReadRelays(nip19.npubEncode(myPubkey));
-        if (relays.length === 0) {
-            console.warn('No user relays found, history fetching may be incomplete');
+            // 1. Wait for relays to be connected before fetching
+            const relays = await this.getReadRelays(nip19.npubEncode(myPubkey));
+            if (relays.length === 0) {
+                console.warn('No user relays found, history fetching may be incomplete');
+            }
+
+            // Wait for at least one relay to be connected
+            await this.waitForRelayConnection(relays);
+
+            // 2. Fetch with checkpointing (stop on duplicates)
+            const result = await this.fetchMessages({
+                until: Math.floor(Date.now() / 1000),
+                limit: 50,
+                abortOnDuplicates: true
+            });
+
+            if (this.debug) console.log(`History fetch completed. Total fetched: ${result.totalFetched}`);
+            return result;
+        } finally {
+            this.isFetchingHistory = false;
+        }
+    }
+
+    // Fetch older messages for infinite scroll
+    public async fetchOlderMessages(until: number, limit: number = 20) {
+        const s = get(signer);
+        if (!s) return { totalFetched: 0, processed: 0 };
+
+        if (this.isFetchingHistory) {
+             if (this.debug) console.log('Already fetching history, skipping fetchOlderMessages');
+             return { totalFetched: 0, processed: 0 };
         }
 
-        // Wait for at least one relay to be connected
-        await this.waitForRelayConnection(relays);
+        this.isFetchingHistory = true;
 
-        // 3. Fetch in batches to get comprehensive history
-        const fetchBatchSize = 50;
-        let until = Math.floor(Date.now() / 1000);
+        try {
+            const myPubkey = await s.getPublicKey();
+            
+            // Ensure relays are connected (fast check)
+            const relays = await this.getReadRelays(nip19.npubEncode(myPubkey));
+            await this.waitForRelayConnection(relays, 2000); // Shorter timeout for pagination
+
+             // Fetch WITHOUT checkpointing (don't stop on duplicates immediately)
+             // We want to dig deeper even if we find some known messages.
+            const result = await this.fetchMessages({
+                until,
+                limit,
+                abortOnDuplicates: false
+            });
+
+            if (this.debug) console.log(`Older messages fetch completed. Total fetched: ${result.totalFetched}`);
+            return result;
+
+        } finally {
+            this.isFetchingHistory = false;
+        }
+    }
+
+    private async fetchMessages(options: { until: number, limit: number, abortOnDuplicates: boolean }) {
+        const s = get(signer);
+        if (!s) return { totalFetched: 0, processed: 0 };
+
+        const myPubkey = await s.getPublicKey();
+        let until = options.until;
         let hasMore = true;
         let totalFetched = 0;
+        let batchCount = 0;
+        const maxBatches = options.abortOnDuplicates ? 100 : 5; // Safety limit: strict for older messages to avoid endless loops
 
-        while (hasMore) {
+        while (hasMore && batchCount < maxBatches) {
+            batchCount++;
             const filters = [{
                 kinds: [1059],
                 '#p': [myPubkey],
-                limit: fetchBatchSize,
+                limit: options.limit,
                 until
             }];
 
-            if (this.debug) console.log(`Fetching message history batch... (until: ${until}, total: ${totalFetched})`);
+            if (this.debug) console.log(`Fetching batch ${batchCount}... (until: ${until}, total: ${totalFetched})`);
 
-            // Use a reasonable timeout per batch
             const events = await connectionManager.fetchEvents(filters, 10000);
             
             if (events.length === 0) {
@@ -225,12 +281,24 @@ export class MessagingService {
                 // PIPELINE: Process this batch immediately
                 const existingEventIds = await messageRepo.hasMessages(events.map(e => e.id));
                 
-                // CHECKPOINTING: If all events in this batch are already known, stop fetching
-                if (events.length > 0 && existingEventIds.size === events.length) {
-                    if (this.debug) console.log('Checkpoint reached: All events in batch are duplicates. Stopping history fetch.');
+                // CHECKPOINTING: 
+                // If abortOnDuplicates is TRUE (initial sync), stop if ALL events are known.
+                if (options.abortOnDuplicates && events.length > 0 && existingEventIds.size === events.length) {
+                    if (this.debug) console.log('Checkpoint reached: All events in batch are duplicates. Stopping fetch.');
                     hasMore = false;
                     break;
                 }
+                
+                // If abortOnDuplicates is FALSE (pagination), we continue even if we find duplicates,
+                // because we might be bridging a gap. However, if we find NO new messages in a full batch, 
+                // it might mean we really reached the end or a very large gap.
+                // For now, let's stop if we get a full batch of duplicates even in pagination mode,
+                // effectively acting as a "deep checkpoint".
+                 if (!options.abortOnDuplicates && events.length > 0 && existingEventIds.size === events.length) {
+                     if (this.debug) console.log('Deep checkpoint: Batch full of duplicates during pagination. Stopping.');
+                     hasMore = false;
+                     break;
+                 }
 
                 const newEvents = events.filter(event => !existingEventIds.has(event.id));
                 if (newEvents.length > 0) {
@@ -260,16 +328,13 @@ export class MessagingService {
                 until = oldestEvent.created_at - 1;
                 
                 // If we got less than batch size, we might be at the end
-                if (events.length < fetchBatchSize) {
+                if (events.length < options.limit) {
                     hasMore = false;
                 }
             }
         }
 
-        if (this.debug) console.log(`History fetch completed. Total fetched: ${totalFetched}`);
-        
-        this.isFetchingHistory = false;
-        return { totalFetched, processed: totalFetched }; // Simplify return stats
+        return { totalFetched, processed: totalFetched };
     }
 
     public async sendMessage(recipientNpub: string, text: string) {
