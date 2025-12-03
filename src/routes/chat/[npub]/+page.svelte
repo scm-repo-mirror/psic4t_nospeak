@@ -14,8 +14,21 @@
     let messages = $state<Message[]>([]);
     let currentPartner = $derived(page.params.npub);
     let previousPartner = '';
+    let limit = $state(50);
     
     let myPubkey = '';
+
+    // Reset limit when partner changes
+    $effect(() => {
+        // Dependency
+        currentPartner;
+        // Logic
+        limit = 50;
+    });
+
+    function handleLoadMore() {
+        limit += 50;
+    }
 
     // Effect to update subscription when partner changes or component mounts
     $effect(() => {
@@ -31,12 +44,15 @@
             if (!myPubkey) myPubkey = await s.getPublicKey();
             
             // Fetch message history to ensure we have the latest messages
-            messagingService.fetchHistory().catch(console.error);
+            // Only fetch if limit is small (initial load) to avoid spamming on scroll
+            if (limit === 50) {
+                 messagingService.fetchHistory().catch(console.error);
+            }
             
             // Subscribe to DB changes for SPECIFIC partner
             subDb = liveQuery(() => {
                 if (currentPartner === 'ALL') {
-                    return db.messages.orderBy('sentAt').reverse().limit(50).toArray();
+                    return db.messages.orderBy('sentAt').reverse().limit(limit).toArray();
                 } else {
                     return db.messages
                         .where('[recipientNpub+sentAt]')
@@ -47,7 +63,7 @@
                             false // exclude upper
                         )
                         .reverse()
-                        .limit(50)
+                        .limit(limit)
                         .toArray();
                 }
             }).subscribe(msgs => {
@@ -68,4 +84,4 @@
     });
 </script>
 
-<ChatView {messages} partnerNpub={currentPartner} />
+<ChatView {messages} partnerNpub={currentPartner} onLoadMore={handleLoadMore} />

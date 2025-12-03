@@ -12,9 +12,10 @@
   import { goto } from '$app/navigation';
   import { softVibrate } from '$lib/utils/haptics';
 
-  let { messages = [], partnerNpub } = $props<{
+  let { messages = [], partnerNpub, onLoadMore } = $props<{
     messages: Message[];
     partnerNpub?: string;
+    onLoadMore?: () => void;
   }>();
   let inputText = $state("");
   let partnerName = $state("");
@@ -26,6 +27,9 @@
   let chatContainer: HTMLElement;
   let inputElement: HTMLTextAreaElement;
   let currentTime = $state(Date.now());
+  
+  let previousScrollHeight = 0;
+  let isLoadingMore = false;
 
   // Context menu state
   let contextMenu = $state({
@@ -159,8 +163,29 @@
   $effect(() => {
     // Dependency on messages length to trigger scroll
     messages.length;
-    scrollToBottom();
+    if (!isLoadingMore) {
+        scrollToBottom();
+    } else if (chatContainer) {
+        // Restore scroll position when loading more
+        // Use timeout to ensure DOM has updated height
+        setTimeout(() => {
+            const heightDiff = chatContainer.scrollHeight - previousScrollHeight;
+            if (heightDiff > 0) {
+                chatContainer.scrollTop = heightDiff;
+            }
+            isLoadingMore = false;
+        }, 0);
+    }
   });
+
+  function handleScroll() {
+      if (!chatContainer) return;
+      if (chatContainer.scrollTop === 0 && onLoadMore && !isLoadingMore && messages.length > 0) {
+          isLoadingMore = true;
+          previousScrollHeight = chatContainer.scrollHeight;
+          onLoadMore();
+      }
+  }
 
   // Auto-focus input (desktop only)
   $effect(() => {
@@ -347,7 +372,7 @@
     </div>
   {/if}
 
-  <div bind:this={chatContainer} class="flex-1 overflow-y-auto p-4 space-y-4">
+  <div bind:this={chatContainer} class="flex-1 overflow-y-auto p-4 space-y-4" onscroll={handleScroll}>
     {#if messages.length === 0}
       <div class="text-center text-gray-400 mt-10">No messages yet</div>
     {/if}

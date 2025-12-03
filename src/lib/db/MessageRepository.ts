@@ -6,7 +6,14 @@ export class MessageRepository {
         let collection;
         
         if (recipientNpub === 'ALL') {
-             collection = db.messages.orderBy('sentAt').reverse();
+             if (beforeTimestamp) {
+                 collection = db.messages
+                    .where('sentAt')
+                    .below(beforeTimestamp)
+                    .reverse();
+             } else {
+                 collection = db.messages.orderBy('sentAt').reverse();
+             }
         } else {
              collection = db.messages
                 .where('[recipientNpub+sentAt]')

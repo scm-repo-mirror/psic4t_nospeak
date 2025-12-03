@@ -1,6 +1,6 @@
 import { connectionManager } from './connection/instance';
 import { messageRepo } from '$lib/db/MessageRepository';
-import { nip19, type Event, type NostrEvent, generateSecretKey, getPublicKey, finalizeEvent, nip44 } from 'nostr-tools';
+import { nip19, type NostrEvent, generateSecretKey, getPublicKey, finalizeEvent, nip44 } from 'nostr-tools';
 import { signer, currentUser } from '$lib/stores/auth';
 import { get } from 'svelte/store';
 import { profileRepo } from '$lib/db/ProfileRepository';
@@ -199,13 +199,12 @@ export class MessagingService {
         await this.waitForRelayConnection(relays);
 
         // 3. Fetch in batches to get comprehensive history
-        const fetchBatchSize = 100;
-        let allEvents: NostrEvent[] = [];
+        const fetchBatchSize = 50;
         let until = Math.floor(Date.now() / 1000);
         let hasMore = true;
         let totalFetched = 0;
 
-        while (hasMore && totalFetched < 1000) { // Limit to prevent infinite loops
+        while (hasMore) {
             const filters = [{
                 kinds: [1059],
                 '#p': [myPubkey],
@@ -215,13 +214,44 @@ export class MessagingService {
 
             if (this.debug) console.log(`Fetching message history batch... (until: ${until}, total: ${totalFetched})`);
 
-            const events = await connectionManager.fetchEvents(filters);
+            // Use a reasonable timeout per batch
+            const events = await connectionManager.fetchEvents(filters, 10000);
             
             if (events.length === 0) {
                 hasMore = false;
             } else {
-                allEvents.push(...events);
                 totalFetched += events.length;
+
+                // PIPELINE: Process this batch immediately
+                const existingEventIds = await messageRepo.hasMessages(events.map(e => e.id));
+                
+                // CHECKPOINTING: If all events in this batch are already known, stop fetching
+                if (events.length > 0 && existingEventIds.size === events.length) {
+                    if (this.debug) console.log('Checkpoint reached: All events in batch are duplicates. Stopping history fetch.');
+                    hasMore = false;
+                    break;
+                }
+
+                const newEvents = events.filter(event => !existingEventIds.has(event.id));
+                if (newEvents.length > 0) {
+                    if (this.debug) console.log(`Processing ${newEvents.length} new events in this batch...`);
+                    
+                    const batchResults = await Promise.allSettled(
+                        newEvents.map(event => this.processGiftWrapToMessage(event))
+                    );
+                    
+                    const messagesToSave: any[] = [];
+                    for (const result of batchResults) {
+                        if (result.status === 'fulfilled' && result.value) {
+                            messagesToSave.push(result.value);
+                        }
+                    }
+
+                    if (messagesToSave.length > 0) {
+                        await messageRepo.saveMessages(messagesToSave);
+                        if (this.debug) console.log(`Saved ${messagesToSave.length} messages from batch`);
+                    }
+                }
                 
                 // Update until to the oldest event's created_at for next batch
                 const oldestEvent = events.reduce((oldest, event) => 
@@ -236,46 +266,10 @@ export class MessagingService {
             }
         }
 
-        if (this.debug) console.log(`Fetched ${allEvents.length} total historical events`);
-
-        // 4. Bulk process events for better performance
-        const existingEventIds = await messageRepo.hasMessages(allEvents.map(e => e.id));
-        const newEvents = allEvents.filter(event => !existingEventIds.has(event.id));
+        if (this.debug) console.log(`History fetch completed. Total fetched: ${totalFetched}`);
         
-        if (this.debug) console.log(`Found ${newEvents.length} new events to process out of ${allEvents.length} total`);
-        
-        // Process new events in parallel batches
-        const batchSize = 10;
-        const messagesToSave: any[] = [];
-        
-        for (let i = 0; i < newEvents.length; i += 10) {
-            const batch = newEvents.slice(i, i + 10);
-            
-            // Process batch in parallel
-            const batchResults = await Promise.allSettled(
-                batch.map(event => this.processGiftWrapToMessage(event))
-            );
-            
-            // Collect successful results
-            for (const result of batchResults) {
-                if (result.status === 'fulfilled' && result.value) {
-                    messagesToSave.push(result.value);
-                }
-            }
-        }
-        
-        // Bulk save all processed messages
-        if (messagesToSave.length > 0) {
-            await messageRepo.saveMessages(messagesToSave);
-        }
-        
-        const processedCount = messagesToSave.length;
-
-        if (this.debug) console.log(`Processed ${processedCount} new historical messages`);
-        
-        const result = { totalFetched: allEvents.length, processed: processedCount };
         this.isFetchingHistory = false;
-        return result;
+        return { totalFetched, processed: totalFetched }; // Simplify return stats
     }
 
     public async sendMessage(recipientNpub: string, text: string) {
