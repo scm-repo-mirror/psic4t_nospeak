@@ -120,10 +120,12 @@ export class AuthService {
         localStorage.setItem(NIP46_BUNKER_PUBKEY_KEY, s.bp.pubkey);
         localStorage.setItem(NIP46_BUNKER_RELAYS_KEY, s.bp.relays.join(','));
 
-        await discoverUserRelays(npub, true);
-        messagingService.fetchHistory().catch(console.error);
-        
-        goto('/chat');
+            await discoverUserRelays(npub, true);
+            
+            // Fetch message history to fill cache gaps
+            messagingService.fetchHistory().catch(console.error);
+            
+            goto('/chat');
     }
 
     public async loginWithExtension(remember: boolean = true) {
@@ -142,7 +144,7 @@ export class AuthService {
                 localStorage.setItem(AUTH_METHOD_KEY, 'nip07');
             }
 
-            await discoverUserRelays(npub);
+            await discoverUserRelays(npub, true);
             
             // Fetch message history to fill cache gaps
             messagingService.fetchHistory().catch(console.error);
@@ -169,7 +171,11 @@ export class AuthService {
                 signer.set(s);
                 currentUser.set({ npub });
                 
-                discoverUserRelays(npub, true).catch(e => console.error('Restoration discovery failed:', e));
+                try {
+                    await discoverUserRelays(npub, true);
+                } catch (e) {
+                    console.error('Restoration discovery failed:', e);
+                }
                 
                 // Fetch message history after restoration
                 messagingService.fetchHistory().catch(e => console.error('Restoration history fetch failed:', e));
@@ -188,8 +194,12 @@ export class AuthService {
 
                 signer.set(s);
                 currentUser.set({ npub });
-
-                discoverUserRelays(npub, true).catch(e => console.error('Restoration discovery failed:', e));
+ 
+                try {
+                    await discoverUserRelays(npub, true);
+                } catch (e) {
+                    console.error('Restoration discovery failed:', e);
+                }
                 messagingService.fetchHistory().catch(e => console.error('Restoration history fetch failed:', e));
                 
                 return true;
@@ -221,8 +231,12 @@ export class AuthService {
 
                 signer.set(new Nip46Signer(s));
                 currentUser.set({ npub });
-                
-                discoverUserRelays(npub, true).catch(e => console.error('Restoration discovery failed:', e));
+                 
+                try {
+                    await discoverUserRelays(npub, true);
+                } catch (e) {
+                    console.error('Restoration discovery failed:', e);
+                }
                 messagingService.fetchHistory().catch(e => console.error('Restoration history fetch failed:', e));
 
                 return true;

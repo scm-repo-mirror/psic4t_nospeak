@@ -41,11 +41,7 @@
       goto("/chat");
     }
 
-    // Also fetch history on page load if authenticated and not on login page
     if (restored && location.pathname !== "/") {
-      const { messagingService } = await import("$lib/core/Messaging");
-      messagingService.fetchHistory().catch(console.error);
-
       // Wait 5 seconds then refresh all contact profiles and relay information
       setTimeout(async () => {
         console.log("Starting delayed profile and relay refresh after 5 seconds");

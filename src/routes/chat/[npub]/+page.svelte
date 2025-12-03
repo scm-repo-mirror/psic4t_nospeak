@@ -13,37 +13,21 @@
     
     let messages = $state<Message[]>([]);
     let currentPartner = $derived(page.params.npub);
-    let previousPartner = '';
-    let limit = $state(50);
     let isFetchingHistory = $state(false);
-    
-    let myPubkey = '';
-
-    // Reset limit when partner changes
-    $effect(() => {
-        // Dependency
-        currentPartner;
-        // Logic
-        limit = 50;
-    });
 
     async function handleLoadMore() {
-        const currentCount = messages.length;
-        limit += 50;
-
-        if (currentPartner) {
-            const totalLocal = await messageRepo.countMessages(currentPartner);
-            if (currentCount >= totalLocal) {
-                const oldest = messages[0];
-                if (oldest) {
-                    isFetchingHistory = true;
-                    try {
-                        await messagingService.fetchOlderMessages(Math.floor(oldest.sentAt / 1000));
-                    } catch (e) {
-                        console.error('Failed to fetch older messages:', e);
-                    } finally {
-                        isFetchingHistory = false;
-                    }
+        if (currentPartner && messages.length > 0) {
+            const oldest = messages[0];
+            if (oldest) {
+                isFetchingHistory = true;
+                try {
+                    await messagingService.fetchOlderMessages(Math.floor(oldest.sentAt / 1000));
+                    // The liveQuery will automatically pick up newly saved messages
+                    // since we query ALL messages for this partner (no limit)
+                } catch (e) {
+                    console.error('Failed to fetch older messages:', e);
+                } finally {
+                    isFetchingHistory = false;
                 }
             }
         }
@@ -52,53 +36,42 @@
     // Effect to update subscription when partner changes or component mounts
     $effect(() => {
         const s = $signer;
-        if (!s || !currentPartner) return;
+        const partner = currentPartner;
+        if (!s || !partner) return;
         
-        // Prevent redundant setup if partner hasn't changed (though $effect triggers on dep change)
-        // But setup is async, we want to make sure we clean up previous sub.
-        
-        let subDb: { unsubscribe: () => void };
-
-        const setup = async () => {
-            if (!myPubkey) myPubkey = await s.getPublicKey();
-            
-            // Fetch message history to ensure we have the latest messages
-            // Only fetch if limit is small (initial load) to avoid spamming on scroll
-            if (limit === 50) {
-                 messagingService.fetchHistory().catch(console.error);
+        // Subscribe to DB changes for SPECIFIC partner
+        // Query ALL messages for this partner - no limit, so newly fetched older messages are included
+        const sub = liveQuery(() => {
+            if (partner === 'ALL') {
+                return db.messages.orderBy('sentAt').toArray();
+            } else {
+                return db.messages
+                    .where('[recipientNpub+sentAt]')
+                    .between(
+                        [partner, Dexie.minKey],
+                        [partner, Dexie.maxKey],
+                        true, // include lower
+                        true // include upper
+                    )
+                    .toArray();
             }
-            
-            // Subscribe to DB changes for SPECIFIC partner
-            subDb = liveQuery(() => {
-                if (currentPartner === 'ALL') {
-                    return db.messages.orderBy('sentAt').reverse().limit(limit).toArray();
-                } else {
-                    return db.messages
-                        .where('[recipientNpub+sentAt]')
-                        .between(
-                            [currentPartner, Dexie.minKey],
-                            [currentPartner, Dexie.maxKey],
-                            true, // include lower
-                            false // exclude upper
-                        )
-                        .reverse()
-                        .limit(limit)
-                        .toArray();
-                }
-            }).subscribe(msgs => {
-                messages = msgs.reverse(); // Reverse to chronological order
+        }).subscribe({
+            next: (msgs) => {
+                // Sort by sentAt in chronological order
+                messages = msgs.sort((a, b) => a.sentAt - b.sentAt);
                 
                 // Mark as read
-                if (currentPartner && currentPartner !== 'ALL') {
-                    contactRepo.markAsRead(currentPartner).catch(console.error);
+                if (partner && partner !== 'ALL') {
+                    contactRepo.markAsRead(partner).catch(console.error);
                 }
-            });
-        };
-
-        setup();
+            },
+            error: (err) => {
+                console.error('liveQuery error:', err);
+            }
+        });
 
         return () => {
-            if (subDb) subDb.unsubscribe();
+            sub.unsubscribe();
         };
     });
 </script>

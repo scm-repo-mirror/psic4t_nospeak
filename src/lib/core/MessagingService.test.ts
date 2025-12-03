@@ -139,8 +139,8 @@ describe('MessagingService - Auto-add Contacts', () => {
             
             expect(spy).toHaveBeenCalledWith(expect.objectContaining({
                 until: 1234567890,
-                limit: 20,
-                abortOnDuplicates: false
+                 limit: 50,
+                 abortOnDuplicates: false
             }));
         });
         

@@ -6,26 +6,20 @@
     import { page } from '$app/state';
     import ContactList from '$lib/components/ContactList.svelte';
     import { messageRepo } from '$lib/db/MessageRepository';
+    import { syncState } from '$lib/stores/sync';
+    import SyncProgressModal from '$lib/components/SyncProgressModal.svelte';
 
     let { children } = $props();
+    
+    let isMobile = $state(false);
+    let previousSyncState = $state({ isSyncing: false, isFirstSync: false });
 
     onMount(() => {
+        // Detect mobile
+        isMobile = window.innerWidth < 768;
+        
         const s = $signer;
         if (!s) {
-            // Wait for restore to potentially happen if layout mounts before auth?
-            // Actually authService.restore runs in root layout.
-            // If we are here, we should be authenticated or redirect.
-            // But if user manually navigates to /chat without auth?
-            // The root layout redirect handles / -> /chat.
-            // If user goes to /chat directly, restore happens, then this mounts.
-            // But s might be null initially.
-            
-            // We need to wait for auth state to settle? 
-            // Or rely on the fact that if we are here, auth is done?
-            // Root layout: `if (restored && location.pathname === '/') goto('/chat')`
-            // If start at /chat: restore happens, isInitialized=true, then children render.
-            // So s should be set.
-            
             // Double check:
             if (!s) {
                  goto('/');
@@ -47,9 +41,6 @@
                     goto(`/chat/${lastRecipient}`);
                 }
             }
-            
-            // Fetch message history immediately to fill cache gaps
-            messagingService.fetchHistory().catch(console.error);
         };
 
         setup();
@@ -58,6 +49,28 @@
             if (unsub) unsub();
         };
     });
+    
+    // Watch for sync completion to auto-navigate on desktop
+    $effect(() => {
+        const wasFirstSync = previousSyncState.isSyncing && previousSyncState.isFirstSync;
+        const syncJustEnded = wasFirstSync && !$syncState.isSyncing;
+        
+        if (syncJustEnded) {
+            // First sync just completed - auto-navigate to newest contact on desktop
+            const isDesktop = window.innerWidth >= 768;
+            if (isDesktop && page.url.pathname === '/chat') {
+                messageRepo.getLastMessageRecipient().then(lastRecipient => {
+                    if (lastRecipient) {
+                        goto(`/chat/${lastRecipient}`);
+                    }
+                });
+            }
+        }
+        
+        // Update previous state
+        previousSyncState = { isSyncing: $syncState.isSyncing, isFirstSync: $syncState.isFirstSync };
+    });
+    
     let isChatOpen = $derived(page.url.pathname !== '/chat');
 </script>
 
@@ -69,3 +82,7 @@
         {@render children()}
     </div>
 </div>
+
+{#if isMobile && $syncState.isSyncing && $syncState.isFirstSync}
+    <SyncProgressModal progress={$syncState.progress} />
+{/if}
