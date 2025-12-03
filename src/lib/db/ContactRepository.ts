@@ -1,10 +1,17 @@
 import { db, type ContactItem } from './db';
 
 export class ContactRepository {
-    public async addContact(npub: string) {
+    public async addContact(npub: string, lastReadAt?: number) {
         await db.contacts.put({
             npub,
-            createdAt: Date.now()
+            createdAt: Date.now(),
+            lastReadAt
+        });
+    }
+
+    public async markAsRead(npub: string) {
+        await db.contacts.update(npub, {
+            lastReadAt: Date.now()
         });
     }
 

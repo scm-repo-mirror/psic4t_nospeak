@@ -39,7 +39,7 @@
                     npub: c.npub,
                     name: name,
                     picture: picture,
-                    hasUnread: false, // TODO: Implement unread logic
+                    hasUnread: (lastMsgTime || 0) > (c.lastReadAt || 0),
                     lastMessageTime: lastMsgTime
                 };
             }));

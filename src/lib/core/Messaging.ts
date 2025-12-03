@@ -169,7 +169,7 @@ export class MessagingService {
             }
             
             // Auto-add unknown contacts
-            await this.autoAddContact(message.recipientNpub);
+            await this.autoAddContact(message.recipientNpub, true);
         }
     }
 
@@ -424,7 +424,7 @@ export class MessagingService {
         console.warn('Timeout waiting for relay connections, proceeding with history fetch anyway');
     }
 
-    private async autoAddContact(npub: string) {
+    private async autoAddContact(npub: string, isUnread: boolean = false) {
         try {
             // Check if contact already exists
             const existingContacts = await contactRepo.getContacts();
@@ -433,7 +433,8 @@ export class MessagingService {
             if (!contactExists) {
                 // Fetch profile and relay info first (like manual addition)
                 await profileResolver.resolveProfile(npub, true);
-                await contactRepo.addContact(npub);
+                const lastReadAt = isUnread ? 0 : Date.now();
+                await contactRepo.addContact(npub, lastReadAt);
                 if (this.debug) console.log(`Auto-added new contact: ${npub}`);
             }
         } catch (error) {

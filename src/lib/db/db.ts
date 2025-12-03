@@ -33,6 +33,7 @@ export interface RetryItem {
 export interface ContactItem {
     npub: string;
     createdAt: number;
+    lastReadAt?: number;
 }
 
 export class NospeakDB extends Dexie {
@@ -75,6 +76,11 @@ export class NospeakDB extends Dexie {
         // Version 4: Apply unique constraint
         this.version(4).stores({
             messages: '++id, [recipientNpub+sentAt], &eventId, sentAt'
+        });
+        
+        // Version 5: Add lastReadAt to contacts
+        this.version(5).stores({
+            contacts: 'npub'
         });
     }
 

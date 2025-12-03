@@ -9,6 +9,7 @@
     import { page } from '$app/state';
     import { db } from '$lib/db/db';
     import Dexie from 'dexie';
+    import { contactRepo } from '$lib/db/ContactRepository';
     
     let messages = $state<Message[]>([]);
     let currentPartner = $derived(page.params.npub);
@@ -51,6 +52,11 @@
                 }
             }).subscribe(msgs => {
                 messages = msgs.reverse(); // Reverse to chronological order
+                
+                // Mark as read
+                if (currentPartner && currentPartner !== 'ALL') {
+                    contactRepo.markAsRead(currentPartner).catch(console.error);
+                }
             });
         };
 

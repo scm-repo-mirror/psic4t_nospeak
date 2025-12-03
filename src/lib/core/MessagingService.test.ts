@@ -48,7 +48,7 @@ describe('MessagingService - Auto-add Contacts', () => {
             await (messagingService as any).autoAddContact(npub);
 
             expect(contactRepo.getContacts).toHaveBeenCalled();
-            expect(contactRepo.addContact).toHaveBeenCalledWith(npub);
+            expect(contactRepo.addContact).toHaveBeenCalledWith(npub, expect.any(Number));
         });
 
         it('should not add contact if already exists', async () => {
