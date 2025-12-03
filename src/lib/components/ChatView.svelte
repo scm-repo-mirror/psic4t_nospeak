@@ -166,6 +166,18 @@
     messages.length;
     if (!isLoadingMore) {
         scrollToBottom();
+        
+        // Auto-load if content is too short to scroll
+        if (chatContainer && onLoadMore && !isFetchingHistory) {
+             // Use timeout to ensure DOM is updated
+             setTimeout(() => {
+                 if (chatContainer.scrollHeight <= chatContainer.clientHeight + 10) { // +10 buffer
+                     isLoadingMore = true;
+                     previousScrollHeight = chatContainer.scrollHeight;
+                     onLoadMore();
+                 }
+             }, 100);
+        }
     } else if (chatContainer) {
         // Restore scroll position when loading more
         // Use timeout to ensure DOM has updated height
@@ -181,7 +193,7 @@
 
   function handleScroll() {
       if (!chatContainer) return;
-      if (chatContainer.scrollTop === 0 && onLoadMore && !isLoadingMore && messages.length > 0) {
+      if (chatContainer.scrollTop < 50 && onLoadMore && !isLoadingMore && messages.length > 0) {
           isLoadingMore = true;
           previousScrollHeight = chatContainer.scrollHeight;
           onLoadMore();
