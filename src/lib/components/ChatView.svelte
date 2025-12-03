@@ -364,8 +364,8 @@
             <Avatar 
                 npub={partnerNpub} 
                 src={partnerPicture} 
-                size="sm" 
-                class="!w-14 !h-14 md:!w-8 md:!h-8 transition-all duration-200"
+                size="md" 
+                class="!w-14 !h-14 md:!w-10 md:!h-10 transition-all duration-200"
             />
           </button>
         {/if}
@@ -401,8 +401,8 @@
             <Avatar 
                 npub={$currentUser.npub} 
                 src={myPicture} 
-                size="sm" 
-                class="!w-14 !h-14 md:!w-8 md:!h-8 transition-all duration-200"
+                size="md" 
+                class="!w-14 !h-14 md:!w-10 md:!h-10 transition-all duration-200"
             />
           </button>
         {/if}
