@@ -204,10 +204,12 @@
     clearRelayStatus();
   });
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or conversation change
   $effect(() => {
-    // Dependency on messages length to trigger scroll
+    // Dependencies to trigger scroll
+    partnerNpub;
     messages.length;
+
     if (!isLoadingMore) {
         scrollToBottom();
     } else if (chatContainer) {
@@ -291,6 +293,7 @@
     try {
       await messagingService.sendMessage(partnerNpub, text);
       // The message will appear via reactive prop update from parent
+      scrollToBottom();
     } catch (e) {
       console.error("Failed to send message:", e);
       alert("Failed to send message: " + (e as Error).message);
