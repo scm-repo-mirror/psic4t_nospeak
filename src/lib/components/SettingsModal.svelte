@@ -5,6 +5,7 @@
   import { authService } from "$lib/core/AuthService";
   import { currentUser } from "$lib/stores/auth";
   import { profileRepo } from "$lib/db/ProfileRepository";
+  import { getDisplayedNip05 } from "$lib/core/Nip05Display";
   import { getCurrentThemeMode, setThemeMode } from "$lib/stores/theme.svelte";
   import type { ThemeMode } from "$lib/stores/theme";
   import MediaUploadButton from './MediaUploadButton.svelte';
@@ -34,6 +35,7 @@
   let profileDisplayName = $state("");
   let profileLud16 = $state("");
   let isSavingProfile = $state(false);
+  let profileNip05Status = $state<"valid" | "invalid" | "unknown" | null>(null);
 
   // Relay settings
   type RelayConfig = {
@@ -70,7 +72,9 @@
         profileWebsite = profile.metadata.website || "";
         profileDisplayName = profile.metadata.display_name || "";
         profileLud16 = profile.metadata.lud16 || "";
+        profileNip05Status = profile.nip05Status ?? null;
       }
+
     }
   }
 
@@ -501,20 +505,65 @@
                   </div>
                 </div>
 
-                <div>
-                  <label
-                    for="profile-nip05"
-                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                    >NIP-05 (Username)</label
-                  >
-                  <input
-                    id="profile-nip05"
-                    bind:value={profileNip05}
-                    type="text"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="name@domain.com"
-                  />
-                </div>
+                 <div>
+                   <label
+                     for="profile-nip05"
+                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                     >NIP-05 (Username)</label
+                   >
+                   <input
+                     id="profile-nip05"
+                     bind:value={profileNip05}
+                     type="text"
+                     class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     placeholder="name@domain.com"
+                   />
+                   {#if profileNip05}
+                     {#if profileNip05Status === "valid"}
+                       <div class="mt-1 text-xs text-green-600 flex items-center gap-1">
+                         <svg
+                           class="shrink-0"
+                           xmlns="http://www.w3.org/2000/svg"
+                           width="12"
+                           height="12"
+                           viewBox="0 0 24 24"
+                           fill="none"
+                           stroke="currentColor"
+                           stroke-width="2"
+                           stroke-linecap="round"
+                           stroke-linejoin="round">
+                           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                           <path d="m9 12 2 2 4-4"></path>
+                         </svg>
+                         <span>Verified for this key ({getDisplayedNip05(profileNip05)})</span>
+                       </div>
+                     {:else if profileNip05Status === "invalid"}
+                       <div class="mt-1 text-xs text-yellow-600 flex items-center gap-1">
+                         <svg
+                           class="shrink-0"
+                           xmlns="http://www.w3.org/2000/svg"
+                           width="12"
+                           height="12"
+                           viewBox="0 0 24 24"
+                           fill="none"
+                           stroke="currentColor"
+                           stroke-width="2"
+                           stroke-linecap="round"
+                           stroke-linejoin="round">
+                           <circle cx="12" cy="12" r="10"></circle>
+                           <line x1="12" y1="8" x2="12" y2="12"></line>
+                           <circle cx="12" cy="16" r="1"></circle>
+                         </svg>
+                         <span>NIP-05 not verified for this key</span>
+                       </div>
+                     {:else}
+                       <div class="mt-1 text-xs text-gray-500">
+                         Verification status unknown for {getDisplayedNip05(profileNip05)}
+                       </div>
+                     {/if}
+                   {/if}
+                 </div>
+
 
                 <div>
                   <label

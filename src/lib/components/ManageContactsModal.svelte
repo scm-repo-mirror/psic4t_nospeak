@@ -6,6 +6,8 @@
     import { profileRepo } from '$lib/db/ProfileRepository';
     import Avatar from './Avatar.svelte';
     import { searchProfiles, type UserSearchResult } from '$lib/core/SearchProfiles';
+    import { verifyNip05ForNpub, type Nip05Status } from '$lib/core/Nip05Verifier';
+    import { getDisplayedNip05 } from '$lib/core/Nip05Display';
  
      let { isOpen, close } = $props<{ isOpen: boolean, close: () => void }>();
      
@@ -18,10 +20,12 @@
          picture?: string;
          shortNpub: string;
      }[]>([]);
-     let searchResults = $state<UserSearchResult[]>([]);
+     type SearchResultWithStatus = UserSearchResult & { nip05Status?: Nip05Status };
+     let searchResults = $state<SearchResultWithStatus[]>([]);
      let isSearching = $state(false);
      let searchError = $state<string | null>(null);
      let searchToken = 0;
+     let nip05VerifyToken = 0;
      let searchDebounceId: ReturnType<typeof setTimeout> | null = null;
  
      const isNpubMode = $derived(newNpub.trim().startsWith('npub'));
@@ -33,7 +37,66 @@
         return `${npub.slice(0, 12)}...${npub.slice(-6)}`;
     }
 
+    function sortSearchResults(list: SearchResultWithStatus[]): SearchResultWithStatus[] {
+        const rank: Record<Nip05Status, number> = {
+            valid: 0,
+            unknown: 1,
+            invalid: 2
+        };
+
+        return [...list].sort((a, b) => {
+            const sa: Nip05Status = a.nip05Status ?? 'unknown';
+            const sb: Nip05Status = b.nip05Status ?? 'unknown';
+            const ra = rank[sa];
+            const rb = rank[sb];
+
+            if (ra !== rb) {
+                return ra - rb;
+            }
+
+            const nameA = a.name.toLowerCase();
+            const nameB = b.name.toLowerCase();
+            if (nameA !== nameB) {
+                return nameA.localeCompare(nameB);
+            }
+
+            const nipA = (a.nip05 || '').toLowerCase();
+            const nipB = (b.nip05 || '').toLowerCase();
+            if (nipA !== nipB) {
+                return nipA.localeCompare(nipB);
+            }
+
+            return a.npub.localeCompare(b.npub);
+        });
+    }
+
+    async function startNip05Verification(initialResults: SearchResultWithStatus[]): Promise<void> {
+        const currentToken = ++nip05VerifyToken;
+        const candidates = initialResults.filter(r => r.nip05).slice(0, 5);
+
+        for (const candidate of candidates) {
+            try {
+                const result = await verifyNip05ForNpub(candidate.nip05 as string, candidate.npub);
+
+                if (currentToken !== nip05VerifyToken) {
+                    return;
+                }
+
+                searchResults = sortSearchResults(
+                    searchResults.map(r =>
+                        r.npub === candidate.npub
+                            ? { ...r, nip05Status: result.status }
+                            : r
+                    )
+                );
+            } catch (e) {
+                console.error('NIP-05 verification failed for search result', e);
+            }
+        }
+    }
+ 
     async function refreshDisplayContacts(items: ContactItem[]): Promise<void> {
+
         const data = await Promise.all(items.map(async (c) => {
             const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
             const shortNpub = shortenNpub(c.npub);
@@ -92,7 +155,9 @@
                      return;
                  }
  
-                 searchResults = results;
+                 const extended: SearchResultWithStatus[] = results.map((r) => ({ ...r }));
+                 searchResults = sortSearchResults(extended);
+                 startNip05Verification(extended);
              } catch (e) {
                  if (currentToken !== searchToken) {
                      return;
@@ -195,9 +260,50 @@
                                             <span class="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                 {shortenNpub(result.npub)}
                                                 {#if result.nip05}
-                                                    {' · '}{result.nip05}
+                                                    {' · '}
+                                                    {#if result.nip05Status === 'valid'}
+                                                        <span class="inline-flex items-center gap-1">
+                                                            <svg
+                                                                class="text-green-500 shrink-0"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                width="12"
+                                                                height="12"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round">
+                                                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                                                <path d="m9 12 2 2 4-4"></path>
+                                                            </svg>
+                                                            <span>{getDisplayedNip05(result.nip05)}</span>
+                                                        </span>
+                                                    {:else if result.nip05Status === 'invalid'}
+                                                        <span class="inline-flex items-center gap-1" title="NIP-05 not verified for this key">
+                                                            <svg
+                                                                class="text-yellow-500 shrink-0"
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                width="12"
+                                                                height="12"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round">
+                                                                <circle cx="12" cy="12" r="10"></circle>
+                                                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                                <circle cx="12" cy="16" r="1"></circle>
+                                                            </svg>
+                                                            <span>{getDisplayedNip05(result.nip05)}</span>
+                                                        </span>
+                                                    {:else}
+                                                        <span>{getDisplayedNip05(result.nip05)}</span>
+                                                    {/if}
                                                 {/if}
                                             </span>
+
                                         </div>
                                     </button>
                                 {/each}

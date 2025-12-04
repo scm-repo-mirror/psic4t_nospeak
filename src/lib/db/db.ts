@@ -18,6 +18,10 @@ export interface Profile {
     writeRelays: string[];
     cachedAt: number;
     expiresAt: number;
+    nip05Status?: 'valid' | 'invalid' | 'unknown';
+    nip05LastChecked?: number;
+    nip05Pubkey?: string;
+    nip05Error?: string;
 }
 
 export interface RetryItem {

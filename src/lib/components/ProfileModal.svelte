@@ -2,6 +2,7 @@
     import { profileRepo } from '$lib/db/ProfileRepository';
     import type { Profile } from '$lib/db/db';
     import Avatar from './Avatar.svelte';
+    import { getDisplayedNip05 } from '$lib/core/Nip05Display';
 
     let { isOpen, close, npub } = $props<{ isOpen: boolean, close: () => void, npub: string }>();
     
@@ -64,8 +65,39 @@
                             </h3>
                             {#if profile.metadata?.nip05}
                                 <div class="text-sm text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-                                    {profile.metadata.nip05}
+                                    {#if profile.nip05Status === 'valid'}
+                                        <svg
+                                            class="shrink-0 text-green-500"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                            <path d="m9 12 2 2 4-4"></path>
+                                        </svg>
+                                    {:else if profile.nip05Status === 'invalid'}
+                                        <svg
+                                            class="shrink-0 text-yellow-500"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                                            <circle cx="12" cy="16" r="1"></circle>
+                                        </svg>
+                                    {/if}
+                                    <span>{getDisplayedNip05(profile.metadata.nip05)}</span>
                                 </div>
                             {/if}
                         </div>

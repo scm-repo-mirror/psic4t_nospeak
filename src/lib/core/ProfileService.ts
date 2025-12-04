@@ -4,6 +4,7 @@ import { connectionManager } from './connection/instance';
 import { DEFAULT_DISCOVERY_RELAYS } from './connection/Discovery';
 import { Relay } from 'nostr-tools';
 import { profileRepo } from '$lib/db/ProfileRepository';
+import { verifyNip05 } from './Nip05Verifier';
 
 export interface UserMetadata {
     name?: string;
@@ -29,20 +30,45 @@ export class ProfileService {
         // 1. Update Profile Repo Cache
         // We need to preserve existing relays when updating profile metadata
         const existingProfile = await profileRepo.getProfileIgnoreTTL(currentUserData.npub);
+
+        let nip05Info: {
+            status: 'valid' | 'invalid' | 'unknown';
+            lastChecked: number;
+            pubkey?: string;
+            error?: string;
+        } | undefined;
+
+        if (metadata.nip05) {
+            try {
+                const pubkeyForVerification = await currentSigner.getPublicKey();
+                const result = await verifyNip05(metadata.nip05, pubkeyForVerification);
+                nip05Info = {
+                    status: result.status,
+                    lastChecked: result.checkedAt,
+                    pubkey: result.matchedPubkey,
+                    error: result.error
+                };
+            } catch (e) {
+                console.error('Failed to verify NIP-05 during profile update', e);
+            }
+        }
+
         await profileRepo.cacheProfile(
             currentUserData.npub,
             metadata,
             existingProfile?.readRelays || [],
-            existingProfile?.writeRelays || []
+            existingProfile?.writeRelays || [],
+            nip05Info
         );
 
         // 2. Create and Sign Kind 0 Event
+        const pubkey = await currentSigner.getPublicKey();
         const event = {
             kind: 0,
             tags: [] as string[][],
             content: JSON.stringify(metadata),
             created_at: Math.floor(Date.now() / 1000),
-            pubkey: (await currentSigner.getPublicKey())
+            pubkey
         };
 
         const signedEvent = await currentSigner.signEvent(event);

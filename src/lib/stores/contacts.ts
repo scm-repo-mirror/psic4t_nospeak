@@ -6,6 +6,8 @@ export interface Contact {
     picture?: string;
     hasUnread: boolean;
     lastMessageTime?: number;
+    nip05?: string;
+    nip05Status?: 'valid' | 'invalid' | 'unknown';
 }
 
 export const contacts = writable<Contact[]>([]);

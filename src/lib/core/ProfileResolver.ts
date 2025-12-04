@@ -1,6 +1,7 @@
 import { connectionManager } from './connection/instance';
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { nip19 } from 'nostr-tools';
+import { verifyNip05 } from './Nip05Verifier';
 
 export class ProfileResolver {
     
@@ -26,6 +27,42 @@ export class ProfileResolver {
             }
         ];
 
+        const buildNip05Info = async (currentMetadata: any): Promise<{
+            status: 'valid' | 'invalid' | 'unknown';
+            lastChecked: number;
+            pubkey?: string;
+            error?: string;
+        } | undefined> => {
+            if (!currentMetadata || !currentMetadata.nip05) {
+                return undefined;
+            }
+
+            const existing = await profileRepo.getProfileIgnoreTTL(npub);
+            const now = Date.now();
+            const NIP05_TTL_MS = 24 * 60 * 60 * 1000;
+
+            const sameNip05 = existing?.metadata?.nip05 === currentMetadata.nip05;
+            const lastChecked = existing?.nip05LastChecked ?? 0;
+            const fresh = sameNip05 && lastChecked > 0 && (now - lastChecked) < NIP05_TTL_MS;
+
+            if (fresh && existing?.nip05Status) {
+                return {
+                    status: existing.nip05Status,
+                    lastChecked,
+                    pubkey: existing.nip05Pubkey,
+                    error: existing.nip05Error
+                };
+            }
+
+            const result = await verifyNip05(currentMetadata.nip05, pubkey);
+            return {
+                status: result.status,
+                lastChecked: result.checkedAt,
+                pubkey: result.matchedPubkey,
+                error: result.error
+            };
+        };
+
         return new Promise<void>((resolve) => {
             let metadata: any = null;
             let readRelays: string[] = [];
@@ -33,12 +70,16 @@ export class ProfileResolver {
             let foundProfile = false;
             let foundRelays = false;
 
-            // Simple timeout
-            const timeout = setTimeout(async () => {
-                cleanup();
-                // Cache whatever we found
-                await profileRepo.cacheProfile(npub, metadata, readRelays, writeRelays);
+            const finalize = async () => {
+                const nip05Info = await buildNip05Info(metadata);
+                await profileRepo.cacheProfile(npub, metadata, readRelays, writeRelays, nip05Info);
                 resolve();
+            };
+
+            // Simple timeout
+            const timeout = setTimeout(() => {
+                cleanup();
+                finalize();
             }, 3000);
 
             const cleanup = connectionManager.subscribe(filters, (event) => {
@@ -59,7 +100,7 @@ export class ProfileResolver {
                 if (foundProfile && foundRelays) {
                     clearTimeout(timeout);
                     cleanup();
-                    profileRepo.cacheProfile(npub, metadata, readRelays, writeRelays).then(resolve);
+                    finalize();
                 }
             });
         });

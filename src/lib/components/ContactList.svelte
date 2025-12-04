@@ -28,18 +28,24 @@
 
             let name = c.npub.slice(0, 10) + '...';
             let picture = undefined;
+            let nip05: string | undefined = undefined;
+            let nip05Status: 'valid' | 'invalid' | 'unknown' | undefined = undefined;
             
             if (profile && profile.metadata) {
                  // Prioritize name fields
                  name = profile.metadata.name || profile.metadata.display_name || profile.metadata.displayName || name;
                  picture = profile.metadata.picture;
+                 nip05 = profile.metadata.nip05 || undefined;
+                 nip05Status = profile.nip05Status;
             }
             return {
                 npub: c.npub,
                 name: name,
                 picture: picture,
                 hasUnread: (lastMsgTime || 0) > (c.lastReadAt || 0),
-                lastMessageTime: lastMsgTime
+                lastMessageTime: lastMsgTime,
+                nip05,
+                nip05Status
             };
         }));
         
@@ -135,7 +141,25 @@
                 />
                 
                 <div class="flex-1 min-w-0">
-                    <div class="font-medium dark:text-gray-200 truncate">{contact.name}</div>
+                    <div class="flex items-center gap-1 min-w-0">
+                        <span class="font-medium dark:text-gray-200 truncate">{contact.name}</span>
+                        {#if contact.nip05Status === 'valid'}
+                            <svg
+                                class="shrink-0 text-green-500"
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                <path d="m9 12 2 2 4-4"></path>
+                            </svg>
+                        {/if}
+                    </div>
                     <!-- <div class="text-xs text-gray-500">{new Date(contact.lastMessageTime || 0).toLocaleTimeString()}</div> -->
                 </div>
                 {#if contact.hasUnread}

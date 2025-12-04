@@ -16,7 +16,8 @@ export class RelaySettingsService {
                 currentUserData.npub,
                 profile?.metadata, // keep existing metadata
                 readRelays,
-                writeRelays
+                writeRelays,
+                undefined
             );
         }
 
