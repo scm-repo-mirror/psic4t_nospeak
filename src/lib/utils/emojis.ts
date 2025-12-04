@@ -138,7 +138,7 @@ export const emojis = [
     { name: 'church', char: '⛪' },
     { name: 'mosque', char: '🕌' },
     { name: 'synagogue', char: '🕍' },
-    { name: 'temple', char: '' },
+    { name: 'temple', char: '🛕' },
     { name: 'castle', char: '🏰' },
     { name: 'art', char: '🎨' },
     { name: 'music', char: '🎵' },
