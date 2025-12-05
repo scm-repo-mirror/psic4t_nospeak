@@ -223,10 +223,10 @@ export class MessagingService {
 
       // 2. Fetch messages based on sync type
       // First-time sync: unlimited batches, fetch everything
-      // Returning user: 1 batch of 100 messages to fill gaps
+      // Returning user: 1 batch of 50 messages to fill gaps
       const result = await this.fetchMessages({
         until: Math.floor(Date.now() / 1000),
-        limit: 100,
+        limit: 50,
         maxBatches: isFirstSync ? 10000 : 1, // Effectively unlimited for first sync
         abortOnDuplicates: !isFirstSync // Only abort on duplicates for returning users
       });

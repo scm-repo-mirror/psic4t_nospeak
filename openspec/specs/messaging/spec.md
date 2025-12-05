@@ -173,22 +173,23 @@ The system SHALL initialize relay connections for returning authenticated users 
 - **AND** the indicator automatically hides after a short period
 
 ### Requirement: First-Time Sync Progress Indicator
-The system SHALL display a progress indicator during first-time message synchronization to inform users of sync status and prevent interaction until complete.
+The system SHALL display a blocking modal progress indicator during first-time message synchronization on both desktop and mobile devices to inform users of sync status and prevent interaction until complete. The indicator SHALL show the number of fetched messages and update in real time as history sync batches are processed.
 
-#### Scenario: Desktop progress display
+#### Scenario: Desktop progress displayed in blocking modal
 - **GIVEN** the user is on a desktop device (screen width > 768px)
 - **AND** this is a first-time sync (empty cache)
 - **WHEN** message synchronization is in progress
-- **THEN** the empty chat area displays "Syncing messages... (X fetched)"
-- **AND** the count updates in real-time as batches complete
+- **THEN** a blocking modal overlay covers the main chat interface and displays "Syncing messages... (X fetched)"
+- **AND** the fetched message count updates in real time as batches complete
+- **AND** the underlying chat area does not accept input while the modal is visible
 
-#### Scenario: Mobile progress display
+#### Scenario: Mobile progress displayed in shared blocking modal
 - **GIVEN** the user is on a mobile device (screen width <= 768px)
 - **AND** this is a first-time sync (empty cache)
 - **WHEN** message synchronization is in progress
-- **THEN** a blocking modal overlay displays "Syncing messages... (X fetched)"
+- **THEN** the same blocking modal overlay is displayed with "Syncing messages... (X fetched)"
 - **AND** the user cannot interact with the application until sync completes
-- **AND** the count updates in real-time as batches complete
+- **AND** the fetched message count updates in real time as batches complete
 
 #### Scenario: Progress indicator dismissal
 - **GIVEN** the first-time sync progress indicator is displayed

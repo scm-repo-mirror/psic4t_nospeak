@@ -12,14 +12,10 @@
 
     let { children } = $props();
     
-    let isMobile = $state(false);
     // Use regular object (not $state) to avoid triggering effect re-runs
     let previousSyncState = { isSyncing: false, isFirstSync: false };
 
     onMount(() => {
-        // Detect mobile
-        isMobile = window.innerWidth < 768;
-        
         const s = $signer;
         if (!s) {
             // Double check:
@@ -90,6 +86,6 @@
     </div>
 </div>
 
-{#if isMobile && $syncState.isSyncing && $syncState.isFirstSync}
+{#if $syncState.isSyncing && $syncState.isFirstSync}
     <SyncProgressModal progress={$syncState.progress} />
 {/if}
