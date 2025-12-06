@@ -447,7 +447,7 @@
     {#if canRequestNetworkHistory && messages.length > 0}
       <div class="flex justify-center p-2">
         <button
-          class="text-xs px-3 py-1 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
+          class="text-xs px-4 py-1.5 rounded-full bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 text-gray-600 dark:text-gray-300 hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all shadow-sm font-medium"
           type="button"
           onclick={() => onRequestNetworkHistory && onRequestNetworkHistory()}
         >

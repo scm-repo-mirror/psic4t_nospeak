@@ -47,7 +47,7 @@
     let isSingleEmoji = $derived(singleEmojiRegex.test(content.trim()));
 </script>
 
-<div class={`whitespace-pre-wrap break-words ${isSingleEmoji ? 'text-4xl' : ''}`}>
+<div class={`whitespace-pre-wrap break-words leading-relaxed ${isSingleEmoji ? 'text-4xl' : ''}`}>
     {#each parts as part}
         {#if part.match(/^https?:\/\//)}
             {#if isImage(part)}

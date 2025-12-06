@@ -138,13 +138,13 @@
         </button>
     </div>
     <div class="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex justify-between items-center bg-white/30 dark:bg-gray-900/30">
-        <div class="font-bold dark:text-white text-lg tracking-tight">Contacts</div>
+        <div class="font-bold dark:text-white text-xl tracking-tight">Contacts</div>
         <button 
             onclick={() => {
                 softVibrate();
                 showManageContactsModal.set(true);
             }}
-            class="text-xs px-3 py-1.5 rounded-full bg-blue-100/80 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 font-medium transition-colors backdrop-blur-sm"
+            class="text-xs px-4 py-2 rounded-full bg-white/50 dark:bg-gray-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold shadow-sm transition-all border border-transparent hover:border-blue-100 dark:hover:border-blue-800"
         >
             Manage
         </button>
@@ -162,10 +162,10 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div 
                 onclick={() => selectContact(contact.npub)}
-                class={`p-3 mx-2 my-1 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-200 ${
+                class={`p-3 mx-3 my-1.5 rounded-2xl cursor-pointer flex items-center gap-3 transition-colors duration-200 group ${
                     page.url.pathname.includes(contact.npub) 
-                    ? 'bg-blue-100/80 dark:bg-blue-900/40 shadow-sm' 
-                    : 'hover:bg-white/60 dark:hover:bg-gray-800/60 hover:shadow-sm'
+                    ? 'bg-blue-100/80 dark:bg-blue-900/40' 
+                    : 'hover:bg-gray-100/80 dark:hover:bg-gray-800/90'
                 }`}
             >
                 <Avatar 
@@ -177,7 +177,7 @@
                 
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1 min-w-0">
-                        <span class="font-medium dark:text-gray-200 truncate">{contact.name}</span>
+                        <span class="font-bold text-gray-800 dark:text-gray-100 truncate text-[15px]">{contact.name}</span>
                         {#if contact.nip05Status === 'valid'}
                             <svg
                                 class="shrink-0 text-green-500"
