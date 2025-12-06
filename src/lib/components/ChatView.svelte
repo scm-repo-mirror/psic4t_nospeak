@@ -416,6 +416,20 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
         </button>
+        {#if partnerNpub}
+          <button
+              class="hover:opacity-80 transition-opacity cursor-pointer"
+              onclick={() => partnerNpub && openProfile(partnerNpub)}
+              aria-label="Open contact profile"
+          >
+              <Avatar 
+                  npub={partnerNpub} 
+                  src={partnerPicture} 
+                  size="sm" 
+                  class="!w-8 !h-8 md:!w-9 md:!h-9 transition-all duration-200"
+              />
+          </button>
+        {/if}
         <button
             onclick={() => partnerNpub && openProfile(partnerNpub)}
             class="font-bold hover:underline dark:text-white text-left"

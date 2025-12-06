@@ -149,7 +149,7 @@
                 softVibrate();
                 isModalOpen = true;
             }}
-            class="text-xs text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 font-medium"
+            class="text-xs px-3 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 font-medium"
         >
             Manage
         </button>
