@@ -83,8 +83,8 @@
     let isChatOpen = $derived(page.url.pathname !== '/chat');
 </script>
 
-<div class="flex h-full overflow-hidden bg-white dark:bg-gray-900">
-    <div class={`${isChatOpen ? 'hidden md:block' : 'block'} w-full md:w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-700`}>
+<div class="flex h-full overflow-hidden bg-transparent">
+    <div class={`${isChatOpen ? 'hidden md:block' : 'block'} w-full md:w-80 flex-shrink-0 border-r border-gray-200/50 dark:border-gray-800/50`}>
         <ContactList />
     </div>
     <div class={`${!isChatOpen ? 'hidden md:flex' : 'flex'} flex-1 flex-col min-w-0 h-full overflow-hidden`}>

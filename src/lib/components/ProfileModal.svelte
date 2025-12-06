@@ -34,18 +34,24 @@
 </script>
 
 {#if isOpen}
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 md:p-4">
-        <!-- Close on click outside could be added here -->
-        <div class="bg-white dark:bg-gray-800 w-full h-full rounded-none md:max-w-xl md:h-auto md:max-h-[85vh] md:rounded-lg flex flex-col shadow-xl overflow-hidden relative">
+    <div 
+        class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-0 md:p-4"
+        role="dialog"
+        aria-modal="true"
+        tabindex="-1"
+        onclick={(e) => { if(e.target === e.currentTarget) close(); }}
+        onkeydown={(e) => { if(e.key === 'Escape') close(); }}
+    >
+        <div class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl w-full h-full rounded-none md:max-w-xl md:h-auto md:max-h-[85vh] md:rounded-3xl flex flex-col shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden relative outline-none">
             
-            <button onclick={close} aria-label="Close modal" class="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors">
+            <button onclick={close} aria-label="Close modal" class="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
             
             {#if loading}
                 <div class="p-8 text-center dark:text-gray-300">Loading...</div>
             {:else if profile}
-                <div class="overflow-y-auto flex-1">
+                <div class="overflow-y-auto flex-1 custom-scrollbar">
                     <!-- Banner -->
                     <div class="w-full h-32 bg-gray-200 dark:bg-gray-700 relative">
                         {#if profile.metadata?.banner}
@@ -55,8 +61,8 @@
 
                     <!-- Profile Header -->
                     <div class="px-6 relative">
-                        <div class="-mt-16 mb-3 inline-block rounded-lg p-1 bg-white dark:bg-gray-800 shadow-sm">
-                             <Avatar npub={npub} src={profile.metadata?.picture} size="2xl" />
+                        <div class="-mt-16 mb-3 inline-block rounded-2xl p-1 bg-white dark:bg-gray-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
+                             <Avatar npub={npub} src={profile.metadata?.picture} size="2xl" class="rounded-xl" />
                         </div>
 
                         <div class="flex flex-col mb-4">
@@ -104,12 +110,12 @@
                     </div>
 
                     <!-- Content -->
-                    <div class="px-6 pb-6 space-y-5">
+                    <div class="px-6 pb-8 space-y-6">
                         
                         <!-- About -->
                         {#if profile.metadata?.about}
                             <div>
-                                <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">About</h4>
+                                <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">About</h4>
                                 <div class="dark:text-gray-200 whitespace-pre-wrap text-sm leading-relaxed break-words">
                                     {profile.metadata.about}
                                 </div>
@@ -118,11 +124,13 @@
 
                         <!-- Links & Info -->
                         {#if profile.metadata?.website || profile.metadata?.lud16}
-                            <div class="grid grid-cols-1 gap-3 py-3 border-t border-gray-100 dark:border-gray-700">
+                            <div class="grid grid-cols-1 gap-3 pt-6 border-t border-gray-100 dark:border-gray-800/50">
                                 {#if profile.metadata?.website}
-                                    <div class="flex items-center gap-2 overflow-hidden">
-                                        <svg class="text-gray-400 shrink-0" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                                        <a href={formatUrl(profile.metadata.website)} target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline truncate text-sm">
+                                    <div class="flex items-center gap-2 overflow-hidden group">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+                                            <svg class="text-blue-500" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                                        </div>
+                                        <a href={formatUrl(profile.metadata.website)} target="_blank" rel="noopener noreferrer" class="text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate text-sm font-medium transition-colors">
                                             {profile.metadata.website}
                                         </a>
                                     </div>
@@ -130,32 +138,34 @@
 
                                 {#if profile.metadata?.lud16}
                                     <div class="flex items-center gap-2 overflow-hidden">
-                                        <svg class="text-yellow-500 shrink-0" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-                                        <span class="dark:text-gray-200 text-sm truncate select-all">{profile.metadata.lud16}</span>
+                                        <div class="w-8 h-8 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center shrink-0">
+                                            <svg class="text-yellow-500" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                                        </div>
+                                        <span class="dark:text-gray-200 text-sm truncate select-all font-medium">{profile.metadata.lud16}</span>
                                     </div>
                                 {/if}
                             </div>
                         {/if}
 
                         <!-- Technical Details -->
-                        <div class="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                        <div class="pt-6 border-t border-gray-100 dark:border-gray-800/50 space-y-5">
                             <div>
-                                <div class="font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Public Key</div>
-                                <div class="dark:text-gray-200 font-mono text-xs break-all bg-gray-50 dark:bg-gray-900/50 p-2 rounded border dark:border-gray-700 select-all text-gray-700">
+                                <div class="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Public Key</div>
+                                <div class="dark:text-gray-300 font-mono text-xs break-all bg-gray-50 dark:bg-black/20 p-3 rounded-xl border border-gray-100 dark:border-gray-800 select-all text-gray-600 shadow-inner">
                                     {npub}
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <div class="font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Read Relays</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-300 break-words">
+                                    <div class="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Read Relays</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-300 break-words leading-relaxed bg-gray-50 dark:bg-gray-800/30 p-3 rounded-xl border border-gray-100 dark:border-gray-800/50">
                                         {formatRelays(profile.readRelays)}
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="font-semibold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Write Relays</div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-300 break-words">
+                                    <div class="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Write Relays</div>
+                                    <div class="text-xs text-gray-600 dark:text-gray-300 break-words leading-relaxed bg-gray-50 dark:bg-gray-800/30 p-3 rounded-xl border border-gray-100 dark:border-gray-800/50">
                                         {formatRelays(profile.writeRelays)}
                                     </div>
                                 </div>

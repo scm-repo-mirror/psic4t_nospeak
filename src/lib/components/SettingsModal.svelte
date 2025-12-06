@@ -237,7 +237,7 @@
 
 {#if isOpen}
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
     onclick={handleOverlayClick}
     onkeydown={handleKeydown}
     role="dialog"
@@ -246,11 +246,11 @@
     tabindex="-1"
   >
     <div
-      class="bg-white dark:bg-gray-800 w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-lg shadow-xl flex overflow-hidden"
+      class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden"
     >
       <!-- Sidebar -->
       <div
-        class={`w-full md:w-64 bg-gray-50 dark:bg-gray-900 border-r dark:border-gray-700 p-4 flex-col ${showMobileContent ? 'hidden md:flex' : 'flex'}`}
+        class={`w-full md:w-64 bg-gray-50/50 dark:bg-gray-900/50 border-r border-gray-200/50 dark:border-gray-800/50 p-4 flex-col ${showMobileContent ? 'hidden md:flex' : 'flex'}`}
       >
         <div class="flex items-center gap-2 mb-6 px-2">
             <button
@@ -301,7 +301,7 @@
       <!-- Content -->
       <div class={`flex-1 flex-col min-w-0 ${showMobileContent ? 'flex' : 'hidden md:flex'}`}>
         <div
-          class="p-6 flex justify-between items-center border-b dark:border-gray-700"
+          class="p-6 flex justify-between items-center border-b border-gray-200/50 dark:border-gray-800/50"
         >
           <div class="flex items-center gap-2">
             <button

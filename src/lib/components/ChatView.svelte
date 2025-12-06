@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Message } from "$lib/db/db";
   import { profileRepo } from "$lib/db/ProfileRepository";
-  import ProfileModal from "./ProfileModal.svelte";
   import { messagingService } from "$lib/core/Messaging";
   import Avatar from "./Avatar.svelte";
   import MessageContent from "./MessageContent.svelte";
@@ -12,6 +11,7 @@
   import { goto } from '$app/navigation';
   import { softVibrate } from '$lib/utils/haptics';
   import { lastRelaySendStatus, clearRelayStatus } from '$lib/stores/sending';
+  import { openProfileModal } from '$lib/stores/modals';
 
   let {
     messages = [],
@@ -35,8 +35,6 @@
   let partnerName = $state("");
   let partnerPicture = $state<string | undefined>(undefined);
   let myPicture = $state<string | undefined>(undefined);
-  let isProfileOpen = $state(false);
-  let profileModalNpub = $state<string | undefined>(undefined);
   let isSending = $state(false);
   let chatContainer: HTMLElement;
   let inputElement: HTMLTextAreaElement;
@@ -145,8 +143,7 @@
   }
 
   function openProfile(npub: string) {
-    profileModalNpub = npub;
-    isProfileOpen = true;
+    openProfileModal(npub);
   }
 
   // Resolve profile info
@@ -398,10 +395,10 @@
   {/if}
 </svelte:head>
 
-<div class="flex flex-col h-full overflow-hidden">
+<div class="flex flex-col h-full overflow-hidden bg-white/30 dark:bg-gray-900/30 backdrop-blur-sm">
   {#if partnerNpub}
     <div
-      class="p-2 h-12 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800 flex-shrink-0"
+      class="p-2 h-16 border-b border-gray-200/50 dark:border-gray-800/50 flex justify-between items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md flex-shrink-0 z-10 shadow-sm"
     >
       <div class="flex items-center gap-3">
         <button 
@@ -446,7 +443,7 @@
     </div>
   {/if}
 
-  <div bind:this={chatContainer} class="flex-1 overflow-y-auto p-4 space-y-4" onscroll={handleScroll}>
+  <div bind:this={chatContainer} class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" onscroll={handleScroll}>
     {#if canRequestNetworkHistory && messages.length > 0}
       <div class="flex justify-center p-2">
         <button
@@ -499,11 +496,11 @@
         <div
           role="button"
           tabindex="0"
-          class={`max-w-[70%] p-3 rounded-lg shadow-sm cursor-pointer transition-colors
+          class={`max-w-[70%] p-3 shadow-sm cursor-pointer transition-all duration-200
                          ${
                            msg.direction === "sent"
-                             ? "bg-blue-500 text-white rounded-br-none hover:bg-blue-600"
-                             : "bg-white dark:bg-gray-700 dark:text-white border dark:border-gray-600 rounded-bl-none hover:bg-gray-50 dark:hover:bg-gray-600"
+                             ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-none hover:shadow-md"
+                             : "bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm dark:text-white border border-gray-100 dark:border-gray-700/50 rounded-2xl rounded-bl-none hover:bg-white dark:hover:bg-gray-800"
                          }`}
           oncontextmenu={(e) => handleContextMenu(e, msg.message)}
           onmousedown={(e) => handleMouseDown(e, msg.message)}
@@ -542,7 +539,7 @@
   </div>
 
   <div
-    class="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0"
+    class="p-4 border-t border-gray-200/50 dark:border-gray-800/50 bg-white/60 dark:bg-gray-900/60 backdrop-blur-md flex-shrink-0"
   >
     <form
       onsubmit={(e) => {
@@ -571,7 +568,7 @@
       {/if}
 
       <div
-        class="flex-1 flex items-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-0.5 gap-2"
+        class="flex-1 flex items-center bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-3xl px-4 py-1.5 gap-2 shadow-inner focus-within:ring-2 focus-within:ring-blue-500/50 transition-all"
       >
         <MediaUploadButton onFileSelect={handleFileSelect} inline={true} />
         <textarea
@@ -581,7 +578,7 @@
           onkeydown={handleKeydown}
           disabled={isSending}
           rows="1"
-          class="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm md:text-base dark:text-white disabled:opacity-50 resize-none overflow-hidden placeholder:text-gray-400 dark:placeholder:text-gray-500"
+          class="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm md:text-base dark:text-white disabled:opacity-50 resize-none overflow-hidden placeholder:text-gray-400 dark:placeholder:text-gray-500 py-1"
           placeholder="Type a message..."
         ></textarea>
 
@@ -610,14 +607,6 @@
     </form>
   </div>
 </div>
-
-{#if partnerNpub || profileModalNpub}
-  <ProfileModal
-    isOpen={isProfileOpen}
-    close={() => (isProfileOpen = false)}
-    npub={profileModalNpub || partnerNpub || ""}
-  />
-{/if}
 
 <ContextMenu
   isOpen={contextMenu.isOpen}

@@ -3,7 +3,6 @@
     import { currentUser } from '$lib/stores/auth';
     import ConnectionStatus from './ConnectionStatus.svelte';
     import { authService } from '$lib/core/AuthService';
-    import ManageContactsModal from './ManageContactsModal.svelte';
     import { contactRepo } from '$lib/db/ContactRepository';
     import { messageRepo } from '$lib/db/MessageRepository';
     import { liveQuery } from 'dexie';
@@ -12,15 +11,11 @@
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import Avatar from './Avatar.svelte';
-    import SettingsModal from './SettingsModal.svelte';
-    import ProfileModal from './ProfileModal.svelte';
     import { softVibrate } from '$lib/utils/haptics';
     import { onMount } from 'svelte';
+    import { showManageContactsModal, showSettingsModal, openProfileModal } from '$lib/stores/modals';
     
-    let isModalOpen = $state(false);
-    let isSettingsOpen = $state(false);
     let myPicture = $state<string | undefined>(undefined);
-    let isProfileOpen = $state(false);
 
     $effect(() => {
         if ($currentUser) {
@@ -109,13 +104,13 @@
     }
 </script>
 
-<div class="flex flex-col h-full bg-gray-50 dark:bg-gray-800 border-r dark:border-gray-700">
-    <div class="p-2 h-12 border-b dark:border-gray-700 flex items-center justify-between bg-gray-100 dark:bg-gray-900">
+<div class="flex flex-col h-full bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-gray-800/50">
+    <div class="p-2 h-14 border-b border-gray-200/50 dark:border-gray-800/50 flex items-center justify-between bg-white/60 dark:bg-gray-900/60 backdrop-blur-md sticky top-0 z-10">
         {#if $currentUser}
             <button 
                 onclick={() => {
                     softVibrate();
-                    isProfileOpen = true;
+                    openProfileModal($currentUser.npub);
                 }}
                 class="flex items-center gap-2"
                 aria-label="Open profile"
@@ -131,7 +126,7 @@
         <button 
             onclick={() => {
                 softVibrate();
-                isSettingsOpen = true;
+                showSettingsModal.set(true);
             }} 
             class="text-xs text-gray-500 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300"
             aria-label="Open settings"
@@ -142,20 +137,20 @@
             </svg>
         </button>
     </div>
-    <div class="p-4 border-b dark:border-gray-700 flex justify-between items-center">
-        <div class="font-bold dark:text-white">Contacts</div>
+    <div class="p-4 border-b border-gray-200/50 dark:border-gray-800/50 flex justify-between items-center bg-white/30 dark:bg-gray-900/30">
+        <div class="font-bold dark:text-white text-lg tracking-tight">Contacts</div>
         <button 
             onclick={() => {
                 softVibrate();
-                isModalOpen = true;
+                showManageContactsModal.set(true);
             }}
-            class="text-xs px-3 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 font-medium"
+            class="text-xs px-3 py-1.5 rounded-full bg-blue-100/80 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 font-medium transition-colors backdrop-blur-sm"
         >
             Manage
         </button>
     </div>
     
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto custom-scrollbar">
         {#if $contactsStore.length === 0}
             <div class="text-gray-500 text-center py-10 text-sm">
                 No contacts yet.<br/>
@@ -167,10 +162,10 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div 
                 onclick={() => selectContact(contact.npub)}
-                class={`p-3 cursor-pointer flex items-center gap-3 ${
+                class={`p-3 mx-2 my-1 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-200 ${
                     page.url.pathname.includes(contact.npub) 
-                    ? 'bg-blue-100 dark:bg-blue-900/30 border-l-4 border-blue-500' 
-                    : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                    ? 'bg-blue-100/80 dark:bg-blue-900/40 shadow-sm' 
+                    : 'hover:bg-white/60 dark:hover:bg-gray-800/60 hover:shadow-sm'
                 }`}
             >
                 <Avatar 
@@ -211,9 +206,3 @@
 
     <ConnectionStatus />
 </div>
-
-<ManageContactsModal isOpen={isModalOpen} close={() => isModalOpen = false} />
-{#if $currentUser}
-    <ProfileModal isOpen={isProfileOpen} close={() => isProfileOpen = false} npub={$currentUser.npub} />
-{/if}
-<SettingsModal isOpen={isSettingsOpen} close={() => isSettingsOpen = false} />

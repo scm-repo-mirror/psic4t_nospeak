@@ -203,21 +203,28 @@
 </script>
 
 {#if isOpen}
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 w-full h-full rounded-none md:w-96 md:h-auto md:maxh-[80vh] md:rounded-lg flex flex-col shadow-xl">
-            <h2 class="text-xl font-bold mb-4 dark:text-white">Manage Contacts</h2>
+    <div 
+        class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+        role="dialog"
+        aria-modal="true"
+        tabindex="-1"
+        onclick={(e) => { if(e.target === e.currentTarget) close(); }}
+        onkeydown={(e) => { if(e.key === 'Escape') close(); }}
+    >
+        <div class="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl p-6 w-full h-full rounded-none md:w-[480px] md:h-auto md:max-h-[80vh] md:rounded-3xl flex flex-col shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden outline-none">
+            <h2 class="text-xl font-bold mb-4 dark:text-white px-1">Manage Contacts</h2>
             
-            <div class="mb-4">
+            <div class="mb-6">
                 <div class="flex gap-2 relative">
                     <input 
                         bind:value={newNpub}
                         placeholder="npub or search term" 
-                        class="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        class="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                     />
                     <button 
                         onclick={add}
                         disabled={isAdding}
-                        class="bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+                        class="bg-blue-500 text-white px-5 py-2.5 rounded-xl hover:bg-blue-600 disabled:opacity-50 font-medium shadow-sm hover:shadow transition-all"
                     >
                         {#if isNpubMode}
                             {isAdding ? 'Adding...' : 'Add'}
@@ -227,24 +234,24 @@
                     </button>
 
                     {#if !isNpubMode && newNpub.trim().length >= 3 && (isSearching || searchResults.length > 0 || searchError)}
-                        <div class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg max-h-64 overflow-y-auto z-10">
+                        <div class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-xl max-h-64 overflow-y-auto z-10 custom-scrollbar">
                             {#if isSearching}
-                                <div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                <div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                                     Searching...
                                 </div>
                             {:else if searchError}
-                                <div class="px-3 py-2 text-sm text-red-500">
+                                <div class="px-4 py-3 text-sm text-red-500">
                                     {searchError}
                                 </div>
                             {:else if searchResults.length === 0}
-                                <div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                                <div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                                     No results
                                 </div>
                             {:else}
                                 {#each searchResults as result (result.npub)}
                                     <button
                                         type="button"
-                                        class="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                                        class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-left transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
                                         onclick={() => selectSearchResult(result)}
                                     >
                                         <Avatar
@@ -313,12 +320,14 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto space-y-2 mb-4 min-h-[200px]">
+            <div class="flex-1 overflow-y-auto space-y-2 mb-6 min-h-[200px] custom-scrollbar pr-1">
                 {#if contacts.length === 0}
-                    <div class="text-gray-500 text-center py-4">No contacts added</div>
+                    <div class="text-gray-500 text-center py-8 bg-gray-50/50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                        No contacts added
+                    </div>
                 {/if}
                 {#each displayContacts as contact}
-                    <div class="flex justify-between items-center p-2 border rounded dark:border-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700/50">
+                    <div class="flex justify-between items-center p-3 border border-gray-100 dark:border-gray-800 rounded-xl bg-white/50 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 transition-colors shadow-sm">
                         <div class="flex items-center gap-3 min-w-0">
                             <Avatar 
                                 npub={contact.npub}
@@ -328,14 +337,15 @@
                             />
                             <div class="flex flex-col min-w-0">
                                 <span class="font-medium dark:text-gray-200 truncate">{contact.name}</span>
-                                <span class="text-xs text-gray-500 dark:text-gray-400 truncate">{contact.shortNpub}</span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 truncate font-mono opacity-75">{contact.shortNpub}</span>
                             </div>
                         </div>
                         <button 
                             onclick={() => remove(contact.npub)}
-                            class="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 p-1 rounded"
+                            class="text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors"
+                            aria-label="Remove contact"
                         >
-                            ✕
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                         </button>
                     </div>
                 {/each}
@@ -343,7 +353,7 @@
 
             <button 
                 onclick={close}
-                class="w-full bg-gray-200 dark:bg-gray-700 dark:text-white p-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+                class="w-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 font-medium transition-colors"
             >
                 Close
             </button>

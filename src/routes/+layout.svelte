@@ -1,12 +1,17 @@
 <script lang="ts">
   import "../app.css";
-  import { isOnline } from "$lib/stores/connection";
+  import { isOnline, showRelayStatusModal } from "$lib/stores/connection";
   import { authService } from "$lib/core/AuthService";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { softVibrate } from "$lib/utils/haptics";
   import { currentUser } from "$lib/stores/auth";
+  import RelayStatusModal from "$lib/components/RelayStatusModal.svelte";
+  import SettingsModal from "$lib/components/SettingsModal.svelte";
+  import ManageContactsModal from "$lib/components/ManageContactsModal.svelte";
+  import ProfileModal from "$lib/components/ProfileModal.svelte";
+  import { showSettingsModal, showManageContactsModal, profileModalState, closeProfileModal } from "$lib/stores/modals";
 
   let { children } = $props();
   let isInitialized = $state(false);
@@ -125,9 +130,16 @@
 
 {#if isInitialized}
   <div
-    class="h-dvh bg-gray-100 dark:bg-gray-900 flex justify-center overflow-hidden"
+    class="h-dvh bg-gray-50 dark:bg-gray-950 flex justify-center overflow-hidden relative lg:p-4"
   >
-    <div class="w-full max-w-full lg:max-w-7xl xl:max-w-6xl h-full relative">
+    <!-- Background Elements for Glassmorphism Context -->
+    <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 dark:bg-blue-900/20 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-400/20 dark:bg-purple-900/20 rounded-full blur-[100px] pointer-events-none"></div>
+
+    <div 
+      class="w-full max-w-full lg:max-w-7xl xl:max-w-6xl h-full relative z-10 shadow-2xl overflow-hidden lg:rounded-2xl lg:border lg:border-white/20 lg:dark:border-white/10 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl isolate transform-gpu"
+      style="mask-image: linear-gradient(black, black); -webkit-mask-image: linear-gradient(black, black);"
+    >
       {@render children()}
 
       {#if showProfileRefreshBanner}
@@ -136,5 +148,29 @@
         </div>
       {/if}
     </div>
+
+    <!-- Modals Layer (Outside Glass Container) -->
+    <RelayStatusModal 
+      isOpen={$showRelayStatusModal} 
+      close={() => showRelayStatusModal.set(false)} 
+    />
+    
+    <SettingsModal 
+      isOpen={$showSettingsModal} 
+      close={() => showSettingsModal.set(false)} 
+    />
+
+    <ManageContactsModal 
+      isOpen={$showManageContactsModal} 
+      close={() => showManageContactsModal.set(false)} 
+    />
+
+    {#if $profileModalState.isOpen && $profileModalState.npub}
+      <ProfileModal
+        isOpen={$profileModalState.isOpen}
+        close={closeProfileModal}
+        npub={$profileModalState.npub}
+      />
+    {/if}
   </div>
 {/if}
