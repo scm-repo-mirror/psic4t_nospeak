@@ -9,7 +9,7 @@
   import { getCurrentThemeMode, setThemeMode } from "$lib/stores/theme.svelte";
   import type { ThemeMode } from "$lib/stores/theme";
   import MediaUploadButton from './MediaUploadButton.svelte';
-  const packageVersion = "0.6.1";
+  const packageVersion = __APP_VERSION__;
 
   let { isOpen = false, close = () => {} } = $props<{
     isOpen: boolean;
