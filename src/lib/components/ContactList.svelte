@@ -105,7 +105,7 @@
 </script>
 
 <div class="flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-800/50">
-    <div class="p-2 h-16 border-b border-gray-200/50 dark:border-slate-800/50 flex items-center justify-between bg-white/60 dark:bg-slate-900/60 backdrop-blur-md sticky top-0 z-10">
+    <div class="p-2 h-16 border-b border-gray-200/50 dark:border-slate-800/50 flex items-center justify-between bg-white/60 dark:bg-slate-900/60 backdrop-blur-md sticky top-0 z-10 relative">
         {#if $currentUser}
             <button 
                 onclick={() => {
@@ -123,6 +123,9 @@
                 />
             </button>
         {/if}
+        <span class="absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold text-gray-900 dark:text-white tracking-tight md:hidden pointer-events-none">
+            nospeak
+        </span>
         <button 
             onclick={() => {
                 softVibrate();
