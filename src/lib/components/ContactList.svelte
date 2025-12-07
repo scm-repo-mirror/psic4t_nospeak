@@ -144,7 +144,7 @@
                 softVibrate();
                 showManageContactsModal.set(true);
             }}
-            class="text-xs px-4 py-2 rounded-full bg-white/50 dark:bg-slate-800/50 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold shadow-sm transition-all border border-transparent hover:border-blue-100 dark:hover:border-blue-800"
+            class="text-xs px-4 py-2 rounded-full bg-white/50 dark:bg-slate-800/50 hover:bg-blue-50/10 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold shadow-sm transition-all"
         >
             Manage
         </button>
