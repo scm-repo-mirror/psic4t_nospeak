@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">nospeak</string>
+    <string name="title_activity_main">nospeak</string>
+    <string name="package_name">com.nospeak.app</string>
+    <string name="custom_url_scheme">com.nospeak.app</string>
+</resources>

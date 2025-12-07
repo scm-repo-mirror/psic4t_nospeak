@@ -146,6 +146,39 @@ Default relays are configured, but users can add custom relays in settings. The 
 - No server-side storage of private data
 - Automatic cleanup of old cache data
 
+## Android (Capacitor)
+
+Nospeak can be packaged as a native Android application using Capacitor.
+
+### Requirements
+
+- Node.js 18+
+- Android Studio with Android SDK and platform tools
+- Java 17 (for recent Android Gradle plugin versions)
+- At least one Android emulator or physical device (Android 8.0 / API 26 or newer)
+
+### Setup and Build
+
+```bash
+# Install dependencies
+npm install
+
+# Build web assets and sync to Android project
+npm run build:android
+
+# Open the Android project in Android Studio
+npm run android
+```
+
+The Capacitor configuration (`capacitor.config.ts`) is set to use the SvelteKit `build/android` directory as `webDir`, so the Android app loads the bundled nospeak UI from local assets.
+
+### Signing and Release (summary)
+
+- Configure a release keystore in the Android module (`android/app`) using Android Studio.
+- Set up a release build variant and signing config for the app ID `com.nospeak.app`.
+- Generate a signed App Bundle (AAB) or APK via **Build → Generate Signed Bundle / APK** in Android Studio.
+- Upload the signed artifact to the Google Play Console or your chosen distribution channel following their standard submission flow.
+
 ## Deployment
 
 ### Docker
