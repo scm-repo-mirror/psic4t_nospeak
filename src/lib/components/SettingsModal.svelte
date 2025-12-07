@@ -381,12 +381,12 @@
                   <label
                     for="notifications-toggle"
                     class="font-medium dark:text-white"
-                    >Browser Notifications</label
+                    >Message Notifications</label
                   >
                   <p class="text-sm text-gray-500 dark:text-slate-400">
                     {isSupported
-                      ? "Get notified when you receive new messages"
-                      : "Browser notifications not supported in this browser"}
+                      ? "Get notified when you receive new messages on this device"
+                      : "Notifications not supported on this device"}
                   </p>
                 </div>
                 {#if isSupported}
