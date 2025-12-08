@@ -7,8 +7,10 @@ node_modules
 .wrangler
 /.svelte-kit
 /build
+build-android.sh
+ 
+ # OS
 
-# OS
 .DS_Store
 Thumbs.db
 
