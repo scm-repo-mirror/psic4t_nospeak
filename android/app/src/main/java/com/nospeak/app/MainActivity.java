@@ -7,6 +7,13 @@ import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+
+    private static boolean appVisible = false;
+
+    public static boolean isAppVisible() {
+        return appVisible;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // Register custom plugins before bridge initialization
@@ -16,6 +23,18 @@ public class MainActivity extends BridgeActivity {
  
         // Ensure content is laid out below the system status bar
         WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        appVisible = true;
+    }
+
+    @Override
+    public void onStop() {
+        appVisible = false;
+        super.onStop();
     }
 }
 

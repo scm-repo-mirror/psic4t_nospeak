@@ -267,9 +267,14 @@ public class NativeBackgroundMessagingService extends Service {
 
 
     private void showGenericEncryptedMessageNotification() {
+        // Only surface background notifications when the app UI is not visible
+        if (MainActivity.isAppVisible()) {
+            return;
+        }
+
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
-
+ 
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -278,10 +283,10 @@ public class NativeBackgroundMessagingService extends Service {
                 intent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
-
+ 
         String title = "New encrypted message";
         String body = "You received a new message. Open nospeak to read it.";
-
+ 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
                 .setContentTitle(title)
                 .setContentText(body)
@@ -289,10 +294,11 @@ public class NativeBackgroundMessagingService extends Service {
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
+ 
         int id = (int) (System.currentTimeMillis() & 0x7FFFFFFF);
         manager.notify(id, builder.build());
     }
+
 
     private Notification buildNotification(String summary) {
         Intent intent = new Intent(this, MainActivity.class);
