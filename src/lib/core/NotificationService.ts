@@ -89,8 +89,24 @@ export class NotificationService {
         // On web, avoid spamming notifications while the app is active.
         // On Android native, always allow notifications so the OS can surface them
         // even if the WebView reports itself as visible.
-        if (!this.isAndroidNativeEnv && typeof document !== 'undefined' && document.visibilityState === 'visible') {
-            return;
+        if (!this.isAndroidNativeEnv && typeof document !== 'undefined') {
+            const hasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+            const isVisible = document.visibilityState === 'visible';
+
+            let isSameConversation = false;
+            if (typeof window !== 'undefined') {
+                const path = window.location.pathname;
+                if (path.startsWith('/chat/')) {
+                    const currentNpub = decodeURIComponent(path.slice('/chat/'.length).replace(/\/$/, ''));
+                    isSameConversation = currentNpub === senderNpub;
+                }
+            }
+
+            const shouldSuppress = isVisible && hasFocus && isSameConversation;
+
+            if (shouldSuppress) {
+                return;
+            }
         }
 
         let senderName = senderNpub.slice(0, 10) + '...';

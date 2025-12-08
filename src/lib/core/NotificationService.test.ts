@@ -63,7 +63,141 @@ describe('NotificationService (Android local notifications)', () => {
             Object.defineProperty(document, 'visibilityState', {
                 value: 'hidden',
                 configurable: true
+});
+
+
+describe('NotificationService (web notifications)', () => {
+    class FakeNotification {
+        static permission = 'granted';
+        static calls: Array<{ title: string; options: any }> = [];
+
+        public onclick: (() => void) | null = null;
+
+        constructor(title: string, options?: any) {
+            FakeNotification.calls.push({ title, options: options ?? {} });
+        }
+
+        close() {
+            // no-op for tests
+        }
+    }
+
+    beforeEach(() => {
+        vi.resetModules();
+        getProfileIgnoreTTLMock.mockClear();
+        isAndroidNativeMock.mockReset();
+        FakeNotification.calls = [];
+
+        if (typeof window !== 'undefined') {
+            (window as any).localStorage = {
+                store: {} as Record<string, string>,
+                getItem(key: string) {
+                    return (this.store as Record<string, string>)[key] ?? null;
+                },
+                setItem(key: string, value: string) {
+                    (this.store as Record<string, string>)[key] = value;
+                },
+                removeItem(key: string) {
+                    delete (this.store as Record<string, string>)[key];
+                }
+            };
+
+            // Default to root route
+            window.history.pushState({}, '', '/');
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'visible',
+                configurable: true
             });
+
+            (document as any).hasFocus = vi.fn().mockReturnValue(true);
+        }
+
+        (globalThis as any).Notification = FakeNotification as any;
+    });
+
+    it('shows a browser notification when the tab is not active/visible', async () => {
+        isAndroidNativeMock.mockReturnValue(false);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Alice' } });
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'hidden',
+                configurable: true
+            });
+            (document as any).hasFocus = vi.fn().mockReturnValue(false);
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
+
+        expect(FakeNotification.calls.length).toBe(1);
+        expect(FakeNotification.calls[0].title).toContain('Alice');
+    });
+
+    it('shows a browser notification when a different conversation is active in the foreground', async () => {
+        isAndroidNativeMock.mockReturnValue(false);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Bob' } });
+
+        if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/chat/npub1alice');
+        }
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'visible',
+                configurable: true
+            });
+            (document as any).hasFocus = vi.fn().mockReturnValue(true);
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1bob', 'Hi from Bob');
+
+        expect(FakeNotification.calls.length).toBe(1);
+        expect(FakeNotification.calls[0].title).toContain('Bob');
+    });
+
+    it('suppresses a browser notification when the same conversation is active in the foreground', async () => {
+        isAndroidNativeMock.mockReturnValue(false);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Carol' } });
+
+        if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/chat/npub1carol');
+        }
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'visible',
+                configurable: true
+            });
+            (document as any).hasFocus = vi.fn().mockReturnValue(true);
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1carol', 'Hi from Carol');
+
+        expect(FakeNotification.calls.length).toBe(0);
+    });
+});
+
         }
 
         if (typeof window !== 'undefined' && window.localStorage) {
