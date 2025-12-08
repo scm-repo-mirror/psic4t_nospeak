@@ -544,27 +544,22 @@ The mobile contacts list SHALL display a single-line preview of the most recent 
 - **AND** SHALL NOT display a last-message preview line, even if stored messages exist for that contact.
 
 ### Requirement: Android Background Message Delivery
-When running inside the Android Capacitor app shell with background messaging enabled, the messaging experience on Android SHALL continue to receive and process incoming messages from the user's read relays while the app UI is not visible, using the same real-time subscription and deduplication pipeline as in the foreground, and SHALL trigger local notifications for newly received messages according to the existing notification requirements.
+When running inside the Android Capacitor app shell with background messaging enabled, the messaging experience on Android SHALL delegate background message reception and notification to a native foreground service that connects to the user's read relays, subscribes to gift-wrapped messages, and triggers OS notifications even while the WebView is suspended. The native service SHALL always treat gift-wrapped events as opaque envelopes and raise only generic "new encrypted message" notifications, regardless of whether the current session uses an on-device nsec or an external signer such as Amber.
 
-#### Scenario: Background subscriptions deliver new messages on Android
+#### Scenario: Background subscriptions deliver generic notifications on Android
 - **GIVEN** the user is logged in and has enabled background messaging in Settings → General while running inside the Android Capacitor app shell
-- AND the Android foreground service for background messaging is active
-- WHEN a new gift-wrapped message addressed to the current user is delivered from any configured read relay
-- THEN the background messaging pipeline SHALL decrypt and save the message to the local database using the same deduplication rules as foreground subscriptions
-- AND it SHALL update unread indicators and message history state so that the message appears in the correct conversation when the UI becomes visible again.
+- AND the native Android foreground service for background messaging is active
+- WHEN a new gift-wrapped message addressed to the current user is delivered from any configured read relay while the app UI is not visible
+- THEN the native service SHALL treat the event as an opaque envelope and SHALL NOT attempt to decrypt the message content
+- AND it SHALL raise an Android OS notification that indicates a new encrypted message has arrived without revealing the sender's identity or message content
+- AND the user SHALL only see the decrypted sender and content after returning to the app and allowing the existing foreground messaging pipeline (including Amber where applicable) to process the message.
 
-#### Scenario: Background delivery triggers Android local notifications
-- **GIVEN** the user is running nospeak in the Android app, has enabled message notifications in Settings → General, and Android has granted notification permission
-- AND the Android foreground service for background messaging is active
-- WHEN a new message for the current user is received via a background subscription while the app UI is not visible
-- THEN the messaging pipeline SHALL invoke the existing notification service to show an Android local notification for the new message using the configured notification channel and icon
-- AND activating the notification SHALL bring the app to the foreground and navigate to the appropriate conversation, as already defined in the messaging notification requirements.
-
-#### Scenario: Background messaging suspends when not eligible
-- **GIVEN** the user is logged out, has disabled background messaging in Settings → General, or Android has revoked required background execution privileges
-- WHEN the messaging system evaluates whether to maintain background subscriptions
-- THEN it SHALL avoid starting or SHALL stop any background relay subscriptions and foreground services
-- AND new-message notifications SHALL only be generated while the app is in an eligible foreground or foreground-capable state as defined by the platform.
+#### Scenario: Background delivery respects notification settings and permissions
+- **GIVEN** the user is running nospeak in the Android app, and the native background messaging service is active
+- WHEN message notifications are disabled in Settings → General for the current device, or Android has denied local notification permission
+- THEN the native background messaging service SHALL continue to maintain relay subscriptions as long as background messaging remains enabled
+- AND it SHALL NOT surface OS notifications for new messages while notifications are disabled or permission is denied
+- AND the rest of the background behavior (message availability when the app is brought to the foreground) SHALL continue to function according to the current authorization mode.
 
 ### Requirement: Energy-Efficient Background Messaging on Android
 The messaging implementation for Android background messaging SHALL minimize energy usage by limiting background work to maintaining relay subscriptions, processing incoming messages, and firing notifications, and SHALL apply conservative reconnection and backoff behavior when connections are lost.

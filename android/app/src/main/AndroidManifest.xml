@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- Required for dataSync foreground service on Android 14+ / targetSdk 35 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Keep the app alive during background messaging work -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- For showing notifications on Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
  
@@ -41,10 +43,10 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
- 
-        <!-- Foreground service for Android background messaging -->
+
+        <!-- Native foreground service for Android background messaging -->
         <service
-            android:name=".BackgroundMessagingService"
+            android:name=".NativeBackgroundMessagingService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />

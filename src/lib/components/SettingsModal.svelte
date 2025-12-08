@@ -245,22 +245,17 @@
     if (!isAndroidApp) {
       return;
     }
-
+ 
     if (!backgroundMessagingEnabled) {
       backgroundMessagingEnabled = true;
-
-      await nativeDialogService.alert({
-        title: "Background messaging",
-        message:
-          "Nospeak will stay connected to your read relays and show a persistent notification while running in the background. You may need to allow background activity or disable battery optimizations for reliable delivery in Android settings.",
-      });
-
+ 
       try {
         await enableAndroidBackgroundMessaging();
       } catch (e) {
         console.error("Failed to enable Android background messaging:", e);
       }
     } else {
+
       backgroundMessagingEnabled = false;
       try {
         await disableAndroidBackgroundMessaging();
@@ -468,7 +463,9 @@
                     <p class="text-sm text-gray-500 dark:text-slate-400">
                       Keep nospeak connected to your read relays and receive new message
                       notifications while the app is in the background. Android will show a
-                      persistent notification when this is enabled.
+                      persistent notification when this is enabled. When using Amber, nospeak
+                      cannot decrypt your messages in native code, so background notifications
+                      only indicate that encrypted messages have arrived.
                     </p>
                   </div>
                   <button

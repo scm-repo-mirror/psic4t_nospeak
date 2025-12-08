@@ -1,8 +1,13 @@
 import { get } from 'svelte/store';
-import { currentUser } from '$lib/stores/auth';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { nip19 } from 'nostr-tools';
+import { currentUser, signer } from '$lib/stores/auth';
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { connectionManager } from './connection/instance';
+import { ConnectionType, type RelayHealth } from './connection/ConnectionManager';
+import { relayHealths } from '$lib/stores/connection';
 import { isAndroidNative } from './NativeDialogs';
+
 
 interface NospeakSettings {
     notificationsEnabled?: boolean;
@@ -35,51 +40,156 @@ function buildRelaySummary(relays: string[]): string {
     if (!relays || relays.length === 0) {
         return 'No read relays configured';
     }
-
+ 
     const uniqueRelays = Array.from(new Set(relays));
     const limited = uniqueRelays.slice(0, 4);
     const list = limited.join(', ');
-
+ 
     return `Connected to read relays: ${list}`;
 }
+ 
+function buildConnectedRelaySummary(healths: RelayHealth[]): string {
+    const connectedUrls = healths
+        .filter((h) => h.isConnected && h.type === ConnectionType.Persistent)
+        .map((h) => h.url);
+ 
+    if (connectedUrls.length === 0) {
+        return 'No read relays connected';
+    }
+ 
+    const uniqueRelays = Array.from(new Set(connectedUrls));
+    const limited = uniqueRelays.slice(0, 4);
+    const list = limited.join(', ');
+ 
+    return `Connected read relays: ${list}`;
+}
+ 
+let relayHealthUnsubscribe: (() => void) | null = null;
+let lastNotificationSummary: string | null = null;
 
-async function startNativeForegroundService(summary: string): Promise<void> {
-    if (typeof window === 'undefined') {
+interface AndroidBackgroundMessagingPlugin {
+    start(options: {
+        mode: 'nsec' | 'amber';
+        pubkeyHex: string;
+        nsecHex?: string;
+        readRelays: string[];
+        summary: string;
+    }): Promise<void>;
+    update(options: { summary: string }): Promise<void>;
+    stop(): Promise<void>;
+}
+
+const AndroidBackgroundMessaging = registerPlugin<AndroidBackgroundMessagingPlugin>('AndroidBackgroundMessaging');
+
+async function startNativeForegroundService(summary: string, readRelays: string[]): Promise<void> {
+    if (Capacitor.getPlatform() !== 'android') {
         return;
     }
 
-    const anyWindow: any = window as any;
-    const plugin = anyWindow.Capacitor && anyWindow.Capacitor.Plugins && anyWindow.Capacitor.Plugins.BackgroundMessaging;
-    if (!plugin || typeof plugin.start !== 'function') {
-        console.warn('BackgroundMessaging plugin not available on this platform');
+    const s = get(signer);
+    const user = get(currentUser);
+    if (!user) {
+        console.warn('Cannot start Android background messaging: missing user');
         return;
+    }
+
+    let mode: 'nsec' | 'amber' = 'amber';
+    let nsecHex: string | undefined;
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+            const authMethod = window.localStorage.getItem('nospeak:auth_method');
+            const storedNsec = window.localStorage.getItem('nospeak:nsec');
+            if (authMethod === 'local' && storedNsec) {
+                mode = 'nsec';
+                nsecHex = storedNsec;
+            }
+        } catch (e) {
+            console.warn('Failed to read auth method for Android background messaging:', e);
+        }
+    }
+
+    let pubkeyHex: string | null = null;
+
+    // Prefer decoding from npub so we don't depend on the signer being ready.
+    if (user.npub) {
+        try {
+            const decoded = nip19.decode(user.npub);
+            if (decoded.type === 'npub' && typeof decoded.data === 'string') {
+                pubkeyHex = decoded.data;
+            }
+        } catch (e) {
+            console.warn('Failed to decode npub for Android background messaging:', e);
+        }
+    }
+
+    if (!pubkeyHex) {
+        if (!s) {
+            console.warn('Cannot start Android background messaging: missing signer and unable to decode npub');
+            return;
+        }
+        try {
+            pubkeyHex = await s.getPublicKey();
+        } catch (e) {
+            console.error('Failed to get pubkey from signer for Android background messaging:', e);
+            return;
+        }
     }
 
     try {
-        await plugin.start({ summary });
+        await AndroidBackgroundMessaging.start({
+            mode,
+            pubkeyHex,
+            nsecHex,
+            readRelays,
+            summary
+        });
     } catch (e) {
         console.error('Failed to start Android background messaging service:', e);
     }
 }
 
-async function stopNativeForegroundService(): Promise<void> {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    const anyWindow: any = window as any;
-    const plugin = anyWindow.Capacitor && anyWindow.Capacitor.Plugins && anyWindow.Capacitor.Plugins.BackgroundMessaging;
-    if (!plugin || typeof plugin.stop !== 'function') {
-        console.warn('BackgroundMessaging plugin not available on this platform');
+async function updateNativeForegroundService(summary: string): Promise<void> {
+    if (Capacitor.getPlatform() !== 'android') {
         return;
     }
 
     try {
-        await plugin.stop();
+        await AndroidBackgroundMessaging.update({ summary });
+    } catch (e) {
+        console.error('Failed to update Android background messaging service:', e);
+    }
+}
+
+async function stopNativeForegroundService(): Promise<void> {
+    if (Capacitor.getPlatform() !== 'android') {
+        return;
+    }
+
+    try {
+        await AndroidBackgroundMessaging.stop();
     } catch (e) {
         console.error('Failed to stop Android background messaging service:', e);
     }
 }
+
+function ensureRelayHealthSubscription(): void {
+    if (relayHealthUnsubscribe || typeof window === 'undefined') {
+        return;
+    }
+ 
+    relayHealthUnsubscribe = relayHealths.subscribe((healths: RelayHealth[]) => {
+        const summary = buildConnectedRelaySummary(healths);
+        if (summary === lastNotificationSummary) {
+            return;
+        }
+ 
+        lastNotificationSummary = summary;
+        void updateNativeForegroundService(summary);
+    });
+}
+
+
 
 export async function enableAndroidBackgroundMessaging(): Promise<void> {
     if (!isAndroidNative()) {
@@ -101,12 +211,19 @@ export async function enableAndroidBackgroundMessaging(): Promise<void> {
     }
 
     const summary = buildRelaySummary(readRelays);
-
+ 
     // Apply more conservative reconnection behavior while background messaging is enabled
     connectionManager.setBackgroundModeEnabled(true);
-
-    await startNativeForegroundService(summary);
+ 
+    // Track the current summary and start the foreground service
+    lastNotificationSummary = summary;
+    await startNativeForegroundService(summary, readRelays);
+ 
+    // Keep the notification in sync with connected relays
+    ensureRelayHealthSubscription();
 }
+
+
 
 export async function disableAndroidBackgroundMessaging(): Promise<void> {
     if (!isAndroidNative()) {
@@ -115,9 +232,17 @@ export async function disableAndroidBackgroundMessaging(): Promise<void> {
 
     // Restore default reconnection behavior
     connectionManager.setBackgroundModeEnabled(false);
-
+ 
     await stopNativeForegroundService();
+ 
+    // Tear down relay health subscription
+    if (relayHealthUnsubscribe) {
+        relayHealthUnsubscribe();
+        relayHealthUnsubscribe = null;
+    }
+    lastNotificationSummary = null;
 }
+
 
 export async function syncAndroidBackgroundMessagingFromPreference(): Promise<void> {
     if (!isAndroidNative()) {
