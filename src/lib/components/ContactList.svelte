@@ -31,32 +31,45 @@
         console.log('ContactList: Processing contacts from DB:', dbContacts.length);
         
         const contactsData = await Promise.all(dbContacts.map(async (c) => {
-            const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
-            const lastMsgs = await messageRepo.getMessages(c.npub, 1);
-            const lastMsgTime = lastMsgs.length > 0 ? lastMsgs[0].sentAt : 0;
+             const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
+             const lastMsgs = await messageRepo.getMessages(c.npub, 1);
+             const lastMsg = lastMsgs[0];
+             const lastMsgTime = lastMsg ? lastMsg.sentAt : 0;
+             const rawLastMessageText = lastMsg ? lastMsg.message : '';
+ 
+             let lastMessageText = rawLastMessageText
+                 .replace(/\s+/g, ' ')
+                 .trim();
+ 
+             if (lastMessageText && lastMsg && lastMsg.direction === 'sent') {
+                 lastMessageText = `You: ${lastMessageText}`;
+             }
 
-            let name = c.npub.slice(0, 10) + '...';
-            let picture = undefined;
-            let nip05: string | undefined = undefined;
-            let nip05Status: 'valid' | 'invalid' | 'unknown' | undefined = undefined;
-            
-            if (profile && profile.metadata) {
-                 // Prioritize name fields
-                 name = profile.metadata.name || profile.metadata.display_name || profile.metadata.displayName || name;
-                 picture = profile.metadata.picture;
-                 nip05 = profile.metadata.nip05 || undefined;
-                 nip05Status = profile.nip05Status;
-            }
-            return {
-                npub: c.npub,
-                name: name,
-                picture: picture,
-                hasUnread: (lastMsgTime || 0) > (c.lastReadAt || 0),
-                lastMessageTime: lastMsgTime,
-                nip05,
-                nip05Status
-            };
-        }));
+
+             let name = c.npub.slice(0, 10) + '...';
+             let picture = undefined;
+             let nip05: string | undefined = undefined;
+             let nip05Status: 'valid' | 'invalid' | 'unknown' | undefined = undefined;
+             
+             if (profile && profile.metadata) {
+                  // Prioritize name fields
+                  name = profile.metadata.name || profile.metadata.display_name || profile.metadata.displayName || name;
+                  picture = profile.metadata.picture;
+                  nip05 = profile.metadata.nip05 || undefined;
+                  nip05Status = profile.nip05Status;
+             }
+             return {
+                 npub: c.npub,
+                 name: name,
+                 picture: picture,
+                 hasUnread: (lastMsgTime || 0) > (c.lastReadAt || 0),
+                 lastMessageTime: lastMsgTime,
+                 nip05,
+                 nip05Status,
+                 lastMessageText: lastMessageText || undefined
+             };
+         }));
+
         
         const sortedContacts = contactsData.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
         console.log('ContactList: Updating store with', sortedContacts.length, 'contacts');
@@ -208,7 +221,11 @@
                             </svg>
                         {/if}
                     </div>
-                    <!-- <div class="text-xs text-gray-500">{new Date(contact.lastMessageTime || 0).toLocaleTimeString()}</div> -->
+                    {#if contact.lastMessageText}
+                        <div class="text-xs text-gray-500 dark:text-slate-300 truncate md:hidden">
+                            {contact.lastMessageText}
+                        </div>
+                    {/if}
                 </div>
                 {#if contact.hasUnread}
                     <div class="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>

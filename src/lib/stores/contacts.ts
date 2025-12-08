@@ -8,6 +8,7 @@ export interface Contact {
     lastMessageTime?: number;
     nip05?: string;
     nip05Status?: 'valid' | 'invalid' | 'unknown';
+    lastMessageText?: string;
 }
 
 export const contacts = writable<Contact[]>([]);
