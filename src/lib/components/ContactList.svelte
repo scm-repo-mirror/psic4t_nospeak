@@ -104,8 +104,8 @@
     }
 </script>
 
-<div class="flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-800/50">
-    <div class="p-2 h-16 border-b border-gray-200/50 dark:border-slate-800/50 flex items-center justify-between bg-white/60 dark:bg-slate-900/60 backdrop-blur-md sticky top-0 z-10 relative">
+<div class="flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-700/70">
+    <div class="p-2 h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex items-center justify-between bg-white/60 dark:bg-slate-900/60 backdrop-blur-md sticky top-0 z-10 relative">
         {#if $currentUser}
             <button 
                 onclick={() => {
@@ -140,7 +140,7 @@
             </svg>
         </button>
     </div>
-    <div class="p-4 border-b border-gray-200/50 dark:border-slate-800/50 flex justify-between items-center bg-white/30 dark:bg-slate-900/30">
+    <div class="p-4 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/30 dark:bg-slate-900/30">
         <div class="font-bold dark:text-white text-xl tracking-tight">Contacts</div>
         <button 
             onclick={() => {

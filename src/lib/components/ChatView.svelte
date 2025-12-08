@@ -404,7 +404,7 @@
 <div class="flex flex-col h-full overflow-hidden bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
   {#if partnerNpub}
     <div
-      class="p-2 h-16 border-b border-gray-200/50 dark:border-slate-800/50 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex-shrink-0 z-10 shadow-sm"
+      class="p-2 h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex-shrink-0 z-10 shadow-sm"
     >
       <div class="flex items-center gap-3">
         <button 
@@ -547,7 +547,7 @@
   </div>
 
   <div
-    class="p-4 border-t border-gray-200/50 dark:border-slate-800/50 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md flex-shrink-0"
+    class="p-4 border-t border-gray-200/50 dark:border-slate-700/70 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md flex-shrink-0"
   >
     <form
       onsubmit={(e) => {
