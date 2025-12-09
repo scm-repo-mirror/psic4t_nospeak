@@ -884,9 +884,9 @@
           {:else if activeCategory === "Security"}
             <div class="space-y-6">
               <div class="space-y-2 max-w-xl">
-                <label class="font-medium dark:text-white">
+                <p class="font-medium dark:text-white">
                   Login method
-                </label>
+                </p>
                 <div>
                   {#if securityAuthMethod === "nip07"}
                     <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
@@ -907,12 +907,13 @@
                   {/if}
                 </div>
               </div>
- 
+  
               <div class="space-y-2 max-w-xl">
-                <label class="font-medium dark:text-white">
+                <label class="font-medium dark:text-white" for="security-npub">
                   Your npub
                 </label>
                 <input
+                  id="security-npub"
                   type="text"
                   readonly
                   value={$currentUser?.npub || ""}
@@ -922,11 +923,12 @@
  
               {#if securityAuthMethod === "local"}
                 <div class="space-y-2 max-w-xl">
-                  <label class="font-medium dark:text-white">
+                  <label class="font-medium dark:text-white" for="security-nsec">
                     Your nsec
                   </label>
                   <div class="relative">
                     <input
+                      id="security-nsec"
                       type={showNsec ? "text" : "password"}
                       readonly
                       value={storedNsec}
