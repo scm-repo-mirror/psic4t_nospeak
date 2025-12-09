@@ -11,7 +11,8 @@
   import SettingsModal from "$lib/components/SettingsModal.svelte";
   import ManageContactsModal from "$lib/components/ManageContactsModal.svelte";
   import ProfileModal from "$lib/components/ProfileModal.svelte";
-  import { showSettingsModal, showManageContactsModal, profileModalState, closeProfileModal } from "$lib/stores/modals";
+  import EmptyProfileModal from "$lib/components/EmptyProfileModal.svelte";
+  import { showSettingsModal, showManageContactsModal, showEmptyProfileModal, profileModalState, closeProfileModal } from "$lib/stores/modals";
   import SyncProgressModal from "$lib/components/SyncProgressModal.svelte";
   import { syncState } from "$lib/stores/sync";
   import { configureAndroidStatusBar } from "$lib/core/StatusBar";
@@ -202,6 +203,10 @@
 
     {#if $syncState.flowActive}
         <SyncProgressModal progress={$syncState.progress} />
+    {/if}
+
+    {#if $showEmptyProfileModal}
+        <EmptyProfileModal isOpen={$showEmptyProfileModal} />
     {/if}
   </div>
 {/if}

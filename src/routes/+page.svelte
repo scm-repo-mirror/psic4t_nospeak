@@ -2,12 +2,14 @@
     import { authService } from '$lib/core/AuthService';
     import { onMount } from 'svelte';
     import AmberLoginModal from '$lib/components/AmberLoginModal.svelte';
+    import KeypairLoginModal from '$lib/components/KeypairLoginModal.svelte';
 
     let nsec = $state('');
     let error = $state('');
     let isLoading = $state(false);
     let hasExtension = $state(false);
     let amberUri = $state('');
+    let showKeypairModal = $state(false);
 
     onMount(() => {
         // Check for extension
@@ -49,6 +51,16 @@
         } catch (e) {
             error = (e as Error).message;
         } finally {
+            isLoading = false;
+        }
+    }
+
+    async function loginWithGeneratedKeypair(generatedNsec: string): Promise<void> {
+        try {
+            isLoading = true;
+            await authService.login(generatedNsec);
+        } catch (e) {
+            error = (e as Error).message;
             isLoading = false;
         }
     }
@@ -115,6 +127,13 @@
             >
                 {isLoading ? 'Connecting...' : 'Login'}
             </button>
+            <button 
+                type="button"
+                onclick={() => (showKeypairModal = true)}
+                class="w-full mt-2 text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 text-center underline decoration-dotted"
+            >
+                Generate new keypair
+            </button>
         </div>
     </div>
 </div>
@@ -123,5 +142,16 @@
     <AmberLoginModal 
         uri={amberUri} 
         onClose={() => { amberUri = ''; isLoading = false; }} 
+    />
+{/if}
+
+{#if showKeypairModal}
+    <KeypairLoginModal
+        isOpen={showKeypairModal}
+        close={() => (showKeypairModal = false)}
+        onUseKeypair={async (generatedNsec) => {
+            showKeypairModal = false;
+            await loginWithGeneratedKeypair(generatedNsec);
+        }}
     />
 {/if}

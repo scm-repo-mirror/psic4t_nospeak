@@ -14,6 +14,7 @@ import { contactRepo } from '$lib/db/ContactRepository';
 import { profileResolver } from './ProfileResolver';
 import { messageRepo } from '$lib/db/MessageRepository';
 import { beginLoginSyncFlow, completeLoginSyncFlow, setLoginSyncActiveStep } from '$lib/stores/sync';
+import { showEmptyProfileModal } from '$lib/stores/modals';
 
 // Helper for hex conversion
 function bytesToHex(bytes: Uint8Array): string {
@@ -36,6 +37,15 @@ const NIP46_BUNKER_PUBKEY_KEY = 'nospeak:nip46_bunker_pubkey';
 const NIP46_BUNKER_RELAYS_KEY = 'nospeak:nip46_bunker_relays';
 
 export class AuthService {
+    public generateKeypair(): { npub: string; nsec: string } {
+        const secret = generateSecretKey();
+        const nsec = nip19.nsecEncode(secret);
+        const pubkey = getPublicKey(secret);
+        const npub = nip19.npubEncode(pubkey);
+
+        return { npub, nsec };
+    }
+
     public async login(nsec: string, remember: boolean = true) {
         try {
             const s = new LocalSigner(nsec);
@@ -215,6 +225,22 @@ export class AuthService {
                 await profileResolver.resolveProfile(npub, false);
             } catch (error) {
                 console.error(`${context} user profile refresh failed:`, error);
+            }
+
+            try {
+                const finalProfile = await profileRepo.getProfileIgnoreTTL(npub);
+                const metadata = finalProfile?.metadata ?? {};
+                const hasRelays = !!(
+                    (finalProfile?.readRelays && finalProfile.readRelays.length > 0) ||
+                    (finalProfile?.writeRelays && finalProfile.writeRelays.length > 0)
+                );
+                const hasUsername = !!(metadata.name || metadata.display_name || metadata.nip05);
+
+                if (!hasRelays && !hasUsername) {
+                    showEmptyProfileModal.set(true);
+                }
+            } catch (profileError) {
+                console.error(`${context} empty profile check failed:`, profileError);
             }
         } catch (error) {
              console.error(`${context} login history flow failed:`, error);

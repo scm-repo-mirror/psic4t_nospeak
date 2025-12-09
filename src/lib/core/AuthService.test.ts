@@ -92,16 +92,17 @@ vi.mock('$lib/core/signer/Nip46Signer', () => ({
  }));
  
  vi.mock('$lib/stores/sync', () => ({
-
+ 
     beginLoginSyncFlow: vi.fn(),
     setLoginSyncActiveStep: vi.fn(),
     completeLoginSyncFlow: vi.fn()
-}));
+ }));
  
+
 vi.mock('nostr-tools', () => ({
     nip19: {
-        npubEncode: vi.fn()
-
+        npubEncode: vi.fn(),
+        nsecEncode: vi.fn()
     },
     generateSecretKey: vi.fn(),
     getPublicKey: vi.fn(),
@@ -121,9 +122,40 @@ vi.mock('nostr-tools/nip46', () => ({
     },
     createNostrConnectURI: vi.fn()
 }));
-
-
-describe('AuthService.logout localStorage cleanup', () => {
+ 
+ 
+ describe('AuthService.generateKeypair', () => {
+     let authService: AuthService;
+ 
+     beforeEach(async () => {
+         vi.clearAllMocks();
+ 
+         const module = await import('./AuthService');
+         authService = new module.AuthService();
+ 
+         const { nip19, generateSecretKey, getPublicKey } = await import('nostr-tools');
+ 
+         (generateSecretKey as any).mockReturnValue(new Uint8Array([1, 2, 3]));
+         (getPublicKey as any).mockReturnValue('pubkey-hex');
+         (nip19.nsecEncode as any).mockReturnValue('nsec1test');
+         (nip19.npubEncode as any).mockReturnValue('npub1test');
+     });
+ 
+     it('returns npub and nsec encoded from generated secret key', async () => {
+         const pair = authService.generateKeypair();
+ 
+         const { nip19, generateSecretKey, getPublicKey } = await import('nostr-tools');
+ 
+         expect(generateSecretKey).toHaveBeenCalledTimes(1);
+         expect(getPublicKey).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
+         expect((nip19.nsecEncode as any)).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
+         expect((nip19.npubEncode as any)).toHaveBeenCalledWith('pubkey-hex');
+         expect(pair).toEqual({ npub: 'npub1test', nsec: 'nsec1test' });
+     });
+ });
+ 
+ 
+ describe('AuthService.logout localStorage cleanup', () => {
     let authService: AuthService;
 
     beforeEach(async () => {
@@ -261,6 +293,7 @@ describe('AuthService ordered login history flow integration', () => {
          expect(goto).toHaveBeenCalledWith('/chat');
          expect(runFlowSpy).toHaveBeenCalledWith('npub1test', 'Login');
      });
+ 
  });
  
  describe('AuthService restore integrates background messaging preference sync', () => {

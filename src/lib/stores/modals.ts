@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 
 export const showSettingsModal = writable(false);
 export const showManageContactsModal = writable(false);
+export const showEmptyProfileModal = writable(false);
 export const profileModalState = writable<{ isOpen: boolean; npub: string | null }>({
     isOpen: false,
     npub: null
