@@ -280,11 +280,15 @@ export class AuthService {
  
                 await ensureRelaysAndHistory(npub, 'Restoration');
  
-                await messagingService.startSubscriptionsForCurrentUser().catch(e => {
-                    console.error('Failed to start app-global message subscriptions after local restore:', e);
-                });
+                 await messagingService.startSubscriptionsForCurrentUser().catch(e => {
+                     console.error('Failed to start app-global message subscriptions after local restore:', e);
+                 });
  
-                return true;
+                 await syncAndroidBackgroundMessagingFromPreference().catch(e => {
+                     console.error('Failed to sync Android background messaging preference after local restore:', e);
+                 });
+ 
+                 return true;
             } else if (method === 'nip07') {
                 if (!window.nostr) {
                     // Wait a bit? Or fail.
@@ -301,11 +305,15 @@ export class AuthService {
  
                 await ensureRelaysAndHistory(npub, 'Restoration');
  
-                await messagingService.startSubscriptionsForCurrentUser().catch(e => {
-                    console.error('Failed to start app-global message subscriptions after nip07 restore:', e);
-                });
+                 await messagingService.startSubscriptionsForCurrentUser().catch(e => {
+                     console.error('Failed to start app-global message subscriptions after nip07 restore:', e);
+                 });
  
-                return true;
+                 await syncAndroidBackgroundMessagingFromPreference().catch(e => {
+                     console.error('Failed to sync Android background messaging preference after nip07 restore:', e);
+                 });
+ 
+                 return true;
             } else if (method === 'nip46') {
                 const secretHex = localStorage.getItem(NIP46_SECRET_KEY);
                 const bunkerPubkey = localStorage.getItem(NIP46_BUNKER_PUBKEY_KEY);
@@ -341,11 +349,15 @@ export class AuthService {
  
                 await ensureRelaysAndHistory(npub, 'Restoration');
  
-                await messagingService.startSubscriptionsForCurrentUser().catch(e => {
-                    console.error('Failed to start app-global message subscriptions after nip46 restore:', e);
-                });
+                 await messagingService.startSubscriptionsForCurrentUser().catch(e => {
+                     console.error('Failed to start app-global message subscriptions after nip46 restore:', e);
+                 });
  
-                return true;
+                 await syncAndroidBackgroundMessagingFromPreference().catch(e => {
+                     console.error('Failed to sync Android background messaging preference after nip46 restore:', e);
+                 });
+ 
+                 return true;
             }
 
         } catch (e) {

@@ -3,14 +3,15 @@
   import { relaySettingsService } from "$lib/core/RelaySettingsService";
   import { profileService } from "$lib/core/ProfileService";
   import { authService } from "$lib/core/AuthService";
-  import { currentUser } from "$lib/stores/auth";
-  import { profileRepo } from "$lib/db/ProfileRepository";
-  import { getDisplayedNip05 } from "$lib/core/Nip05Display";
-  import { getCurrentThemeMode, setThemeMode } from "$lib/stores/theme.svelte";
-  import type { ThemeMode } from "$lib/stores/theme";
-  import MediaUploadButton from './MediaUploadButton.svelte';
-  import { isAndroidNative, nativeDialogService } from "$lib/core/NativeDialogs";
-  import { enableAndroidBackgroundMessaging, disableAndroidBackgroundMessaging } from "$lib/core/BackgroundMessaging";
+   import { currentUser } from "$lib/stores/auth";
+   import { profileRepo } from "$lib/db/ProfileRepository";
+   import { getDisplayedNip05 } from "$lib/core/Nip05Display";
+   import { getCurrentThemeMode, setThemeMode } from "$lib/stores/theme.svelte";
+   import type { ThemeMode } from "$lib/stores/theme";
+   import MediaUploadButton from './MediaUploadButton.svelte';
+   import { isAndroidNative, nativeDialogService } from "$lib/core/NativeDialogs";
+   import { applyAndroidBackgroundMessaging } from "$lib/core/BackgroundMessaging";
+
   const packageVersion = __APP_VERSION__;
 
   let { isOpen = false, close = () => {} } = $props<{
@@ -272,28 +273,19 @@
   }
 
   async function toggleBackgroundMessaging() {
-    if (!isAndroidApp) {
-      return;
-    }
+     if (!isAndroidApp) {
+       return;
+     }
  
-    if (!backgroundMessagingEnabled) {
-      backgroundMessagingEnabled = true;
+     backgroundMessagingEnabled = !backgroundMessagingEnabled;
  
-      try {
-        await enableAndroidBackgroundMessaging();
-      } catch (e) {
-        console.error("Failed to enable Android background messaging:", e);
-      }
-    } else {
+     try {
+       await applyAndroidBackgroundMessaging(backgroundMessagingEnabled);
+     } catch (e) {
+       console.error("Failed to sync Android background messaging from toggle:", e);
+     }
+   }
 
-      backgroundMessagingEnabled = false;
-      try {
-        await disableAndroidBackgroundMessaging();
-      } catch (e) {
-        console.error("Failed to disable Android background messaging:", e);
-      }
-    }
-  }
 
   function handleThemeModeChange(event: Event) {
     const value = (event.target as HTMLSelectElement).value as ThemeMode;

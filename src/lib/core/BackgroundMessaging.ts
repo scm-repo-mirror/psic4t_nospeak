@@ -82,16 +82,17 @@ interface AndroidBackgroundMessagingPlugin {
 const AndroidBackgroundMessaging = registerPlugin<AndroidBackgroundMessagingPlugin>('AndroidBackgroundMessaging');
 
 async function startNativeForegroundService(summary: string, readRelays: string[]): Promise<void> {
-    if (Capacitor.getPlatform() !== 'android') {
-        return;
-    }
+     if (Capacitor.getPlatform() !== 'android') {
+         return;
+     }
+ 
+     const s = get(signer);
+     const user = get(currentUser);
+     if (!user) {
+         console.warn('Cannot start Android background messaging: missing user (likely called before auth restore/login complete)');
+         throw new Error('Missing user for Android background messaging');
+     }
 
-    const s = get(signer);
-    const user = get(currentUser);
-    if (!user) {
-        console.warn('Cannot start Android background messaging: missing user');
-        return;
-    }
 
     let mode: 'nsec' | 'amber' = 'amber';
     let nsecHex: string | undefined;
@@ -124,30 +125,27 @@ async function startNativeForegroundService(summary: string, readRelays: string[
     }
 
     if (!pubkeyHex) {
-        if (!s) {
-            console.warn('Cannot start Android background messaging: missing signer and unable to decode npub');
-            return;
-        }
-        try {
-            pubkeyHex = await s.getPublicKey();
-        } catch (e) {
-            console.error('Failed to get pubkey from signer for Android background messaging:', e);
-            return;
-        }
-    }
+         if (!s) {
+             console.warn('Cannot start Android background messaging: missing signer and unable to decode npub');
+             throw new Error('Missing pubkey for Android background messaging');
+         }
+         try {
+             pubkeyHex = await s.getPublicKey();
+         } catch (e) {
+             console.error('Failed to get pubkey from signer for Android background messaging:', e);
+             throw e;
+         }
+     }
+ 
+     await AndroidBackgroundMessaging.start({
+         mode,
+         pubkeyHex,
+         nsecHex,
+         readRelays,
+         summary
+     });
+ }
 
-    try {
-        await AndroidBackgroundMessaging.start({
-            mode,
-            pubkeyHex,
-            nsecHex,
-            readRelays,
-            summary
-        });
-    } catch (e) {
-        console.error('Failed to start Android background messaging service:', e);
-    }
-}
 
 async function updateNativeForegroundService(summary: string): Promise<void> {
     if (Capacitor.getPlatform() !== 'android') {
@@ -216,11 +214,15 @@ export async function enableAndroidBackgroundMessaging(): Promise<void> {
     connectionManager.setBackgroundModeEnabled(true);
  
     // Track the current summary and start the foreground service
-    lastNotificationSummary = summary;
-    await startNativeForegroundService(summary, readRelays);
+     lastNotificationSummary = summary;
+     try {
+         await startNativeForegroundService(summary, readRelays);
  
-    // Keep the notification in sync with connected relays
-    ensureRelayHealthSubscription();
+         // Keep the notification in sync with connected relays
+         ensureRelayHealthSubscription();
+     } catch (e) {
+         console.error('Failed to start native foreground service for Android background messaging:', e);
+     }
 }
 
 
@@ -243,15 +245,20 @@ export async function disableAndroidBackgroundMessaging(): Promise<void> {
     lastNotificationSummary = null;
 }
 
+ 
+ export async function applyAndroidBackgroundMessaging(enabled: boolean): Promise<void> {
+     if (!isAndroidNative()) {
+         return;
+     }
+ 
+     if (enabled) {
+         await enableAndroidBackgroundMessaging();
+     } else {
+         await disableAndroidBackgroundMessaging();
+     }
+ }
+ 
+ export async function syncAndroidBackgroundMessagingFromPreference(): Promise<void> {
+     await applyAndroidBackgroundMessaging(isBackgroundMessagingPreferenceEnabled());
+ }
 
-export async function syncAndroidBackgroundMessagingFromPreference(): Promise<void> {
-    if (!isAndroidNative()) {
-        return;
-    }
-
-    if (isBackgroundMessagingPreferenceEnabled()) {
-        await enableAndroidBackgroundMessaging();
-    } else {
-        await disableAndroidBackgroundMessaging();
-    }
-}

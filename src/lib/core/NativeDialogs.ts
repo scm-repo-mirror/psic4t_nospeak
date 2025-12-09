@@ -34,11 +34,11 @@ export function isAndroidNative(): boolean {
     }
 
     try {
-        return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
-    } catch {
-        return false;
-    }
-}
+         return Capacitor.getPlatform() === 'android';
+     } catch {
+         return false;
+     }
+ }
 
 export const nativeDialogService: NativeDialogService = {
     isAndroidNative,

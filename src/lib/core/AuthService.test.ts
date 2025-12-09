@@ -83,10 +83,16 @@ vi.mock('$lib/core/signer/Nip07Signer', () => ({
 }));
  
 vi.mock('$lib/core/signer/Nip46Signer', () => ({
-    Nip46Signer: vi.fn()
-}));
+     Nip46Signer: vi.fn()
+ }));
+ 
+ vi.mock('./BackgroundMessaging', () => ({
+     syncAndroidBackgroundMessagingFromPreference: vi.fn().mockResolvedValue(undefined),
+     disableAndroidBackgroundMessaging: vi.fn().mockResolvedValue(undefined)
+ }));
+ 
+ vi.mock('$lib/stores/sync', () => ({
 
-vi.mock('$lib/stores/sync', () => ({
     beginLoginSyncFlow: vi.fn(),
     setLoginSyncActiveStep: vi.fn(),
     completeLoginSyncFlow: vi.fn()
@@ -243,17 +249,86 @@ describe('AuthService ordered login history flow integration', () => {
 
 
     it('login navigates to /chat and starts ordered login history flow', async () => {
-        const module = await import('./AuthService');
-        const runFlowSpy = vi
-            .spyOn(module.AuthService.prototype as any, 'runLoginHistoryFlow')
-            .mockResolvedValue(undefined);
+         const module = await import('./AuthService');
+         const runFlowSpy = vi
+             .spyOn(module.AuthService.prototype as any, 'runLoginHistoryFlow')
+             .mockResolvedValue(undefined);
+ 
+         const { goto } = await import('$app/navigation');
+ 
+         await authService.login('nsec1test');
+ 
+         expect(goto).toHaveBeenCalledWith('/chat');
+         expect(runFlowSpy).toHaveBeenCalledWith('npub1test', 'Login');
+     });
+ });
+ 
+ describe('AuthService restore integrates background messaging preference sync', () => {
+     let authService: AuthService;
+ 
+     beforeEach(async () => {
+         vi.clearAllMocks();
+ 
+         const storageData: Record<string, string> = {};
+         const storageImpl: any = {
+             get length() {
+                 return Object.keys(storageData).length;
+             },
+             key(index: number) {
+                 const keys = Object.keys(storageData);
+                 return keys[index] ?? null;
+             },
+             getItem(key: string) {
+                 return Object.prototype.hasOwnProperty.call(storageData, key) ? storageData[key] : null;
+             },
+             setItem(key: string, value: string) {
+                 storageData[key] = String(value);
+             },
+             removeItem(key: string) {
+                 delete storageData[key];
+             },
+             clear() {
+                 Object.keys(storageData).forEach((key) => delete storageData[key]);
+             }
+         };
+ 
+         Object.defineProperty(globalThis, 'localStorage', {
+             value: storageImpl,
+             configurable: true
+         });
+ 
+         if (typeof window !== 'undefined') {
+             Object.defineProperty(window, 'localStorage', {
+                 value: storageImpl,
+                 configurable: true
+             });
+         }
+ 
+         // Seed local auth restore state
+         localStorage.setItem('nospeak:auth_method', 'local');
+         localStorage.setItem('nospeak:nsec', 'test-nsec');
+ 
+         const module = await import('./AuthService');
+         authService = new module.AuthService();
+ 
+         const { nip19 } = await import('nostr-tools');
+         (nip19.npubEncode as any).mockReturnValue('npub1test');
+ 
+         const { profileRepo } = await import('$lib/db/ProfileRepository');
+         (profileRepo.getProfileIgnoreTTL as any).mockResolvedValue({
+             readRelays: ['wss://relay.example.com'],
+             writeRelays: []
+         });
+     });
+ 
+     it('calls syncAndroidBackgroundMessagingFromPreference after successful local restore', async () => {
+         const { syncAndroidBackgroundMessagingFromPreference } = await import('./BackgroundMessaging');
+ 
+         const result = await authService.restore();
+ 
+         expect(result).toBe(true);
+         expect(syncAndroidBackgroundMessagingFromPreference).toHaveBeenCalledTimes(1);
+     });
+ });
 
-        const { goto } = await import('$app/navigation');
-
-        await authService.login('nsec1test');
-
-        expect(goto).toHaveBeenCalledWith('/chat');
-        expect(runFlowSpy).toHaveBeenCalledWith('npub1test', 'Login');
-    });
-});
 
