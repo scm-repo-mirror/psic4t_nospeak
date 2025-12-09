@@ -241,7 +241,7 @@
         onclick={(e) => { if(e.target === e.currentTarget) close(); }}
         onkeydown={(e) => { if(e.key === 'Escape') close(); }}
     >
-        <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-6 w-full h-full rounded-none md:w-[480px] md:h-auto md:max-h-[80vh] md:rounded-3xl flex flex-col shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden outline-none relative">
+        <div class="bg-white/95 dark:bg-slate-900/85 backdrop-blur-xl p-6 w-full h-full rounded-none md:w-[480px] md:h-auto md:max-h-[80vh] md:rounded-3xl flex flex-col shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden outline-none relative">
             <button onclick={close} aria-label="Close modal" class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
@@ -388,7 +388,7 @@
                     </div>
                 {/if}
                 {#each displayContacts as contact}
-                    <div class="flex justify-between items-center p-3 border border-gray-100 dark:border-slate-800 rounded-xl bg-white/50 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-sm">
+                    <div class="flex justify-between items-center p-3 border border-gray-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-800/40 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors shadow-sm">
                         <div class="flex items-center gap-3 min-w-0">
                             <Avatar 
                                 npub={contact.npub}

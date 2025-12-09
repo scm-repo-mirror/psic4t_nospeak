@@ -317,14 +317,14 @@
     tabindex="-1"
   >
     <div
-      class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative"
+      class="bg-white/95 dark:bg-slate-900/85 backdrop-blur-xl w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative"
     >
       <button onclick={close} aria-label="Close modal" class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
       <!-- Sidebar -->
       <div
-        class={`w-full md:w-64 bg-gray-50/50 dark:bg-slate-900/50 border-r border-gray-200/50 dark:border-slate-800/50 p-4 flex-col ${showMobileContent ? 'hidden md:flex' : 'flex'}`}
+        class={`w-full md:w-64 bg-transparent md:bg-white/50 dark:bg-slate-900/50 border-r border-gray-200/50 dark:border-slate-800/50 p-4 flex-col ${showMobileContent ? 'hidden md:flex' : 'flex'}`}
       >
         <div class="flex items-center gap-2 mb-6 px-2">
             <button
@@ -346,31 +346,31 @@
 
         <nav class="space-y-1">
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "General" ? "bg-gray-200 dark:bg-slate-700 font-medium dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800"}`}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "General" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
             onclick={() => { activeCategory = "General"; showMobileContent = true; }}
           >
             General
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Profile" ? "bg-gray-200 dark:bg-slate-700 font-medium dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800"}`}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Profile" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
             onclick={() => { activeCategory = "Profile"; showMobileContent = true; }}
           >
             Profile
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Mailbox Relays" ? "bg-gray-200 dark:bg-slate-700 font-medium dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800"}`}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Mailbox Relays" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
             onclick={() => { activeCategory = "Mailbox Relays"; showMobileContent = true; }}
           >
             Mailbox Relays
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Security" ? "bg-gray-200 dark:bg-slate-700 font-medium dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800"}`}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Security" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
             onclick={() => { activeCategory = "Security"; showMobileContent = true; }}
           >
             Security
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "About" ? "bg-gray-200 dark:bg-slate-700 font-medium dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800"}`}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "About" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
             onclick={() => { activeCategory = "About"; showMobileContent = true; }}
           >
             About
