@@ -166,9 +166,19 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 };
 
-export const OPTIONS: RequestHandler = async () => {
+export const OPTIONS: RequestHandler = async (event) => {
+    const requestedHeaders = event?.request?.headers?.get('access-control-request-headers') ?? null;
+
+    const headers: Record<string, string> = {
+        ...CORS_HEADERS
+    };
+
+    if (requestedHeaders) {
+        headers['Access-Control-Allow-Headers'] = requestedHeaders;
+    }
+
     return new Response(null, {
         status: 204,
-        headers: CORS_HEADERS
+        headers
     });
 };
