@@ -183,11 +183,3 @@ export const OPTIONS: RequestHandler = async (event) => {
     });
 };
 
-// Disable SvelteKit's built-in CSRF protection for this endpoint
-// because uploads are authenticated via NIP-98 and must accept
-// cross-origin POST requests from the Android app shell.
-export const config = {
-    csrf: {
-        checkOrigin: false
-    }
-};
