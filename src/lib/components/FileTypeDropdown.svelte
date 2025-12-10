@@ -11,9 +11,9 @@
         allowedTypes?: ('image' | 'video' | 'audio')[];
     }>();
 
-    const showImage = allowedTypes.includes('image');
-    const showVideo = allowedTypes.includes('video');
-    const showAudio = allowedTypes.includes('audio');
+    let showImage = $derived(allowedTypes.includes('image'));
+    let showVideo = $derived(allowedTypes.includes('video'));
+    let showAudio = $derived(allowedTypes.includes('audio'));
 
     function handleImageClick() {
         onFileTypeSelect('image');
