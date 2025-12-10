@@ -15,7 +15,7 @@
   import { openImageViewer } from '$lib/stores/imageViewer';
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { nativeDialogService } from '$lib/core/NativeDialogs';
+  import { nativeDialogService, isAndroidNative } from '$lib/core/NativeDialogs';
 
   let {
     messages = [],
@@ -246,6 +246,64 @@
           onLoadMore();
       }
   }
+
+  function handlePageKeyScroll(e: KeyboardEvent) {
+      if (typeof window === 'undefined') return;
+      if (!chatContainer) return;
+
+      // Desktop-only: wide screens, exclude Android native shell
+      if (window.innerWidth <= 768 || isAndroidNative()) {
+          return;
+      }
+
+      const pageAmount = chatContainer.clientHeight * 0.9;
+
+      switch (e.key) {
+          case 'PageDown':
+              e.preventDefault();
+              chatContainer.scrollBy({ top: pageAmount, behavior: 'smooth' });
+              break;
+          case 'PageUp':
+              e.preventDefault();
+              chatContainer.scrollBy({ top: -pageAmount, behavior: 'smooth' });
+              break;
+          case 'End':
+              e.preventDefault();
+              chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+              break;
+          case 'Home':
+              e.preventDefault();
+              chatContainer.scrollTo({ top: 0, behavior: 'smooth' });
+              break;
+      }
+  }
+
+  // Global listener so page keys work while typing
+  $effect(() => {
+      if (typeof window === 'undefined') return;
+
+      const onKeydown = (e: KeyboardEvent) => {
+          if (!partnerNpub || !chatContainer) return;
+
+          const activeEl = typeof document !== 'undefined'
+              ? (document.activeElement as HTMLElement | null)
+              : null;
+
+          const isInputFocused = activeEl === inputElement;
+          const isInsideChat = !!activeEl && chatContainer.contains(activeEl);
+
+          if (!isInputFocused && !isInsideChat) {
+              return;
+          }
+
+          handlePageKeyScroll(e);
+      };
+
+      window.addEventListener('keydown', onKeydown);
+      return () => {
+          window.removeEventListener('keydown', onKeydown);
+      };
+  });
 
   // Auto-focus input (desktop only)
   $effect(() => {
