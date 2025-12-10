@@ -8,12 +8,14 @@
   import { softVibrate } from "$lib/utils/haptics";
   import { currentUser } from "$lib/stores/auth";
   import RelayStatusModal from "$lib/components/RelayStatusModal.svelte";
-  import SettingsModal from "$lib/components/SettingsModal.svelte";
-  import ManageContactsModal from "$lib/components/ManageContactsModal.svelte";
-  import ProfileModal from "$lib/components/ProfileModal.svelte";
-  import EmptyProfileModal from "$lib/components/EmptyProfileModal.svelte";
-  import { showSettingsModal, showManageContactsModal, showEmptyProfileModal, profileModalState, closeProfileModal } from "$lib/stores/modals";
-  import SyncProgressModal from "$lib/components/SyncProgressModal.svelte";
+   import SettingsModal from "$lib/components/SettingsModal.svelte";
+   import ManageContactsModal from "$lib/components/ManageContactsModal.svelte";
+   import ProfileModal from "$lib/components/ProfileModal.svelte";
+   import EmptyProfileModal from "$lib/components/EmptyProfileModal.svelte";
+   import UserQrModal from "$lib/components/UserQrModal.svelte";
+   import { showSettingsModal, showManageContactsModal, showEmptyProfileModal, profileModalState, closeProfileModal, showUserQrModal } from "$lib/stores/modals";
+   import SyncProgressModal from "$lib/components/SyncProgressModal.svelte";
+
   import { syncState } from "$lib/stores/sync";
   import { configureAndroidStatusBar } from "$lib/core/StatusBar";
   import { isAndroidNative } from "$lib/core/NativeDialogs";
@@ -203,13 +205,19 @@
     {/if}
 
     {#if $syncState.flowActive}
-        <SyncProgressModal progress={$syncState.progress} />
-    {/if}
+         <SyncProgressModal progress={$syncState.progress} />
+     {/if}
+ 
+     {#if $showEmptyProfileModal}
+         <EmptyProfileModal isOpen={$showEmptyProfileModal} />
+     {/if}
+ 
+     <UserQrModal 
+         isOpen={$showUserQrModal} 
+         close={() => showUserQrModal.set(false)} 
+     />
+ 
+     <ImageViewerOverlay />
+   </div>
+ {/if}
 
-    {#if $showEmptyProfileModal}
-        <EmptyProfileModal isOpen={$showEmptyProfileModal} />
-    {/if}
-
-    <ImageViewerOverlay />
-  </div>
-{/if}

@@ -70,11 +70,21 @@ describe('ContactList mobile preview layout', () => {
     it('uses a mobile-only last-message preview element', () => {
         const filePath = join(__dirname, 'ContactList.svelte');
         const content = readFileSync(filePath, 'utf8');
-
+ 
         // Ensure we render a conditional lastMessageText preview
         expect(content).toContain('contact.lastMessageText');
-
+ 
         // Ensure the preview line is marked as mobile-only via md:hidden
         expect(content).toContain('truncate md:hidden');
     });
 });
+
+describe('ContactList header QR button', () => {
+    it('renders a QR trigger next to the avatar', () => {
+        const filePath = join(__dirname, 'ContactList.svelte');
+        const content = readFileSync(filePath, 'utf8');
+
+        expect(content).toContain('aria-label="Show nostr QR code"');
+    });
+});
+

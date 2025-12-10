@@ -11,10 +11,12 @@
     import { goto } from '$app/navigation';
     import { page } from '$app/state';
     import Avatar from './Avatar.svelte';
-    import { softVibrate } from '$lib/utils/haptics';
-    import { onMount } from 'svelte';
-    import { showManageContactsModal, showSettingsModal, openProfileModal } from '$lib/stores/modals';
-    
+     import { softVibrate } from '$lib/utils/haptics';
+     import { onMount } from 'svelte';
+     import { showManageContactsModal, showSettingsModal, openProfileModal, showUserQrModal } from '$lib/stores/modals';
+     
+
+
     let myPicture = $state<string | undefined>(undefined);
 
     $effect(() => {
@@ -120,23 +122,55 @@
 <div class="relative flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-700/70 overflow-hidden">
     <div class="absolute top-0 left-0 right-0 z-20 flex flex-col bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-700/70 shadow-sm transition-all duration-200">
         <div class="p-2 h-16 flex items-center justify-between relative">
-            {#if $currentUser}
-                <button 
-                    onclick={() => {
-                        softVibrate();
-                        openProfileModal($currentUser.npub);
-                    }}
-                    class="flex items-center gap-2"
-                    aria-label="Open profile"
-                >
-                    <Avatar 
-                        npub={$currentUser.npub}
-                        src={myPicture}
-                        size="sm"
-                        class="!w-8 !h-8 md:!w-9 md:!h-9 transition-all duration-150 ease-out"
-                    />
-                </button>
-            {/if}
+             {#if $currentUser}
+                 <div class="flex items-center gap-2">
+                     <button 
+                         onclick={() => {
+                             softVibrate();
+                             openProfileModal($currentUser.npub);
+                         }}
+                         class="flex items-center"
+                         aria-label="Open profile"
+                     >
+                         <Avatar 
+                             npub={$currentUser.npub}
+                             src={myPicture}
+                             size="sm"
+                             class="!w-8 !h-8 md:!w-9 md:!h-9 transition-all duration-150 ease-out"
+                         />
+                     </button>
+ 
+                     <button
+                         onclick={() => {
+                             softVibrate();
+                             showUserQrModal.set(true);
+                         }}
+                         class="p-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-700/70 text-gray-700 dark:text-slate-200 transition-colors"
+                         aria-label="Show nostr QR code"
+                     >
+                         <svg
+                             class="w-6 h-6"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+
+
+                         >
+                             <rect x="3" y="3" width="6" height="6"></rect>
+                             <rect x="15" y="3" width="6" height="6"></rect>
+                             <rect x="3" y="15" width="6" height="6"></rect>
+                             <path d="M15 15h2v2h-2z"></path>
+                             <path d="M19 15h2v2h-2z"></path>
+                             <path d="M15 19h2v2h-2z"></path>
+                         </svg>
+                     </button>
+                 </div>
+             {/if}
+
+
             <span class="absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold text-gray-900 dark:text-white tracking-tight pointer-events-none">
                 nospeak
             </span>
@@ -145,7 +179,7 @@
                     softVibrate();
                     showSettingsModal.set(true);
                 }} 
-                class="text-xs text-gray-500 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300"
+                class="p-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-700/70 text-gray-700 dark:text-slate-200 transition-colors"
                 aria-label="Open settings"
             >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
