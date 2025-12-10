@@ -1,18 +1,53 @@
 <script lang="ts">
-  let { onFileTypeSelect } = $props<{
-    onFileTypeSelect: (type: 'image' | 'video') => void;
-  }>();
+    let {
+        onFileTypeSelect,
+        showCameraOption = false,
+        onTakePhoto
+    } = $props<{
+        onFileTypeSelect: (type: 'image' | 'video') => void;
+        showCameraOption?: boolean;
+        onTakePhoto?: () => void;
+    }>();
 
-  function handleImageClick() {
-    onFileTypeSelect('image');
-  }
+    function handleImageClick() {
+        onFileTypeSelect('image');
+    }
 
-  function handleVideoClick() {
-    onFileTypeSelect('video');
-  }
+    function handleVideoClick() {
+        onFileTypeSelect('video');
+    }
+
+    function handleTakePhotoClick() {
+        if (onTakePhoto) {
+            onTakePhoto();
+        }
+    }
 </script>
 
 <div class="py-1">
+    {#if showCameraOption && onTakePhoto}
+        <button
+            type="button"
+            onclick={handleTakePhotoClick}
+            class="w-full text-left px-4 py-2 flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-200"
+        >
+            <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="text-gray-600 dark:text-gray-300"
+            >
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+            </svg>
+            <span>Take photo</span>
+        </button>
+    {/if}
     <button
         type="button"
         onclick={handleImageClick}

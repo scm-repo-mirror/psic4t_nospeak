@@ -34,11 +34,24 @@ export function isAndroidNative(): boolean {
     }
 
     try {
-         return Capacitor.getPlatform() === 'android';
-     } catch {
-         return false;
-     }
- }
+        return Capacitor.getPlatform() === 'android';
+    } catch {
+        return false;
+    }
+}
+
+export function isMobileWeb(): boolean {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    // Heuristic: small viewport or mobile user agent, but not Android native shell
+    const isSmallScreen = window.innerWidth <= 768;
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+    const isMobileUa = /Android|iPhone|iPad|iPod/i.test(ua);
+
+    return !isAndroidNative() && (isSmallScreen || isMobileUa);
+}
 
 export const nativeDialogService: NativeDialogService = {
     isAndroidNative,
