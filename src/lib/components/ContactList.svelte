@@ -145,7 +145,7 @@
                              softVibrate();
                              showUserQrModal.set(true);
                          }}
-                         class="p-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-700/70 text-gray-700 dark:text-slate-200 transition-colors"
+                         class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
                          aria-label="Show nostr QR code"
                      >
                          <svg
@@ -179,7 +179,7 @@
                     softVibrate();
                     showSettingsModal.set(true);
                 }} 
-                class="p-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-700/70 text-gray-700 dark:text-slate-200 transition-colors"
+                class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
                 aria-label="Open settings"
             >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,7 +195,7 @@
                     softVibrate();
                     showManageContactsModal.set(true);
                 }}
-                class="text-xs px-3 py-1.5 rounded-full bg-slate-100/70 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-semibold shadow-sm transition-all"
+                 class="text-xs px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-300 font-semibold shadow-sm border border-gray-200/60 dark:border-slate-600 transition-colors"
             >
                 Manage
             </button>
