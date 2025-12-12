@@ -54,3 +54,21 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
 }
+
+@layer components {
+    .typ-title {
+        @apply text-xl md:text-2xl font-bold tracking-tight;
+    }
+
+    .typ-section {
+        @apply text-base md:text-lg font-semibold;
+    }
+
+    .typ-body {
+        @apply text-sm md:text-base leading-relaxed;
+    }
+
+    .typ-meta {
+        @apply text-xs font-medium tracking-wide;
+    }
+}

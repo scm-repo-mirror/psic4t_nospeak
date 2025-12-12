@@ -345,7 +345,7 @@
             </button>
             <h2
             id="settings-title"
-            class="text-xl font-bold dark:text-white"
+            class="typ-title dark:text-white"
             >
             Settings
             </h2>
@@ -400,7 +400,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
             </button>
-            <h3 class="text-lg font-semibold dark:text-white">
+            <h3 class="typ-section dark:text-white">
               {activeCategory}
             </h3>
           </div>
@@ -416,7 +416,7 @@
                     class="font-medium dark:text-white"
                     >Appearance</label
                   >
-                  <p class="text-sm text-gray-500 dark:text-slate-400">
+                  <p class="typ-body text-gray-500 dark:text-slate-400">
                     Choose whether to follow System, Light, or Dark mode.
                   </p>
                 </div>
@@ -465,7 +465,7 @@
                     ></span>
                   </button>
                 {:else}
-                  <span class="text-sm text-gray-400 dark:text-slate-500"
+                  <span class="typ-meta text-gray-400 dark:text-slate-500"
                     >Not supported</span
                   >
                 {/if}
@@ -476,7 +476,7 @@
                   <div class="flex-1 min-w-0">
                     <label
                       for="background-messaging-toggle"
-                      class="font-medium dark:text-white"
+class="typ-section dark:text-white"
                       >Background Messaging</label
                     >
                     <p class="text-sm text-gray-500 dark:text-slate-400">
@@ -865,7 +865,7 @@
                   >
                     License
                   </h4>
-                  <p class="text-sm text-gray-600 dark:text-slate-400">
+                  <p class="typ-body text-gray-600 dark:text-slate-400">
                     GPL
                   </p>
                   <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">
@@ -877,7 +877,7 @@
           {:else if activeCategory === "Security"}
             <div class="space-y-6">
               <div class="space-y-2 max-w-xl">
-                <p class="font-medium dark:text-white">
+                <p class="typ-section dark:text-white">
                   Login method
                 </p>
                 <div>

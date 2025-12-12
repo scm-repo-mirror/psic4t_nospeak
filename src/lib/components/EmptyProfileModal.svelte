@@ -98,12 +98,13 @@
                         </svg>
                     </div>
                     <div>
-                        <h2 id="empty-profile-modal-title" class="text-lg font-bold dark:text-white mb-1">
+                        <h2 id="empty-profile-modal-title" class="typ-title dark:text-white mb-1">
                             Finish setting up your profile
                         </h2>
-                        <p class="text-sm text-gray-600 dark:text-slate-300 mb-1">
+                         <p class="typ-body text-gray-600 dark:text-slate-300 mb-1">
                             This key doesn&apos;t have any messaging relays or a username configured yet.
                         </p>
+
                         <p class="text-xs text-gray-500 dark:text-slate-400 mb-3">
                             We&apos;ll configure some default messaging relays so nospeak can send and receive messages. You can change these later in Settings under Mailbox Relays.
                         </p>

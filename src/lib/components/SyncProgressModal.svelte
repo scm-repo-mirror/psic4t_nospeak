@@ -15,12 +15,12 @@
             </div>
             
             <div class="text-center">
-                <div class="text-xl font-bold dark:text-white mb-2">Syncing messages...</div>
-                <div class="text-gray-500 dark:text-slate-400 text-sm font-medium">({progress} fetched)</div>
+                <div class="typ-title dark:text-white mb-2">Syncing messages...</div>
+                <div class="typ-meta text-gray-500 dark:text-slate-400">({progress} fetched)</div>
             </div>
 
             <div class="w-full bg-gray-100 dark:bg-slate-800/50 rounded-2xl p-4">
-                <ul class="text-sm space-y-3">
+                <ul class="typ-body space-y-3">
                     {#each $syncState.steps as step}
                         <li class="flex items-center gap-3">
                             <div class={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-300 ${

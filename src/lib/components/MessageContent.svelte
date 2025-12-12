@@ -253,16 +253,16 @@
                     </div>
                     <div class="min-w-0 p-3 flex flex-col justify-center">
                         {#if preview.title}
-                            <h1 class="m-0 text-sm font-semibold truncate text-gray-900 dark:text-white leading-tight mb-1">
+                            <h1 class="m-0 typ-section truncate text-gray-900 dark:text-white leading-tight mb-1">
                                 {preview.title}
                             </h1>
                         {/if}
                         {#if preview.description}
-                            <p class={`m-0 text-xs leading-snug line-clamp-2 ${isOwn ? 'text-blue-100' : 'text-gray-600 dark:text-slate-300'}`}>
+                            <p class={`m-0 typ-body leading-snug line-clamp-2 ${isOwn ? 'text-blue-100' : 'text-gray-600 dark:text-slate-300'}`}>
                                 {preview.description}
                             </p>
                         {/if}
-                        <div class={`text-[10px] mt-1.5 opacity-70 truncate ${isOwn ? 'text-blue-200' : 'text-gray-400 dark:text-slate-500'}`}>
+                        <div class={`typ-meta mt-1.5 opacity-70 truncate ${isOwn ? 'text-blue-200' : 'text-gray-400 dark:text-slate-500'}`}>
                             {preview.domain}
                         </div>
                     </div>

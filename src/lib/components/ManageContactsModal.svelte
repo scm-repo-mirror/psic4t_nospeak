@@ -264,7 +264,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                         </svg>
                     </button>
-                    <h2 class="text-xl font-bold dark:text-white">Manage Contacts</h2>
+                    <h2 class="typ-title dark:text-white">Manage Contacts</h2>
                 </div>
             </div>
             
@@ -305,15 +305,15 @@
                     {#if !isNpubMode && newNpub.trim().length >= 3 && (isSearching || searchResults.length > 0 || searchError)}
                         <div class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto z-10 custom-scrollbar">
                             {#if isSearching}
-                                <div class="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
+                                <div class="px-4 py-3 typ-body text-gray-500 dark:text-slate-400">
                                     Searching...
                                 </div>
                             {:else if searchError}
-                                <div class="px-4 py-3 text-sm text-red-500">
+                                <div class="px-4 py-3 typ-body text-red-500">
                                     {searchError}
                                 </div>
                             {:else if searchResults.length === 0}
-                                <div class="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
+                                <div class="px-4 py-3 typ-body text-gray-500 dark:text-slate-400">
                                     No results
                                 </div>
                             {:else}
@@ -333,7 +333,8 @@
                                             <span class="font-medium dark:text-gray-100 truncate">
                                                 {result.name}
                                             </span>
-                                            <span class="text-xs text-gray-500 dark:text-slate-400 truncate">
+                                             <span class="typ-meta text-gray-500 dark:text-slate-400 truncate">
+
                                                 {shortenNpub(result.npub)}
                                                 {#if result.nip05}
                                                     {' · '}
@@ -391,7 +392,7 @@
 
             <div class="flex-1 overflow-y-auto space-y-2 mb-6 min-h-[200px] custom-scrollbar pr-1">
                 {#if contacts.length === 0}
-                    <div class="text-gray-500 text-center py-8 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
+                    <div class="typ-body text-gray-500 text-center py-8 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
                         No contacts added
                     </div>
                 {/if}
@@ -406,7 +407,8 @@
                             />
                             <div class="flex flex-col min-w-0">
                                 <span class="font-medium dark:text-gray-200 truncate">{contact.name}</span>
-                                <span class="text-xs text-gray-500 dark:text-slate-400 truncate font-mono opacity-75">{contact.shortNpub}</span>
+                                 <span class="typ-meta text-gray-500 dark:text-slate-400 truncate font-mono opacity-75">{contact.shortNpub}</span>
+
                             </div>
                         </div>
                         <button 

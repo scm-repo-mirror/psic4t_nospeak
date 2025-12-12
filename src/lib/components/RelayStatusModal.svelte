@@ -36,7 +36,7 @@
             </button>
             
             <div class="flex justify-between items-center mb-6 px-1">
-                <h2 class="text-xl font-bold dark:text-white">Relay Connections</h2>
+                <h2 class="typ-title dark:text-white">Relay Connections</h2>
             </div>
             
             <div class="flex-1 overflow-y-auto space-y-3 mb-6 custom-scrollbar pr-1">
@@ -48,28 +48,28 @@
                 {#each $relayHealths as health}
                     <div class="p-4 border border-gray-100 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-800/40 shadow-sm hover:shadow transition-all">
                         <div class="flex justify-between items-center mb-3">
-                            <span class="font-medium dark:text-slate-200 truncate flex-1 mr-3 text-sm">{health.url}</span>
-                            <span class={`text-xs px-2.5 py-1 rounded-full font-medium ${health.isConnected ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800'}`}>
+                            <span class="typ-body font-medium dark:text-slate-200 truncate flex-1 mr-3">{health.url}</span>
+                            <span class={`typ-meta px-2.5 py-1 rounded-full ${health.isConnected ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800'}`}>
                                 {health.isConnected ? 'Connected' : 'Disconnected'}
                             </span>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs text-gray-500 dark:text-slate-400">
-                            <div class="flex justify-between">
+                        <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-500 dark:text-slate-400">
+                            <div class="flex justify-between typ-meta">
                                 <span>Type:</span>
-                                <span class="font-medium text-gray-700 dark:text-slate-300">{health.type === ConnectionType.Persistent ? 'Persistent' : 'Temporary'}</span>
+                                <span class="typ-meta text-gray-700 dark:text-slate-300">{health.type === ConnectionType.Persistent ? 'Persistent' : 'Temporary'}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="flex justify-between typ-meta">
                                 <span>Last Connected:</span>
-                                <span class="font-medium text-gray-700 dark:text-slate-300">{formatTime(health.lastConnected)}</span>
+                                <span class="typ-meta text-gray-700 dark:text-slate-300">{formatTime(health.lastConnected)}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="flex justify-between typ-meta">
                                 <span>Success:</span>
-                                <span class="font-medium text-green-600 dark:text-green-400">{health.successCount}</span>
+                                <span class="typ-meta text-green-600 dark:text-green-400">{health.successCount}</span>
                             </div>
-                            <div class="flex justify-between">
+                            <div class="flex justify-between typ-meta">
                                 <span>Failures:</span>
-                                <span class="font-medium text-red-600 dark:text-red-400">{health.failureCount}</span>
+                                <span class="typ-meta text-red-600 dark:text-red-400">{health.failureCount}</span>
                             </div>
                         </div>
                     </div>

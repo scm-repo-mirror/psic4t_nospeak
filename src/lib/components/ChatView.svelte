@@ -548,27 +548,30 @@
     onscroll={handleScroll}
   >
     {#if canRequestNetworkHistory && messages.length > 0}
-      <div class="flex justify-center p-2">
-        <button
-          class="text-xs px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-700/90 transition-all shadow-sm font-medium"
-          type="button"
-          onclick={() => onRequestNetworkHistory && onRequestNetworkHistory()}
-        >
-          Fetch older messages from relays
-        </button>
-      </div>
+        <div class="flex justify-center p-2">
+          <button
+           class="typ-meta px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-700/90 transition-all shadow-sm"
+           type="button"
+           onclick={() => onRequestNetworkHistory && onRequestNetworkHistory()}
+         >
+           Fetch older messages from relays
+         </button>
+       </div>
+
     {:else if networkHistoryStatus === 'no-more' && messages.length > 0}
-      <div class="flex justify-center p-2">
-        <div class="px-3 py-1 rounded-full text-[11px] font-medium tracking-wide bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-500 dark:text-slate-300 shadow-sm backdrop-blur-sm">
-          No more messages available from relays
-        </div>
-      </div>
+        <div class="flex justify-center p-2">
+         <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-500 dark:text-slate-300 shadow-sm backdrop-blur-sm">
+           No more messages available from relays
+         </div>
+       </div>
+
     {:else if networkHistoryStatus === 'error' && messages.length > 0}
-      <div class="flex justify-center p-2">
-        <div class="px-3 py-1 rounded-full text-[11px] font-medium tracking-wide bg-red-50/80 dark:bg-red-900/40 border border-red-200/80 dark:border-red-500/70 text-red-600 dark:text-red-200 shadow-sm backdrop-blur-sm">
-          Failed to fetch older messages. Try again later.
-        </div>
-      </div>
+        <div class="flex justify-center p-2">
+         <div class="px-3 py-1 rounded-full typ-meta bg-red-50/80 dark:bg-red-900/40 border border-red-200/80 dark:border-red-500/70 text-red-600 dark:text-red-200 shadow-sm backdrop-blur-sm">
+           Failed to fetch older messages. Try again later.
+         </div>
+       </div>
+
     {/if}
  
     {#if isFetchingHistory}
@@ -580,10 +583,10 @@
     {#if messages.length === 0 && !isFetchingHistory}
       <div class="flex justify-center mt-10">
         <div class="max-w-sm px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md backdrop-blur-xl text-center space-y-1">
-          <div class="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-slate-400">
+          <div class="typ-meta font-semibold uppercase text-gray-500 dark:text-slate-400">
             No messages yet
           </div>
-          <div class="text-sm text-gray-600 dark:text-slate-200">
+          <div class="typ-body text-gray-600 dark:text-slate-200">
             {#if partnerNpub}
               Start the conversation with {partnerName || partnerNpub.slice(0, 10) + "..."}.
             {:else}
@@ -598,7 +601,7 @@
     {#each messages as msg, i (msg.id || i)}
       {#if i === 0 || !isSameDay(msg.sentAt, messages[i - 1].sentAt)}
         <div class="flex justify-center my-2">
-          <div class="px-3 py-1 rounded-full text-[11px] font-medium tracking-wide bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-600 dark:text-slate-200 shadow-sm backdrop-blur-sm">
+          <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-600 dark:text-slate-200 shadow-sm backdrop-blur-sm">
             {formatDateLabel(msg.sentAt)}
           </div>
         </div>
@@ -641,13 +644,13 @@
             onImageClick={openImageViewer}
           />
           <div
-            class={`text-[10px] mt-1 text-right ${msg.direction === "sent" ? "text-blue-100" : "text-gray-400"} cursor-help`}
+            class={`typ-meta mt-1 text-right ${msg.direction === "sent" ? "text-blue-100" : "text-gray-400"} cursor-help`}
             title={new Date(msg.sentAt).toLocaleString()}
           >
             {getRelativeTime(msg.sentAt)}
           </div>
           {#if msg.direction === "sent" && i === getLastSentIndex() && $lastRelaySendStatus && $lastRelaySendStatus.recipientNpub === partnerNpub}
-            <div class="text-[10px] mt-0.5 text-right text-blue-100">
+            <div class="typ-meta mt-0.5 text-right text-blue-100">
               sent to {$lastRelaySendStatus.successfulRelays}/{$lastRelaySendStatus.desiredRelays} relays
             </div>
           {/if}

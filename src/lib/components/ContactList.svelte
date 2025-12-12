@@ -171,7 +171,7 @@
              {/if}
 
 
-            <span class="absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold text-gray-900 dark:text-white tracking-tight pointer-events-none">
+            <span class="absolute left-1/2 -translate-x-1/2 typ-section text-gray-900 dark:text-white tracking-tight pointer-events-none">
                 nospeak
             </span>
             <button 
