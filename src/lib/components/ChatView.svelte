@@ -497,7 +497,7 @@
 <div class="relative flex flex-col h-full overflow-hidden bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
   {#if partnerNpub}
     <div
-      class="absolute top-0 left-0 right-0 z-20 p-2 h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out"
+      class="absolute top-0 left-0 right-0 z-20 p-2 h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out"
     >
       <div class="flex items-center gap-3">
         <button 
@@ -579,7 +579,7 @@
  
     {#if messages.length === 0 && !isFetchingHistory}
       <div class="flex justify-center mt-10">
-        <div class="max-w-sm px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/85 border border-gray-200/70 dark:border-slate-700/70 shadow-md backdrop-blur-xl text-center space-y-1">
+        <div class="max-w-sm px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md backdrop-blur-xl text-center space-y-1">
           <div class="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-slate-400">
             No messages yet
           </div>
@@ -671,7 +671,7 @@
   </div>
 
   <div
-    class="absolute bottom-0 left-0 right-0 z-20 p-4 border-t border-gray-200/50 dark:border-slate-700/70 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl shadow-lg transition-all duration-150 ease-out"
+    class="absolute bottom-0 left-0 right-0 z-20 p-4 border-t border-gray-200/50 dark:border-slate-700/70 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-lg transition-all duration-150 ease-out"
   >
     <form
       onsubmit={(e) => {
@@ -682,7 +682,7 @@
     >
       {#if showEmojiPicker && filteredEmojis.length > 0}
         <div
-          class="absolute bottom-full mb-2 left-12 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border border-gray-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-64 z-50"
+          class="absolute bottom-full mb-2 left-12 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-64 z-50"
         >
           {#each filteredEmojis as emoji, i}
             <button

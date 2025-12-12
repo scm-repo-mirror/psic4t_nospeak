@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       opacity: {
-        85: '0.85',
+        80: '0.80',
       },
       colors: {
         // Catppuccin Mocha (Dark Mode) mapping for 'slate'
