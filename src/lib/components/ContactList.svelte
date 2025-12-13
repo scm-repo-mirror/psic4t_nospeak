@@ -11,16 +11,20 @@
     import { goto } from '$app/navigation';
      import { page } from '$app/state';
      import Avatar from './Avatar.svelte';
-      import { softVibrate } from '$lib/utils/haptics';
-      import { onMount } from 'svelte';
-      import { showManageContactsModal, showSettingsModal, openProfileModal, showUserQrModal } from '$lib/stores/modals';
-      import { t } from '$lib/i18n';
-      import { get } from 'svelte/store';
+       import { softVibrate } from '$lib/utils/haptics';
+       import { onMount } from 'svelte';
+       import * as modals from '$lib/stores/modals';
+       import { t } from '$lib/i18n';
+       import { get } from 'svelte/store';
+       import { isAndroidNative } from '$lib/core/NativeDialogs';
+
       
+ 
+ 
+ 
+     const isAndroidApp = isAndroidNative();
+     let myPicture = $state<string | undefined>(undefined);
 
-
-
-    let myPicture = $state<string | undefined>(undefined);
 
     $effect(() => {
         if ($currentUser) {
@@ -130,7 +134,8 @@
                      <button 
                          onclick={() => {
                              softVibrate();
-                             openProfileModal($currentUser.npub);
+                              modals.openProfileModal($currentUser.npub);
+
                          }}
                          class="flex items-center"
                          aria-label="Open profile"
@@ -146,7 +151,8 @@
                      <button
                          onclick={() => {
                              softVibrate();
-                             showUserQrModal.set(true);
+                              modals.showUserQrModal.set(true);
+
                          }}
                          class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
                          aria-label="Show nostr QR code"
@@ -180,7 +186,8 @@
             <button 
                 onclick={() => {
                     softVibrate();
-                    showSettingsModal.set(true);
+                     modals.showSettingsModal.set(true);
+
                 }} 
                 class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
                 aria-label="Open settings"
@@ -192,18 +199,46 @@
             </button>
         </div>
         <div class="px-4 pb-3 flex justify-between items-center">
-             <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
+             <div class="flex items-center gap-2">
+                 <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
+
+                 {#if isAndroidApp}
+                     <button
+                         onclick={() => {
+                             softVibrate();
+                             (modals as any).showScanContactQrModal.set(true);
+                         }}
+                         class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
+                         aria-label={$t('contacts.scanQrAria')}
+                     >
+                         <svg
+                             class="w-5 h-5"
+                             viewBox="0 0 24 24"
+                             fill="none"
+                             stroke="currentColor"
+                             stroke-width="2"
+                             stroke-linecap="round"
+                             stroke-linejoin="round"
+                         >
+                             <line x1="12" y1="5" x2="12" y2="19" />
+                             <line x1="5" y1="12" x2="19" y2="12" />
+                         </svg>
+                     </button>
+                 {/if}
+             </div>
 
             <button 
                 onclick={() => {
                     softVibrate();
-                    showManageContactsModal.set(true);
+                    modals.showManageContactsModal.set(true);
                 }}
-                 class="text-xs px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-300 font-semibold shadow-sm border border-gray-200/60 dark:border-slate-600 transition-colors"
+                class="text-xs px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-300 font-semibold shadow-sm border border-gray-200/60 dark:border-slate-600 transition-colors"
             >
                 {$t('contacts.manage')}
             </button>
         </div>
+
+
     </div>
     
     <div class="flex-1 overflow-y-auto custom-scrollbar pt-[116px] pb-16">

@@ -83,8 +83,19 @@ describe('ContactList header QR button', () => {
     it('renders a QR trigger next to the avatar', () => {
         const filePath = join(__dirname, 'ContactList.svelte');
         const content = readFileSync(filePath, 'utf8');
-
+ 
         expect(content).toContain('aria-label="Show nostr QR code"');
     });
 });
+
+describe('ContactList header scan QR button', () => {
+    it('renders an Android-only scan QR trigger next to the contacts title', () => {
+        const filePath = join(__dirname, 'ContactList.svelte');
+        const content = readFileSync(filePath, 'utf8');
+
+        expect(content).toContain('contacts.scanQrAria');
+        expect(content).toContain('showScanContactQrModal');
+    });
+});
+ 
 

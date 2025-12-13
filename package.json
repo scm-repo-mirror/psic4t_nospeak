@@ -15,15 +15,15 @@
 	},
 	"devDependencies": {
 		"@capacitor/android": "^7.4.4",
+		"@capacitor/app": "^7.0.3",
+		"@capacitor/camera": "^7.0.2",
 		"@capacitor/cli": "^7.4.4",
 		"@capacitor/core": "^7.4.4",
-		"@capacitor/app": "^7.0.3",
 		"@capacitor/dialog": "^7.0.2",
 		"@capacitor/haptics": "^7.0.2",
 		"@capacitor/local-notifications": "^7.0.3",
 		"@capacitor/share": "^7.0.2",
 		"@capacitor/status-bar": "^7.0.3",
-		"@capacitor/camera": "^7.0.2",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-node": "^5.2.9",
 		"@sveltejs/adapter-static": "^3.0.10",
@@ -51,9 +51,10 @@
 		"@types/uuid": "^10.0.0",
 		"chokidar": "^5.0.0",
 		"dexie": "^4.2.1",
+		"jsqr": "^1.4.0",
 		"nostr-tools": "^2.18.2",
 		"qrcode": "^1.5.4",
-		"uuid": "^13.0.0",
-		"svelte-i18n": "^4.0.0"
-		}
+		"svelte-i18n": "^4.0.0",
+		"uuid": "^13.0.0"
+	}
 }

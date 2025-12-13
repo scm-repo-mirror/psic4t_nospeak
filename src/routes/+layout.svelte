@@ -7,23 +7,30 @@
   import { page } from "$app/state";
   import { softVibrate } from "$lib/utils/haptics";
   import { currentUser } from "$lib/stores/auth";
-  import RelayStatusModal from "$lib/components/RelayStatusModal.svelte";
-   import SettingsModal from "$lib/components/SettingsModal.svelte";
-   import ManageContactsModal from "$lib/components/ManageContactsModal.svelte";
-   import ProfileModal from "$lib/components/ProfileModal.svelte";
-   import EmptyProfileModal from "$lib/components/EmptyProfileModal.svelte";
-   import UserQrModal from "$lib/components/UserQrModal.svelte";
-   import { showSettingsModal, showManageContactsModal, showEmptyProfileModal, profileModalState, closeProfileModal, showUserQrModal } from "$lib/stores/modals";
-   import SyncProgressModal from "$lib/components/SyncProgressModal.svelte";
+   import RelayStatusModal from "$lib/components/RelayStatusModal.svelte";
+    import SettingsModal from "$lib/components/SettingsModal.svelte";
+    import ManageContactsModal from "$lib/components/ManageContactsModal.svelte";
+    import ProfileModal from "$lib/components/ProfileModal.svelte";
+    import EmptyProfileModal from "$lib/components/EmptyProfileModal.svelte";
+    import UserQrModal from "$lib/components/UserQrModal.svelte";
+    import ScanContactQrModal from "$lib/components/ScanContactQrModal.svelte";
+    import ScanContactQrResultModal from "$lib/components/ScanContactQrResultModal.svelte";
+    import * as modals from "$lib/stores/modals";
+    import SyncProgressModal from "$lib/components/SyncProgressModal.svelte";
+ 
+ 
+   import { syncState } from "$lib/stores/sync";
 
-  import { syncState } from "$lib/stores/sync";
   import { configureAndroidStatusBar } from "$lib/core/StatusBar";
   import { initLanguage } from "$lib/stores/language";
-  import { isAndroidNative } from "$lib/core/NativeDialogs";
-  import { initAndroidBackNavigation } from "$lib/core/AndroidBackHandler";
-  import ImageViewerOverlay from "$lib/components/ImageViewerOverlay.svelte";
+   import { isAndroidNative } from "$lib/core/NativeDialogs";
+   import { initAndroidBackNavigation } from "$lib/core/AndroidBackHandler";
+   import ImageViewerOverlay from "$lib/components/ImageViewerOverlay.svelte";
+ 
+   const { showSettingsModal, showManageContactsModal, showEmptyProfileModal, showUserQrModal, showScanContactQrModal, profileModalState, scanContactQrResultState, closeProfileModal, closeScanContactQrResult } = modals;
+ 
+   let { children } = $props();
 
-  let { children } = $props();
   let isInitialized = $state(false);
   let showProfileRefreshBanner = $state(false);
   let profileRefreshMessage = $state("");
@@ -40,13 +47,16 @@
 
   // Close all modals when user logs out
   $effect(() => {
-    if (!$currentUser) {
-        showSettingsModal.set(false);
-        showManageContactsModal.set(false);
-        showRelayStatusModal.set(false);
-        closeProfileModal();
-    }
-  });
+     if (!$currentUser) {
+         showSettingsModal.set(false);
+         showManageContactsModal.set(false);
+         showRelayStatusModal.set(false);
+         showScanContactQrModal.set(false);
+         closeScanContactQrResult();
+         closeProfileModal();
+     }
+   });
+
 
   onMount(async () => {
     initLanguage();
@@ -197,12 +207,27 @@
       close={() => showSettingsModal.set(false)} 
     />
 
-    <ManageContactsModal 
+     <ManageContactsModal 
       isOpen={$showManageContactsModal} 
       close={() => showManageContactsModal.set(false)} 
     />
 
-    {#if $profileModalState.isOpen && $profileModalState.npub}
+     <ScanContactQrModal
+       isOpen={$showScanContactQrModal}
+       close={() => showScanContactQrModal.set(false)}
+     />
+
+    {#if $scanContactQrResultState.isOpen && $scanContactQrResultState.npub}
+      <ScanContactQrResultModal
+        isOpen={$scanContactQrResultState.isOpen}
+        npub={$scanContactQrResultState.npub}
+        close={closeScanContactQrResult}
+      />
+    {/if}
+ 
+      {#if $profileModalState.isOpen && $profileModalState.npub}
+
+
       <ProfileModal
         isOpen={$profileModalState.isOpen}
         close={closeProfileModal}

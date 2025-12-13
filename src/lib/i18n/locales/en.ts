@@ -32,6 +32,8 @@ const en = {
     contacts: {
         title: 'Contacts',
         manage: 'Manage',
+        scanQr: 'Scan QR',
+        scanQrAria: 'Scan contact QR code',
         emptyHint: 'If no contacts appear, click Manage to add some.',
         selectPrompt: 'Select a contact to start chatting',
         youPrefix: 'You'
@@ -90,6 +92,15 @@ const en = {
         },
         userQr: {
             preparing: 'Preparing QR code…'
+        },
+        scanContactQr: {
+            title: 'Scan contact QR',
+            instructions: 'Point your camera at a nostr QR code to add a contact.',
+            scanning: 'Scanning…',
+            noCamera: 'Camera is not available on this device.',
+            invalidQr: 'This QR code does not contain a valid contact npub.',
+            addFailed: 'Could not add contact from this QR. Please try again.',
+            added: 'Contact added from QR.'
         }
     },
     chat: {

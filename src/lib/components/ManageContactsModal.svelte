@@ -2,7 +2,8 @@
     import { contactRepo } from '$lib/db/ContactRepository';
     import { liveQuery } from 'dexie';
     import type { ContactItem } from '$lib/db/db';
-    import { profileResolver } from '$lib/core/ProfileResolver';
+     import { addContactByNpub } from '$lib/core/ContactService';
+
     import { profileRepo } from '$lib/db/ProfileRepository';
     import Avatar from './Avatar.svelte';
     import { searchProfiles, type UserSearchResult } from '$lib/core/SearchProfiles';
@@ -208,11 +209,12 @@
      });
  
      async function add() {
-         if (newNpub.startsWith('npub')) {
+         const candidate = newNpub.trim();
+
+         if (candidate.startsWith('npub')) {
              isAdding = true;
              try {
-                 await profileResolver.resolveProfile(newNpub, true);
-                 await contactRepo.addContact(newNpub);
+                 await addContactByNpub(candidate);
                  newNpub = '';
                  searchResults = [];
                  searchError = null;
