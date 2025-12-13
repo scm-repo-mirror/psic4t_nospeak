@@ -11,7 +11,6 @@ A decentralized Nostr chat client for secure, private messaging built with Svelt
 - 🖼️ **Media Upload**: Share images and videos in chat
 - 🎨 **Dark Mode**: Built-in dark/light theme support
 - 📝 **Rich Text**: Support for markdown formatting and emojis
-- 🔗 **Universal URLs**: Media files accessible across Nostr clients
 
 ## Quick Start
 
@@ -89,29 +88,7 @@ src/
 - **Nostr Tools**: Nostr protocol implementation
 - **Tailwind CSS**: Utility-first CSS framework
 
-## Media Upload
 
-Nospeak supports uploading images and videos to enhance chat conversations:
-
-### Supported Formats
-
-**Images**: JPEG, PNG, GIF, WebP (max 10MB)
-**Videos**: MP4, WebM, MOV (max 50MB)
-
-### How It Works
-
-1. Click the upload button (📎) next to message input
-2. Select "Image" or "Video" from dropdown
-3. Choose file from your device
-4. File uploads with progress indicator
-5. Full URL inserted into message (works in any Nostr client)
-6. Media displays inline in chat bubbles
-
-### File Storage
-
-- Files stored with UUID names in `static/user_media/`
-- Served via full URLs for cross-client compatibility
-- Automatic cleanup and optimization in production
 
 ## Configuration
 
@@ -172,13 +149,6 @@ npm run android
 
 The Capacitor configuration (`capacitor.config.ts`) is set to use the SvelteKit `build/android` directory as `webDir`, so the Android app loads the bundled nospeak UI from local assets.
 
-### Signing and Release (summary)
-
-- Configure a release keystore in the Android module (`android/app`) using Android Studio.
-- Set up a release build variant and signing config for the app ID `com.nospeak.app`.
-- Generate a signed App Bundle (AAB) or APK via **Build → Generate Signed Bundle / APK** in Android Studio.
-- Upload the signed artifact to the Google Play Console or your chosen distribution channel following their standard submission flow.
-
 ## Deployment
 
 ### Docker
@@ -201,13 +171,6 @@ npm run build
 rsync -av build/ user@server:/var/www/nospeak/
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
 
 ### Development Guidelines
 
@@ -222,8 +185,8 @@ rsync -av build/ user@server:/var/www/nospeak/
 Nospeak Web implements the following NIPs (Nostr Implementation Proposals):
 
 ### Core Protocol
-- **NIP-01**: Basic protocol flow and event structure
-- **NIP-05**: Mapping Nostr keys to DNS-based internet identifiers (nip05)
+- **NIP-05**: Mapping Nostr keys to DNS-based internet identifiers
+- **NIP-17**: Private Direct Messages 
 - **NIP-19**: bech32-encoded entities for keys and identifiers
 
 ### Metadata & Profiles
