@@ -166,7 +166,7 @@
                             <div class="grid grid-cols-1 gap-3 pt-6 border-t border-gray-100 dark:border-slate-800/50">
                                 {#if profile.metadata?.website}
                                     <div class="flex items-center gap-2 overflow-hidden group">
-                                        <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+                                        <div class="w-8 h-8 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center shrink-0">
                                             <svg class="text-blue-500" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
                                         </div>
                                         <a href={formatUrl(profile.metadata.website)} target="_blank" rel="noopener noreferrer" class="text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate text-sm font-medium transition-colors">
