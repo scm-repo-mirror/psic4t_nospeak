@@ -21,8 +21,8 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
  
-        // Ensure content is laid out below the system status bar
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
+        // Enable edge-to-edge layout and delegate safe areas to the web UI
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
     }
 
     @Override

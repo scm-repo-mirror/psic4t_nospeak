@@ -7,7 +7,7 @@
 
 </script>
  
-<div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 {isAndroidApp ? 'pt-10' : ''}">
+<div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" class:android-safe-area-top={isAndroidApp}>
     <div class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-white/20 dark:border-white/10 outline-none">
         <div class="flex flex-col items-center gap-6 w-full">
             <div class="relative">

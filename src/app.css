@@ -52,10 +52,19 @@
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-@layer components {
+     background: rgba(255, 255, 255, 0.3);
+ }
+ 
+ .android-safe-area-top {
+     padding-top: env(safe-area-inset-top);
+ }
+ 
+ .android-safe-area-vert {
+     padding-top: env(safe-area-inset-top);
+     padding-bottom: env(safe-area-inset-bottom);
+ }
+ 
+ @layer components {
     .typ-title {
         @apply text-xl md:text-2xl font-bold tracking-tight;
     }

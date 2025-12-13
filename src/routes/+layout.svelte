@@ -159,7 +159,8 @@
 
 {#if isInitialized}
   <div
-    class="h-dvh bg-gray-50 dark:bg-slate-950 flex justify-center overflow-hidden relative lg:p-4 {isAndroidApp ? 'pt-10' : ''}"
+    class="h-dvh bg-gray-50 dark:bg-slate-950 flex justify-center overflow-hidden relative lg:p-4"
+    class:android-safe-area-top={isAndroidApp}
   >
     <!-- Background Elements for Glassmorphism Context -->
     <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 dark:bg-blue-900/20 rounded-full blur-[100px] pointer-events-none"></div>

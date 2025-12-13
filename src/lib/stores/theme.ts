@@ -30,6 +30,8 @@ export interface ThemeColors {
 	crust: string;
 }
 
+import { syncAndroidStatusBarTheme } from '$lib/core/StatusBar';
+
 export const catppuccinThemes: Record<Theme, ThemeColors> = {
 	latte: {
 		rosewater: '#dc8a78',
@@ -234,6 +236,11 @@ export function applyTheme(theme: Theme) {
 		root.classList.add('dark');
 	} else {
 		root.classList.remove('dark');
+	}
+
+	if (typeof window !== 'undefined') {
+		const statusBarColor = isDark ? colors.crust : colors.base;
+		void syncAndroidStatusBarTheme(isDark, statusBarColor);
 	}
 }
 

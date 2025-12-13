@@ -19,7 +19,8 @@
     <div 
         in:fade={{ duration: 130 }}
         out:fade={{ duration: 110 }}
-        class="fixed inset-0 bg-black/35 md:bg-black/40 bg-gradient-to-br from-black/40 via-black/35 to-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 {isAndroidApp ? 'pt-10' : ''}"
+        class="fixed inset-0 bg-black/35 md:bg-black/40 bg-gradient-to-br from-black/40 via-black/35 to-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        class:android-safe-area-top={isAndroidApp}
         role="dialog"
         aria-modal="true"
         tabindex="-1"
