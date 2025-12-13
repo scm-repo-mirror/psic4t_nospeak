@@ -5,6 +5,8 @@
      import { connectionManager } from '$lib/core/connection/instance';
      import { fade } from 'svelte/transition';
      import { glassModal } from '$lib/utils/transitions';
+     import { t } from '$lib/i18n';
+     import { get } from 'svelte/store';
  
      let { isOpen = false } = $props<{ isOpen: boolean }>();
 
@@ -37,7 +39,7 @@
 
     async function handleContinue() {
         if (!username.trim()) {
-            errorMessage = 'Please enter a username to continue.';
+            errorMessage = get(t)('modals.emptyProfile.usernameRequired') as string;
             return;
         }
 
@@ -65,7 +67,7 @@
             close();
         } catch (e) {
             console.error('Failed to apply initial profile setup:', e);
-            errorMessage = 'Could not save your initial setup. Please try again.';
+            errorMessage = get(t)('modals.emptyProfile.saveError') as string;
         } finally {
             isSaving = false;
         }
@@ -111,13 +113,13 @@
 
                         <div class="mt-2">
                             <p class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">
-                                Username
+                                {$t('modals.emptyProfile.usernameLabel')}
                             </p>
                             <input
                                 type="text"
                                 bind:value={username}
                                 class="w-full px-3 py-2 border rounded-md bg-white/90 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Your name"
+                                placeholder={$t('modals.emptyProfile.usernamePlaceholder')}
                             />
                             {#if errorMessage}
                                 <p class="mt-1 text-xs text-red-600 dark:text-red-400">{errorMessage}</p>
@@ -133,7 +135,7 @@
                         onclick={close}
                         disabled={isSaving}
                     >
-                        I&apos;ll do this later
+                        {$t('modals.emptyProfile.doLater')}
                     </button>
                     <button
                         type="button"
@@ -141,7 +143,7 @@
                         onclick={handleContinue}
                         disabled={isSaving || !username.trim()}
                     >
-                        {isSaving ? 'Saving...' : 'Continue'}
+                        {isSaving ? $t('modals.emptyProfile.saving') : $t('modals.emptyProfile.continue')}
                     </button>
                 </div>
             </div>

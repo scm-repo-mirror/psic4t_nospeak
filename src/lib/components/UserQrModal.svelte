@@ -6,6 +6,7 @@
     import { fade } from 'svelte/transition';
     import { glassModal } from '$lib/utils/transitions';
     import { isAndroidNative } from '$lib/core/NativeDialogs';
+    import { t } from '$lib/i18n';
 
     let { isOpen, close } = $props<{
         isOpen: boolean;
@@ -148,7 +149,7 @@
 
             {#if loading}
                 <div class="mt-4 text-xs text-center text-gray-500 dark:text-slate-400">
-                    Preparing QR code…
+                    {$t('modals.userQr.preparing')}
                 </div>
             {/if}
         </div>

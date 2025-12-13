@@ -3,6 +3,7 @@
     import { onMount } from 'svelte';
     import AmberLoginModal from '$lib/components/AmberLoginModal.svelte';
     import KeypairLoginModal from '$lib/components/KeypairLoginModal.svelte';
+    import { t } from '$lib/i18n';
 
     let nsec = $state('');
     let error = $state('');
@@ -83,7 +84,7 @@
                 disabled={isLoading}
                 class="w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white font-medium p-3 rounded-xl hover:shadow-lg hover:shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                Login with Amber
+                {$t('auth.loginWithAmber')}
             </button>
 
             {#if hasExtension}
@@ -92,7 +93,7 @@
                     disabled={isLoading}
                     class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium p-3 rounded-xl hover:shadow-lg hover:shadow-purple-600/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Login with Extension
+                    {$t('auth.loginWithExtension')}
                 </button>
             {/if}
         </div>
@@ -102,7 +103,7 @@
                 <div class="w-full border-t border-gray-200/50 dark:border-gray-700"></div>
             </div>
             <div class="relative flex justify-center text-sm">
-                <span class="px-4 bg-transparent text-gray-500 dark:text-gray-400 bg-white/0 backdrop-blur-sm rounded-full">OR</span>
+                <span class="px-4 bg-transparent text-gray-500 dark:text-gray-400 bg-white/0 backdrop-blur-sm rounded-full">{$t('auth.orSeparator')}</span>
             </div>
         </div>
 
@@ -111,28 +112,28 @@
                 for="nsec-input" 
                 class="block text-sm font-medium mb-2 dark:text-gray-300 ml-1"
             >
-                Login with nsec
+                {$t('auth.loginWithNsecLabel')}
             </label>
             <input 
                 id="nsec-input"
                 type="password" 
                 bind:value={nsec} 
                 class="w-full px-4 py-3 border border-gray-200/50 dark:border-white/10 rounded-xl bg-white/50 dark:bg-slate-800/50 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all placeholder:text-gray-400" 
-                placeholder="nsec1..." 
+                placeholder={$t('auth.nsecPlaceholder')}
             />
             <button 
                 onclick={loginNsec} 
                 disabled={isLoading}
                 class="w-full mt-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium p-3 rounded-xl hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {isLoading ? 'Connecting...' : 'Login'}
+                {isLoading ? $t('auth.connecting') : $t('auth.loginButton')}
             </button>
             <button 
                 type="button"
                 onclick={() => (showKeypairModal = true)}
                 class="w-full mt-2 text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 text-center underline decoration-dotted"
             >
-                Generate new keypair
+                {$t('auth.generateKeypairLink')}
             </button>
         </div>
     </div>

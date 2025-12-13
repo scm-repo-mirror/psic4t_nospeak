@@ -6,6 +6,8 @@
      import { isAndroidNative } from "$lib/core/NativeDialogs";
      import { fade } from 'svelte/transition';
      import { glassModal } from '$lib/utils/transitions';
+     import { t } from '$lib/i18n';
+     import { get } from 'svelte/store';
  
       let { isOpen, close, npub } = $props<{ isOpen: boolean, close: () => void, npub: string }>();
       const isAndroidApp = isAndroidNative();
@@ -28,7 +30,7 @@
     }
 
     function formatRelays(relays: string[]) {
-        if (!relays || relays.length === 0) return 'None';
+        if (!relays || relays.length === 0) return get(t)('modals.profile.noRelays') as string;
         return relays.join(', ');
     }
 
@@ -104,7 +106,7 @@
 
                         <div class="flex flex-col mb-4">
                             <h3 class="text-2xl font-bold dark:text-white break-words">
-                                {profile.metadata?.name || profile.metadata?.display_name || 'Unknown'}
+                                {profile.metadata?.name || profile.metadata?.display_name || $t('modals.profile.unknownName')}
                             </h3>
                             {#if profile.metadata?.nip05}
                                 <div class="text-sm text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1">
@@ -152,7 +154,7 @@
                         <!-- About -->
                         {#if profile.metadata?.about}
                             <div>
-                                <h4 class="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">About</h4>
+                                <h4 class="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">{$t('modals.profile.about')}</h4>
                                 <div class="dark:text-gray-200 whitespace-pre-wrap text-sm leading-relaxed break-words">
                                     {profile.metadata.about}
                                 </div>
@@ -187,7 +189,7 @@
                         <!-- Technical Details -->
                         <div class="pt-6 border-t border-gray-100 dark:border-slate-800/50 space-y-5">
                             <div>
-                                <div class="font-bold text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Public Key</div>
+                                <div class="font-bold text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">{$t('modals.profile.publicKey')}</div>
                                 <div class="dark:text-slate-300 font-mono text-xs break-all bg-gray-50 dark:bg-black/20 p-3 rounded-xl border border-gray-100 dark:border-slate-800 select-all text-gray-600 shadow-inner">
                                     {npub}
                                 </div>
@@ -195,13 +197,13 @@
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <div class="font-bold text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Read Relays</div>
+                                    <div class="font-bold text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">{$t('modals.profile.readRelays')}</div>
                                     <div class="text-xs text-gray-600 dark:text-slate-300 break-words leading-relaxed bg-gray-50 dark:bg-slate-800/30 p-3 rounded-xl border border-gray-100 dark:border-slate-800/50">
                                         {formatRelays(profile.readRelays)}
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="font-bold text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Write Relays</div>
+                                    <div class="font-bold text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">{$t('modals.profile.writeRelays')}</div>
                                     <div class="text-xs text-gray-600 dark:text-slate-300 break-words leading-relaxed bg-gray-50 dark:bg-slate-800/30 p-3 rounded-xl border border-gray-100 dark:border-slate-800/50">
                                         {formatRelays(profile.writeRelays)}
                                     </div>
@@ -211,7 +213,7 @@
                     </div>
                 </div>
             {:else}
-                 <div class="p-8 text-center dark:text-slate-300">Profile not found</div>
+                 <div class="p-8 text-center dark:text-slate-300">{$t('modals.profile.notFound')}</div>
             {/if}
         </div>
     </div>

@@ -3,27 +3,28 @@
   import { relaySettingsService } from "$lib/core/RelaySettingsService";
   import { profileService } from "$lib/core/ProfileService";
   import { authService } from "$lib/core/AuthService";
-   import { currentUser } from "$lib/stores/auth";
-   import { profileRepo } from "$lib/db/ProfileRepository";
-   import { getDisplayedNip05 } from "$lib/core/Nip05Display";
-   import { getCurrentThemeMode, setThemeMode } from "$lib/stores/theme.svelte";
-   import type { ThemeMode } from "$lib/stores/theme";
-   import MediaUploadButton from './MediaUploadButton.svelte';
-   import { isAndroidNative, nativeDialogService } from "$lib/core/NativeDialogs";
-   import { applyAndroidBackgroundMessaging } from "$lib/core/BackgroundMessaging";
-   import { fade } from 'svelte/transition';
-   import { glassModal } from '$lib/utils/transitions';
+  import { currentUser } from "$lib/stores/auth";
+  import { profileRepo } from "$lib/db/ProfileRepository";
+  import { getDisplayedNip05 } from "$lib/core/Nip05Display";
+  import { getCurrentThemeMode, setThemeMode } from "$lib/stores/theme.svelte";
+  import type { ThemeMode } from "$lib/stores/theme";
+  import MediaUploadButton from "./MediaUploadButton.svelte";
+  import { isAndroidNative, nativeDialogService } from "$lib/core/NativeDialogs";
+  import { applyAndroidBackgroundMessaging } from "$lib/core/BackgroundMessaging";
+  import { fade } from "svelte/transition";
+  import { glassModal } from "$lib/utils/transitions";
+  import { t } from "$lib/i18n";
+  import { language, setLanguage } from "$lib/stores/language";
+  import type { Language } from "$lib/i18n";
  
-   const packageVersion = __APP_VERSION__;
-
+  const packageVersion = __APP_VERSION__;
 
   let { isOpen = false, close = () => {} } = $props<{
-     isOpen: boolean;
-     close: () => void;
-   }>();
+    isOpen: boolean;
+    close: () => void;
+  }>();
 
   const isAndroidApp = isAndroidNative();
-
 
   let notificationsEnabled = $state(false);
   let urlPreviewsEnabled = $state(true);
@@ -31,13 +32,13 @@
   let isSupported = $state(false);
   let isLoaded = $state(false);
 
-
   type Category = "General" | "Profile" | "Mailbox Relays" | "About" | "Security";
   type AuthMethod = "local" | "nip07" | "nip46" | "unknown";
 
   let activeCategory = $state<Category>("General");
 
   let themeMode = $state<ThemeMode>("system");
+  let languageValue = $state<Language>("en");
 
   let securityAuthMethod = $state<AuthMethod>("unknown");
   let storedNsec = $state("");
@@ -64,14 +65,14 @@
   let relays = $state<RelayConfig[]>([]);
   let newRelayUrl = $state("");
 
-  function handlePictureUpload(file: File, type: 'image' | 'video' | 'audio', url?: string) {
+  function handlePictureUpload(file: File, type: "image" | "video" | "audio", url?: string) {
     if (url) {
       profilePicture = url;
       saveProfile();
     }
   }
 
-  function handleBannerUpload(file: File, type: 'image' | 'video' | 'audio', url?: string) {
+  function handleBannerUpload(file: File, type: "image" | "video" | "audio", url?: string) {
     if (url) {
       profileBanner = url;
       saveProfile();
@@ -92,14 +93,13 @@
         profileLud16 = profile.metadata.lud16 || "";
         profileNip05Status = profile.nip05Status ?? null;
       }
-
     }
   }
 
   async function saveProfile() {
     if (isSavingProfile) return;
     isSavingProfile = true;
- 
+
     try {
       await profileService.updateProfile({
         name: profileName,
@@ -109,12 +109,11 @@
         nip05: profileNip05,
         website: profileWebsite,
         display_name: profileDisplayName,
-        lud16: profileLud16,
+        lud16: profileLud16
       });
       await loadProfile();
       // Optional: Show success feedback
     } catch (e) {
-
       console.error("Failed to save profile:", e);
       // Optional: Show error feedback
     } finally {
@@ -140,7 +139,7 @@
       .map((url) => ({
         url,
         read: readRelays.includes(url),
-        write: writeRelays.includes(url),
+        write: writeRelays.includes(url)
       }))
       .sort((a, b) => a.url.localeCompare(b.url));
   }
@@ -185,18 +184,17 @@
     }
   }
 
-   let showMobileContent = $state(false);
- 
-   $effect(() => {
-     if (!isOpen) {
-       activeCategory = "General";
-       showMobileContent = false;
-     }
-   });
- 
-   // Load settings from localStorage
-   $effect(() => {
- 
+  let showMobileContent = $state(false);
+
+  $effect(() => {
+    if (!isOpen) {
+      activeCategory = "General";
+      showMobileContent = false;
+    }
+  });
+
+  // Load settings from localStorage
+  $effect(() => {
     if (isOpen) {
       showMobileContent = false;
       // Always refresh profile and relay settings when the modal opens
@@ -204,7 +202,11 @@
       loadProfile();
 
       try {
-        const method = localStorage.getItem("nospeak:auth_method") as "local" | "nip07" | "nip46" | null;
+        const method = localStorage.getItem("nospeak:auth_method") as
+          | "local"
+          | "nip07"
+          | "nip46"
+          | null;
         if (method === "local" || method === "nip07" || method === "nip46") {
           securityAuthMethod = method;
         } else {
@@ -225,28 +227,36 @@
         storedNsec = "";
         showNsec = false;
       }
+
+      // Sync language selector with current language store
+      languageValue = $language;
     }
-      if (isOpen && !isLoaded) {
-        isSupported = notificationService.isSupported();
-        const saved = localStorage.getItem("nospeak-settings");
-        if (saved) {
-          const settings = JSON.parse(saved) as { notificationsEnabled?: boolean; urlPreviewsEnabled?: boolean; backgroundMessagingEnabled?: boolean };
-          notificationsEnabled = settings.notificationsEnabled || false;
-          urlPreviewsEnabled = typeof settings.urlPreviewsEnabled === "boolean" ? settings.urlPreviewsEnabled : true;
-          backgroundMessagingEnabled = settings.backgroundMessagingEnabled === true;
-        } else {
-          notificationsEnabled = false;
-          urlPreviewsEnabled = true;
-          backgroundMessagingEnabled = false;
-        }
- 
-        themeMode = getCurrentThemeMode();
-        isLoaded = true;
+
+    if (isOpen && !isLoaded) {
+      isSupported = notificationService.isSupported();
+      const saved = localStorage.getItem("nospeak-settings");
+      if (saved) {
+        const settings = JSON.parse(saved) as {
+          notificationsEnabled?: boolean;
+          urlPreviewsEnabled?: boolean;
+          backgroundMessagingEnabled?: boolean;
+        };
+        notificationsEnabled = settings.notificationsEnabled || false;
+        urlPreviewsEnabled =
+          typeof settings.urlPreviewsEnabled === "boolean"
+            ? settings.urlPreviewsEnabled
+            : true;
+        backgroundMessagingEnabled = settings.backgroundMessagingEnabled === true;
+      } else {
+        notificationsEnabled = false;
+        urlPreviewsEnabled = true;
+        backgroundMessagingEnabled = false;
       }
- 
-   });
 
-
+      themeMode = getCurrentThemeMode();
+      isLoaded = true;
+    }
+  });
 
   // Save notification settings
   $effect(() => {
@@ -257,7 +267,7 @@
         ...existingSettings,
         notificationsEnabled,
         urlPreviewsEnabled,
-        backgroundMessagingEnabled,
+        backgroundMessagingEnabled
       };
       localStorage.setItem("nospeak-settings", JSON.stringify(settings));
     }
@@ -276,24 +286,29 @@
   }
 
   async function toggleBackgroundMessaging() {
-     if (!isAndroidApp) {
-       return;
-     }
- 
-     backgroundMessagingEnabled = !backgroundMessagingEnabled;
- 
-     try {
-       await applyAndroidBackgroundMessaging(backgroundMessagingEnabled);
-     } catch (e) {
-       console.error("Failed to sync Android background messaging from toggle:", e);
-     }
-   }
+    if (!isAndroidApp) {
+      return;
+    }
 
+    backgroundMessagingEnabled = !backgroundMessagingEnabled;
+
+    try {
+      await applyAndroidBackgroundMessaging(backgroundMessagingEnabled);
+    } catch (e) {
+      console.error("Failed to sync Android background messaging from toggle:", e);
+    }
+  }
 
   function handleThemeModeChange(event: Event) {
     const value = (event.target as HTMLSelectElement).value as ThemeMode;
     themeMode = value;
     setThemeMode(value);
+  }
+
+  function handleLanguageChange(event: Event) {
+    const value = (event.target as HTMLSelectElement).value as Language;
+    languageValue = value;
+    setLanguage(value);
   }
 
   function handleOverlayClick(e: MouseEvent) {
@@ -311,99 +326,171 @@
 
 {#if isOpen}
   <div
-     in:fade={{ duration: 130 }}
-     out:fade={{ duration: 110 }}
-     class="fixed inset-0 bg-black/35 md:bg-black/40 bg-gradient-to-br from-black/40 via-black/35 to-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50"
-     class:android-safe-area-top={isAndroidApp}
-     onclick={handleOverlayClick}
-     onkeydown={handleKeydown}
-     role="dialog"
-     aria-modal="true"
-     aria-labelledby="settings-title"
-     tabindex="-1"
-   >
-     <div
-       in:glassModal={{ duration: 200, scaleFrom: 0.92, blurFrom: 1 }}
-       out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
-       class="bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative outline-none"
-     >
-
-      <button onclick={close} aria-label="Close modal" class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    in:fade={{ duration: 130 }}
+    out:fade={{ duration: 110 }}
+    class="fixed inset-0 bg-black/35 md:bg-black/40 bg-gradient-to-br from-black/40 via-black/35 to-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50"
+    class:android-safe-area-top={isAndroidApp}
+    onclick={handleOverlayClick}
+    onkeydown={handleKeydown}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="settings-title"
+    tabindex="-1"
+  >
+    <div
+      in:glassModal={{ duration: 200, scaleFrom: 0.92, blurFrom: 1 }}
+      out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
+      class="bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative outline-none"
+    >
+      <button
+        onclick={close}
+        aria-label="Close modal"
+        class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
       </button>
       <!-- Sidebar -->
       <div
-        class={`w-full md:w-64 bg-transparent md:bg-white/50 dark:bg-slate-900/50 border-r border-gray-200/50 dark:border-slate-800/50 p-4 flex-col ${showMobileContent ? 'hidden md:flex' : 'flex'}`}
+        class={`w-full md:w-64 bg-transparent md:bg-white/50 dark:bg-slate-900/50 border-r border-gray-200/50 dark:border-slate-800/50 p-4 flex-col ${
+          showMobileContent ? "hidden md:flex" : "flex"
+        }`}
       >
         <div class="flex items-center gap-2 mb-6 px-2">
-            <button
-                class="md:hidden text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
-                onclick={close}
-                aria-label="Close settings"
-            >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
-            </button>
-            <h2
-            id="settings-title"
-            class="typ-title dark:text-white"
-            >
-            Settings
-            </h2>
+          <button
+            class="md:hidden text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+            onclick={close}
+            aria-label="Close settings"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              ></path>
+            </svg>
+          </button>
+          <h2 id="settings-title" class="typ-title dark:text-white">
+            {$t("settings.title")}
+          </h2>
         </div>
 
         <nav class="space-y-1">
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "General" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
-            onclick={() => { activeCategory = "General"; showMobileContent = true; }}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+              activeCategory === "General"
+                ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white"
+                : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
+            }`}
+            onclick={() => {
+              activeCategory = "General";
+              showMobileContent = true;
+            }}
           >
-            General
+            {$t("settings.categories.general")}
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Profile" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
-            onclick={() => { activeCategory = "Profile"; showMobileContent = true; }}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+              activeCategory === "Profile"
+                ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white"
+                : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
+            }`}
+            onclick={() => {
+              activeCategory = "Profile";
+              showMobileContent = true;
+            }}
           >
-            Profile
+            {$t("settings.categories.profile")}
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Mailbox Relays" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
-            onclick={() => { activeCategory = "Mailbox Relays"; showMobileContent = true; }}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+              activeCategory === "Mailbox Relays"
+                ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white"
+                : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
+            }`}
+            onclick={() => {
+              activeCategory = "Mailbox Relays";
+              showMobileContent = true;
+            }}
           >
-            Mailbox Relays
+            {$t("settings.categories.mailboxRelays")}
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "Security" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
-            onclick={() => { activeCategory = "Security"; showMobileContent = true; }}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+              activeCategory === "Security"
+                ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white"
+                : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
+            }`}
+            onclick={() => {
+              activeCategory = "Security";
+              showMobileContent = true;
+            }}
           >
-            Security
+            {$t("settings.categories.security")}
           </button>
           <button
-            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${activeCategory === "About" ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white" : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"}`}
-            onclick={() => { activeCategory = "About"; showMobileContent = true; }}
+            class={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+              activeCategory === "About"
+                ? "bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-slate-700 dark:ring-0 font-medium text-gray-900 dark:text-white"
+                : "text-gray-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200"
+            }`}
+            onclick={() => {
+              activeCategory = "About";
+              showMobileContent = true;
+            }}
           >
-            About
+            {$t("settings.categories.about")}
           </button>
         </nav>
       </div>
 
       <!-- Content -->
-      <div class={`flex-1 flex-col min-w-0 ${showMobileContent ? 'flex' : 'hidden md:flex'}`}>
+      <div
+        class={`flex-1 flex-col min-w-0 ${showMobileContent ? "flex" : "hidden md:flex"}`}
+      >
         <div
           class="p-6 flex justify-between items-center border-b border-gray-200/50 dark:border-slate-800/50"
         >
           <div class="flex items-center gap-2">
             <button
-                class="md:hidden text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
-                onclick={() => showMobileContent = false}
-                aria-label="Back to categories"
+              class="md:hidden text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+              onclick={() => (showMobileContent = false)}
+              aria-label="Back to categories"
             >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                </svg>
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 19l-7-7 7-7"
+                ></path>
+              </svg>
             </button>
             <h3 class="typ-section dark:text-white">
-              {activeCategory}
+              {#if activeCategory === "General"}
+                {$t('settings.categories.general')}
+              {:else if activeCategory === "Profile"}
+                {$t('settings.categories.profile')}
+              {:else if activeCategory === "Mailbox Relays"}
+                {$t('settings.categories.mailboxRelays')}
+              {:else if activeCategory === "Security"}
+                {$t('settings.categories.security')}
+              {:else if activeCategory === "About"}
+                {$t('settings.categories.about')}
+              {/if}
             </h3>
           </div>
         </div>
@@ -413,13 +500,11 @@
             <div class="space-y-6">
               <div class="flex items-center justify-between">
                 <div>
-                  <label
-                    for="theme-mode"
-                    class="font-medium dark:text-white"
-                    >Appearance</label
-                  >
+                  <label for="theme-mode" class="font-medium dark:text-white">
+                    {$t("settings.general.appearanceLabel")}
+                  </label>
                   <p class="typ-body text-gray-500 dark:text-slate-400">
-                    Choose whether to follow System, Light, or Dark mode.
+                    {$t("settings.general.appearanceDescription")}
                   </p>
                 </div>
                 <select
@@ -434,17 +519,40 @@
                 </select>
               </div>
 
+              <div class="flex items-center justify-between">
+                <div>
+                  <label for="language-select" class="font-medium dark:text-white">
+                    {$t("settings.general.languageLabel")}
+                  </label>
+                  <p class="typ-body text-gray-500 dark:text-slate-400">
+                    {$t("settings.general.languageDescription")}
+                  </p>
+                </div>
+                <select
+                  id="language-select"
+                  bind:value={languageValue}
+                  onchange={handleLanguageChange}
+                  class="ml-4 px-3 py-2 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm"
+                >
+                  <option value="en">English</option>
+                  <option value="de">Deutsch</option>
+                </select>
+              </div>
+
               <div class="flex items-start justify-between gap-4">
                 <div class="flex-1 min-w-0">
                   <label
                     for="notifications-toggle"
                     class="font-medium dark:text-white"
-                    >Message Notifications</label
                   >
+                    {$t("settings.notifications.label")}
+                  </label>
                   <p class="text-sm text-gray-500 dark:text-slate-400">
-                    {isSupported
-                      ? "Get notified when you receive new messages on this device"
-                      : "Notifications not supported on this device"}
+                    {#if isSupported}
+                      {$t("settings.notifications.supportedDescription")}
+                    {:else}
+                      {$t("settings.notifications.unsupportedDescription")}
+                    {/if}
                   </p>
                 </div>
                 {#if isSupported}
@@ -456,9 +564,9 @@
                         ? "bg-blue-500"
                         : "bg-gray-200 dark:bg-slate-600"
                     }`}
-                    aria-label={notificationsEnabled
-                      ? "Disable notifications"
-                      : "Enable notifications"}
+                    aria-label={
+                      notificationsEnabled ? "Disable notifications" : "Enable notifications"
+                    }
                   >
                     <span
                       class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -467,9 +575,9 @@
                     ></span>
                   </button>
                 {:else}
-                  <span class="typ-meta text-gray-400 dark:text-slate-500"
-                    >Not supported</span
-                  >
+                  <span class="typ-meta text-gray-400 dark:text-slate-500">
+                    Not supported
+                  </span>
                 {/if}
               </div>
 
@@ -478,9 +586,10 @@
                   <div class="flex-1 min-w-0">
                     <label
                       for="background-messaging-toggle"
-class="typ-section dark:text-white"
-                      >Background Messaging</label
+                      class="typ-section dark:text-white"
                     >
+                      Background Messaging
+                    </label>
                     <p class="text-sm text-gray-500 dark:text-slate-400">
                       Keep nospeak connected to your read relays and receive new message
                       notifications while the app is in the background. Android will show a
@@ -497,9 +606,11 @@ class="typ-section dark:text-white"
                         ? "bg-blue-500"
                         : "bg-gray-200 dark:bg-slate-600"
                     }`}
-                    aria-label={backgroundMessagingEnabled
-                      ? "Disable Android background messaging"
-                      : "Enable Android background messaging"}
+                    aria-label={
+                      backgroundMessagingEnabled
+                        ? "Disable Android background messaging"
+                        : "Enable Android background messaging"
+                    }
                   >
                     <span
                       class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -515,23 +626,22 @@ class="typ-section dark:text-white"
                   <label
                     for="url-previews-toggle"
                     class="font-medium dark:text-white"
-                    >URL Previews</label
                   >
+                    {$t("settings.urlPreviews.label")}
+                  </label>
                   <p class="text-sm text-gray-500 dark:text-slate-400">
-                    Show preview cards for non-media links in messages.
+                    {$t("settings.urlPreviews.description")}
                   </p>
                 </div>
                 <button
                   id="url-previews-toggle"
                   onclick={() => (urlPreviewsEnabled = !urlPreviewsEnabled)}
                   class={`ml-4 flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    urlPreviewsEnabled
-                      ? "bg-blue-500"
-                      : "bg-gray-200 dark:bg-slate-600"
+                    urlPreviewsEnabled ? "bg-blue-500" : "bg-gray-200 dark:bg-slate-600"
                   }`}
-                  aria-label={urlPreviewsEnabled
-                    ? "Disable URL previews"
-                    : "Enable URL previews"}
+                  aria-label={
+                    urlPreviewsEnabled ? "Disable URL previews" : "Enable URL previews"
+                  }
                 >
                   <span
                     class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -540,7 +650,6 @@ class="typ-section dark:text-white"
                   ></span>
                 </button>
               </div>
- 
             </div>
           {:else if activeCategory === "Profile"}
             <div class="space-y-6">
@@ -549,14 +658,15 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-name"
                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >Name</label
                   >
+                    {$t('settings.profile.nameLabel')}
+                  </label>
                   <input
                     id="profile-name"
                     bind:value={profileName}
                     type="text"
                     class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Your name"
+                    placeholder={$t('settings.profile.namePlaceholder')}
                   />
                 </div>
 
@@ -564,14 +674,15 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-display-name"
                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >Display Name</label
                   >
+                    {$t('settings.profile.displayNameLabel')}
+                  </label>
                   <input
                     id="profile-display-name"
                     bind:value={profileDisplayName}
                     type="text"
                     class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Display name"
+                    placeholder={$t('settings.profile.displayNamePlaceholder')}
                   />
                 </div>
 
@@ -579,14 +690,15 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-about"
                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >About</label
                   >
+                    {$t('settings.profile.aboutLabel')}
+                  </label>
                   <textarea
                     id="profile-about"
                     bind:value={profileAbout}
                     rows="3"
                     class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Tell us about yourself"
+                    placeholder={$t('settings.profile.aboutPlaceholder')}
                   ></textarea>
                 </div>
 
@@ -594,17 +706,21 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-picture"
                     class="block text sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >Picture URL</label
                   >
+                    {$t('settings.profile.pictureUrlLabel')}
+                  </label>
                   <div class="flex gap-2">
-                     <MediaUploadButton onFileSelect={handlePictureUpload} allowedTypes={["image"]} />
+                    <MediaUploadButton
+                      onFileSelect={handlePictureUpload}
+                      allowedTypes={["image"]}
+                    />
 
                     <input
                       id="profile-picture"
                       bind:value={profilePicture}
                       type="url"
                       class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://example.com/avatar.jpg"
+                      placeholder={$t('settings.profile.pictureUrlPlaceholder')}
                     />
                   </div>
                 </div>
@@ -613,17 +729,21 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-banner"
                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >Banner URL</label
                   >
+                    {$t('settings.profile.bannerUrlLabel')}
+                  </label>
                   <div class="flex gap-2">
-                     <MediaUploadButton onFileSelect={handleBannerUpload} allowedTypes={["image"]} />
+                    <MediaUploadButton
+                      onFileSelect={handleBannerUpload}
+                      allowedTypes={["image"]}
+                    />
 
                     <input
                       id="profile-banner"
                       bind:value={profileBanner}
                       type="url"
                       class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://example.com/banner.jpg"
+                      placeholder={$t('settings.profile.bannerUrlPlaceholder')}
                     />
                   </div>
                 </div>
@@ -632,14 +752,15 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-nip05"
                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >NIP-05 (Username)</label
                   >
+                    {$t('settings.profile.nip05Label')}
+                  </label>
                   <input
                     id="profile-nip05"
                     bind:value={profileNip05}
                     type="text"
                     class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="name@domain.com"
+                    placeholder={$t('settings.profile.nip05Placeholder')}
                     oninput={() => (profileNip05Status = "unknown")}
                   />
                   {#if profileNip05}
@@ -655,11 +776,14 @@ class="typ-section dark:text-white"
                           stroke="currentColor"
                           stroke-width="2"
                           stroke-linecap="round"
-                          stroke-linejoin="round">
+                          stroke-linejoin="round"
+                        >
                           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                           <path d="m9 12 2 2 4-4"></path>
                         </svg>
-                        <span>Verified for this key ({getDisplayedNip05(profileNip05)})</span>
+                        <span
+                          >Verified for this key ({getDisplayedNip05(profileNip05)})</span
+                        >
                       </div>
                     {:else if profileNip05Status === "invalid"}
                       <div class="mt-1 text-xs text-yellow-600 flex items-center gap-1">
@@ -673,7 +797,8 @@ class="typ-section dark:text-white"
                           stroke="currentColor"
                           stroke-width="2"
                           stroke-linecap="round"
-                          stroke-linejoin="round">
+                          stroke-linejoin="round"
+                        >
                           <circle cx="12" cy="12" r="10"></circle>
                           <line x1="12" y1="8" x2="12" y2="12"></line>
                           <circle cx="12" cy="16" r="1"></circle>
@@ -692,14 +817,15 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-website"
                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >Website</label
                   >
+                    {$t('settings.profile.websiteLabel')}
+                  </label>
                   <input
                     id="profile-website"
                     bind:value={profileWebsite}
                     type="url"
                     class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com"
+                    placeholder={$t('settings.profile.websitePlaceholder')}
                   />
                 </div>
 
@@ -707,14 +833,15 @@ class="typ-section dark:text-white"
                   <label
                     for="profile-lud16"
                     class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
-                    >Lightning Address (LUD-16)</label
                   >
+                    {$t('settings.profile.lightningLabel')}
+                  </label>
                   <input
                     id="profile-lud16"
                     bind:value={profileLud16}
                     type="text"
                     class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="user@provider.com"
+                    placeholder={$t('settings.profile.lightningPlaceholder')}
                   />
                 </div>
 
@@ -745,9 +872,9 @@ class="typ-section dark:text-white"
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                      Saving...
+                      {$t('settings.profile.savingButton')}
                     {:else}
-                      Save Changes
+                      {$t('settings.profile.saveButton')}
                     {/if}
                   </button>
                 </div>
@@ -756,15 +883,13 @@ class="typ-section dark:text-white"
           {:else if activeCategory === "Mailbox Relays"}
             <div class="space-y-6">
               <p class="text-sm text-gray-500 dark:text-slate-400">
-                Configure your NIP-65 Mailbox Relays. These relays inform others
-                where to send you messages (Read) and where to find your
-                messages (Write).
+                {$t('settings.mailboxRelays.description')}
               </p>
 
               <div class="flex gap-2">
                 <input
                   bind:value={newRelayUrl}
-                  placeholder="wss://relay.example.com"
+                  placeholder={$t('settings.mailboxRelays.inputPlaceholder')}
                   class="flex-1 px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   onkeydown={(e) => e.key === "Enter" && addRelay()}
                 />
@@ -772,7 +897,7 @@ class="typ-section dark:text-white"
                   onclick={addRelay}
                   class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
                 >
-                  Add
+                  {$t('settings.mailboxRelays.addButton')}
                 </button>
               </div>
 
@@ -780,9 +905,7 @@ class="typ-section dark:text-white"
                 class="border border-gray-200/60 dark:border-slate-700/70 rounded-2xl bg-white/80 dark:bg-slate-900/60 overflow-hidden shadow-sm divide-y divide-gray-200/60 dark:divide-slate-700/70"
               >
                 {#each relays as relay}
-                  <div
-                    class="px-4 py-3 flex items-center justify-between"
-                  >
+                  <div class="px-4 py-3 flex items-center justify-between">
                     <div class="flex-1 min-w-0 pr-4">
                       <p
                         class="text-sm font-medium dark:text-white truncate"
@@ -796,25 +919,23 @@ class="typ-section dark:text-white"
                         <input
                           type="checkbox"
                           checked={relay.read}
-                          onchange={() =>
-                            toggleRelayPermission(relay.url, "read")}
+                          onchange={() => toggleRelayPermission(relay.url, "read")}
                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span class="text-sm text-gray-600 dark:text-slate-400"
-                          >Read</span
-                        >
+                        <span class="text-sm text-gray-600 dark:text-slate-400">
+                          {$t('settings.mailboxRelays.readLabel')}
+                        </span>
                       </label>
                       <label class="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={relay.write}
-                          onchange={() =>
-                            toggleRelayPermission(relay.url, "write")}
+                          onchange={() => toggleRelayPermission(relay.url, "write")}
                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span class="text-sm text-gray-600 dark:text-slate-400"
-                          >Write</span
-                        >
+                        <span class="text-sm text-gray-600 dark:text-slate-400">
+                          {$t('settings.mailboxRelays.writeLabel')}
+                        </span>
                       </label>
                       <button
                         onclick={() => removeRelay(relay.url)}
@@ -838,8 +959,10 @@ class="typ-section dark:text-white"
                     </div>
                   </div>
                 {:else}
-                  <div class="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">
-                    No relays configured
+                  <div
+                    class="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400"
+                  >
+                    {$t('settings.mailboxRelays.emptyState')}
                   </div>
                 {/each}
               </div>
@@ -848,18 +971,16 @@ class="typ-section dark:text-white"
             <div class="space-y-6">
               <div class="flex items-center gap-6">
                 <img
-                   src="/nospeak.svg"
-                   alt="Nospeak Logo"
-                   class="w-32 h-32 rounded-lg app-logo"
-                 />
+                  src="/nospeak.svg"
+                  alt="Nospeak Logo"
+                  class="w-32 h-32 rounded-lg app-logo"
+                />
                 <div>
                   <h3 class="text-2xl font-medium dark:text-white">Nospeak</h3>
-                  <p class="text-gray-600 dark:text-slate-400">
-                    Version {packageVersion}
-                  </p>
+                  <p class="text-gray-600 dark:text-slate-400">Version {packageVersion}</p>
                 </div>
               </div>
- 
+
               <div class="space-y-4 pt-4 border-t dark:border-slate-700">
                 <div>
                   <h4
@@ -867,9 +988,7 @@ class="typ-section dark:text-white"
                   >
                     License
                   </h4>
-                  <p class="typ-body text-gray-600 dark:text-slate-400">
-                    GPL
-                  </p>
+                  <p class="typ-body text-gray-600 dark:text-slate-400">GPL</p>
                   <p class="text-sm text-gray-600 dark:text-slate-400 mt-1">
                     CC by-nc-nd psic4t
                   </p>
@@ -879,33 +998,37 @@ class="typ-section dark:text-white"
           {:else if activeCategory === "Security"}
             <div class="space-y-6">
               <div class="space-y-2 max-w-xl">
-                <p class="typ-section dark:text-white">
-                  Login method
-                </p>
+                <p class="typ-section dark:text-white">{$t('settings.security.loginMethodTitle')}</p>
                 <div>
                   {#if securityAuthMethod === "nip07"}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                    <span
+                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                    >
                       NIP-07 Extension
                     </span>
                   {:else if securityAuthMethod === "nip46"}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                    <span
+                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                    >
                       NIP-46 / Amber
                     </span>
                   {:else if securityAuthMethod === "local"}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white dark:bg-blue-500/40 dark:text-blue-100">
+                    <span
+                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-600 text-white dark:bg-blue-500/40 dark:text-blue-100"
+                    >
                       Nsec
                     </span>
                   {:else}
                     <span class="text-sm text-gray-500 dark:text-slate-400">
-                      Unknown
+                      {$t('settings.security.loginMethodUnknown')}
                     </span>
                   {/if}
                 </div>
               </div>
-  
+
               <div class="space-y-2 max-w-xl">
                 <label class="font-medium dark:text-white" for="security-npub">
-                  Your npub
+                  {$t('settings.security.npubLabel')}
                 </label>
                 <input
                   id="security-npub"
@@ -915,11 +1038,11 @@ class="typ-section dark:text-white"
                   class="w-full px-3 py-2 border rounded-md bg-gray-50 dark:bg-slate-800 dark:border-slate-600 dark:text-white text-sm font-mono overflow-x-auto focus:outline-none"
                 />
               </div>
- 
+
               {#if securityAuthMethod === "local"}
                 <div class="space-y-2 max-w-xl">
                   <label class="font-medium dark:text-white" for="security-nsec">
-                    Your nsec
+                    {$t('settings.security.nsecLabel')}
                   </label>
                   <div class="relative">
                     <input
@@ -933,7 +1056,7 @@ class="typ-section dark:text-white"
                       type="button"
                       class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
                       onclick={() => (showNsec = !showNsec)}
-                      aria-label={showNsec ? "Hide nsec" : "Show nsec"}
+                      aria-label={showNsec ? $t('settings.security.hideNsecAria') : $t('settings.security.showNsecAria')}
                     >
                       {#if showNsec}
                         <svg
@@ -978,35 +1101,27 @@ class="typ-section dark:text-white"
               {/if}
 
               <div class="pt-6 border-t dark:border-slate-700">
-
-                <h4
-                  class="text-sm font-medium text-red-600 dark:text-red-400 mb-2"
-                >
-                  Danger Zone
+                <h4 class="text-sm font-medium text-red-600 dark:text-red-400 mb-2">
+                  {$t('settings.security.dangerZoneTitle')}
                 </h4>
                 <div
                   class="bg-red-50 dark:bg-red-900/20 p-4 rounded-md border border-red-100 dark:border-red-800"
                 >
                   <p class="text-sm text-red-700 dark:text-red-300 mb-3">
-                    Logging out will remove all cached data from this device.
+                    {$t('settings.security.dangerZoneDescription')}
                   </p>
                   <button
                     onclick={() => authService.logout()}
                     class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
                   >
-                    Logout
+                    {$t('settings.security.logoutButton')}
                   </button>
                 </div>
               </div>
- 
-             </div>
-            {/if}
-
-
-
+            </div>
+          {/if}
         </div>
       </div>
     </div>
   </div>
 {/if}
-

@@ -9,12 +9,15 @@
     import { profileRepo } from '$lib/db/ProfileRepository';
     import type { ContactItem } from '$lib/db/db';
     import { goto } from '$app/navigation';
-    import { page } from '$app/state';
-    import Avatar from './Avatar.svelte';
-     import { softVibrate } from '$lib/utils/haptics';
-     import { onMount } from 'svelte';
-     import { showManageContactsModal, showSettingsModal, openProfileModal, showUserQrModal } from '$lib/stores/modals';
-     
+     import { page } from '$app/state';
+     import Avatar from './Avatar.svelte';
+      import { softVibrate } from '$lib/utils/haptics';
+      import { onMount } from 'svelte';
+      import { showManageContactsModal, showSettingsModal, openProfileModal, showUserQrModal } from '$lib/stores/modals';
+      import { t } from '$lib/i18n';
+      import { get } from 'svelte/store';
+      
+
 
 
     let myPicture = $state<string | undefined>(undefined);
@@ -44,7 +47,7 @@
                  .trim();
  
              if (lastMessageText && lastMsg && lastMsg.direction === 'sent') {
-                 lastMessageText = `You: ${lastMessageText}`;
+                 lastMessageText = `${get(t)('contacts.youPrefix') || 'You'}: ${lastMessageText}`;
              }
 
 
@@ -189,7 +192,8 @@
             </button>
         </div>
         <div class="px-4 pb-3 flex justify-between items-center">
-            <div class="typ-section dark:text-white">Contacts</div>
+             <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
+
             <button 
                 onclick={() => {
                     softVibrate();
@@ -197,7 +201,7 @@
                 }}
                  class="text-xs px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-300 font-semibold shadow-sm border border-gray-200/60 dark:border-slate-600 transition-colors"
             >
-                Manage
+                {$t('contacts.manage')}
             </button>
         </div>
     </div>
@@ -215,7 +219,7 @@
                     </div>
                 {/each}
                 <div class="text-center text-sm text-gray-500 mt-4">
-                    If no contacts appear,<br/>click Manage to add some.
+                    {$t('contacts.emptyHint')}
                 </div>
             </div>
         {/if}

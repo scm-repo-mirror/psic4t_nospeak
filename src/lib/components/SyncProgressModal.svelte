@@ -1,6 +1,7 @@
 <script lang="ts">
      import { syncState } from '$lib/stores/sync';
      import { isAndroidNative } from "$lib/core/NativeDialogs";
+     import { t } from '$lib/i18n';
  
      let { progress = 0 } = $props<{ progress: number }>();
      const isAndroidApp = isAndroidNative();
@@ -15,7 +16,7 @@
             </div>
             
             <div class="text-center">
-                <div class="typ-title dark:text-white mb-2">Syncing messages...</div>
+                <div class="typ-title dark:text-white mb-2">{$t('sync.title')}</div>
                 <div class="typ-meta text-gray-500 dark:text-slate-400">({progress} fetched)</div>
             </div>
 

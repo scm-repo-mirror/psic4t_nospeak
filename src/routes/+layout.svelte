@@ -18,6 +18,7 @@
 
   import { syncState } from "$lib/stores/sync";
   import { configureAndroidStatusBar } from "$lib/core/StatusBar";
+  import { initLanguage } from "$lib/stores/language";
   import { isAndroidNative } from "$lib/core/NativeDialogs";
   import { initAndroidBackNavigation } from "$lib/core/AndroidBackHandler";
   import ImageViewerOverlay from "$lib/components/ImageViewerOverlay.svelte";
@@ -48,6 +49,8 @@
   });
 
   onMount(async () => {
+    initLanguage();
+
     configureAndroidStatusBar().catch((error) => {
       console.warn('Android status bar configuration failed', error);
     });

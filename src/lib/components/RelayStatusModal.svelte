@@ -4,13 +4,15 @@
      import { isAndroidNative } from "$lib/core/NativeDialogs";
      import { fade } from 'svelte/transition';
      import { glassModal } from '$lib/utils/transitions';
+     import { t } from '$lib/i18n';
+     import { get } from 'svelte/store';
  
      let { isOpen, close } = $props<{ isOpen: boolean, close: () => void }>();
      const isAndroidApp = isAndroidNative();
 
 
     function formatTime(timestamp: number) {
-        if (timestamp === 0) return 'Never';
+        if (timestamp === 0) return get(t)('modals.relayStatus.never') as string;
         return new Date(timestamp).toLocaleTimeString();
     }
 </script>
@@ -37,13 +39,13 @@
             </button>
             
             <div class="flex justify-between items-center mb-6 px-1">
-                <h2 class="typ-title dark:text-white">Relay Connections</h2>
+                <h2 class="typ-title dark:text-white">{$t('modals.relayStatus.title')}</h2>
             </div>
             
             <div class="flex-1 overflow-y-auto space-y-3 mb-6 custom-scrollbar pr-1">
                 {#if $relayHealths.length === 0}
                     <div class="text-gray-500 text-center py-8 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
-                        No relays configured
+                        {$t('modals.relayStatus.noRelays')}
                     </div>
                 {/if}
                 {#each $relayHealths as health}
@@ -51,25 +53,25 @@
                         <div class="flex justify-between items-center mb-3">
                             <span class="typ-body font-medium dark:text-slate-200 truncate flex-1 mr-3">{health.url}</span>
                             <span class={`typ-meta px-2.5 py-1 rounded-full ${health.isConnected ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800'}`}>
-                                {health.isConnected ? 'Connected' : 'Disconnected'}
+                                {health.isConnected ? $t('modals.relayStatus.connected') : $t('modals.relayStatus.disconnected')}
                             </span>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-gray-500 dark:text-slate-400">
                             <div class="flex justify-between typ-meta">
-                                <span>Type:</span>
-                                <span class="typ-meta text-gray-700 dark:text-slate-300">{health.type === ConnectionType.Persistent ? 'Persistent' : 'Temporary'}</span>
+                                <span>{$t('modals.relayStatus.typeLabel')}</span>
+                                <span class="typ-meta text-gray-700 dark:text-slate-300">{health.type === ConnectionType.Persistent ? $t('modals.relayStatus.typePersistent') : $t('modals.relayStatus.typeTemporary')}</span>
                             </div>
                             <div class="flex justify-between typ-meta">
-                                <span>Last Connected:</span>
+                                <span>{$t('modals.relayStatus.lastConnectedLabel')}</span>
                                 <span class="typ-meta text-gray-700 dark:text-slate-300">{formatTime(health.lastConnected)}</span>
                             </div>
                             <div class="flex justify-between typ-meta">
-                                <span>Success:</span>
+                                <span>{$t('modals.relayStatus.successLabel')}</span>
                                 <span class="typ-meta text-green-600 dark:text-green-400">{health.successCount}</span>
                             </div>
                             <div class="flex justify-between typ-meta">
-                                <span>Failures:</span>
+                                <span>{$t('modals.relayStatus.failureLabel')}</span>
                                 <span class="typ-meta text-red-600 dark:text-red-400">{health.failureCount}</span>
                             </div>
                         </div>

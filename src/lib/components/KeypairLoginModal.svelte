@@ -1,5 +1,6 @@
 <script lang="ts">
     import { authService } from '$lib/core/AuthService';
+    import { t } from '$lib/i18n';
 
     let { isOpen = false, close = () => {}, onUseKeypair } = $props<{
         isOpen: boolean;
@@ -58,7 +59,7 @@
     >
         <div class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full shadow-2xl border border-white/20 dark:border-white/10">
             <div class="flex justify-between items-center mb-4">
-                <h2 id="keypair-modal-title" class="text-lg font-bold dark:text-white">Generate new keypair</h2>
+                <h2 id="keypair-modal-title" class="text-lg font-bold dark:text-white">{$t('auth.keypair.title')}</h2>
                 <button
                     type="button"
                     class="text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
@@ -72,13 +73,13 @@
             </div>
 
             <p class="text-sm text-gray-600 dark:text-slate-300 mb-4">
-                A new Nostr keypair is generated locally in your browser.
+                {$t('auth.keypair.description')}
             </p>
 
             <div class="space-y-3 mb-4">
                 <div>
                     <p class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">
-                        npub (public key)
+                        {$t('auth.keypair.npubLabel')}
                     </p>
                     <div class="text-xs font-mono break-all p-2 rounded-xl bg-gray-50 dark:bg-slate-800 dark:text-slate-100 border border-gray-200/60 dark:border-slate-700/60">
                         {npub}
@@ -86,7 +87,7 @@
                 </div>
                 <div>
                     <p class="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">
-                        nsec (secret key)
+                        {$t('auth.keypair.nsecLabel')}
                     </p>
                     <div class="text-xs font-mono break-all p-2 rounded-xl bg-gray-50 dark:bg-slate-800 dark:text-slate-100 border border-gray-200/60 dark:border-slate-700/60">
                         {nsec}
@@ -103,7 +104,7 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6M5 19a9 9 0 0014 0M19 5a9 9 0 00-14 0" />
                     </svg>
-                    <span>Generate another</span>
+                    <span>{$t('auth.keypair.generateAnother')}</span>
                 </button>
 
                 <button
@@ -112,7 +113,7 @@
                     class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:shadow-lg hover:shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-center"
                     disabled={!nsec}
                 >
-                    Use this keypair and login
+                    {$t('auth.keypair.useAndLogin')}
                 </button>
             </div>
         </div>

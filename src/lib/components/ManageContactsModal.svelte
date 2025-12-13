@@ -11,6 +11,8 @@
      import { isAndroidNative } from "$lib/core/NativeDialogs";
      import { fade } from 'svelte/transition';
      import { glassModal } from '$lib/utils/transitions';
+     import { t } from '$lib/i18n';
+     import { get } from 'svelte/store';
  
      let { isOpen, close } = $props<{ isOpen: boolean, close: () => void }>();
      const isAndroidApp = isAndroidNative();
@@ -265,7 +267,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                         </svg>
                     </button>
-                    <h2 class="typ-title dark:text-white">Manage Contacts</h2>
+                    <h2 class="typ-title dark:text-white">{$t('modals.manageContacts.title')}</h2>
                 </div>
             </div>
             
@@ -273,14 +275,14 @@
                 <div class="flex gap-2 relative">
                     <input 
                         bind:value={newNpub}
-                        placeholder="npub or search term" 
+                        placeholder={$t('modals.manageContacts.searchPlaceholder')} 
                         class="flex-1 px-4 h-11 border border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                     />
                     <button 
                         onclick={add}
                         disabled={isAdding}
                         class="bg-blue-500 text-white w-11 h-11 rounded-xl hover:bg-blue-600 disabled:opacity-50 font-medium shadow-sm hover:shadow transition-all flex items-center justify-center flex-shrink-0"
-                        aria-label={isNpubMode ? 'Add contact' : 'Search contacts'}
+                        aria-label={isNpubMode ? $t('modals.manageContacts.addContactAria') : $t('modals.manageContacts.searchContactsAria')}
                     >
                         {#if isNpubMode}
                             {#if isAdding}
@@ -307,7 +309,7 @@
                         <div class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto z-10 custom-scrollbar">
                             {#if isSearching}
                                 <div class="px-4 py-3 typ-body text-gray-500 dark:text-slate-400">
-                                    Searching...
+                                    {$t('modals.manageContacts.searching')}
                                 </div>
                             {:else if searchError}
                                 <div class="px-4 py-3 typ-body text-red-500">
@@ -315,7 +317,7 @@
                                 </div>
                             {:else if searchResults.length === 0}
                                 <div class="px-4 py-3 typ-body text-gray-500 dark:text-slate-400">
-                                    No results
+                                    {$t('modals.manageContacts.noResults')}
                                 </div>
                             {:else}
                                 {#each searchResults as result (result.npub)}
@@ -394,7 +396,7 @@
             <div class="flex-1 overflow-y-auto space-y-2 mb-6 min-h-[200px] custom-scrollbar pr-1">
                 {#if contacts.length === 0}
                     <div class="typ-body text-gray-500 text-center py-8 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
-                        No contacts added
+                        {$t('modals.manageContacts.noContacts')}
                     </div>
                 {/if}
                 {#each displayContacts as contact}
@@ -415,7 +417,7 @@
                         <button 
                             onclick={() => remove(contact.npub)}
                             class="text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors"
-                            aria-label="Remove contact"
+                            aria-label={$t('modals.manageContacts.removeContactAria')}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                         </button>

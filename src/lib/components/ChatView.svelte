@@ -16,6 +16,8 @@
   import { fly, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { nativeDialogService, isAndroidNative } from '$lib/core/NativeDialogs';
+  import { t } from '$lib/i18n';
+  import { get } from 'svelte/store';
 
   let {
     messages = [],
@@ -341,14 +343,38 @@
     const weeks = Math.floor(days / 7);
     const months = Math.floor(days / 30);
     const years = Math.floor(days / 365);
- 
-    if (seconds < 60) return "just now";
-    if (minutes < 60) return `${minutes} min${minutes !== 1 ? "s" : ""} ago`;
-    if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-    if (days < 7) return `${days} day${days !== 1 ? "s" : ""} ago`;
-    if (weeks < 4) return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
-    if (months < 12) return `${months} month${months !== 1 ? "s" : ""} ago`;
-    return `${years} year${years !== 1 ? "s" : ""} ago`;
+
+    const translate = get(t) as (key: string, vars?: Record<string, unknown>) => string;
+
+    if (seconds < 60) return translate('chat.relative.justNow');
+
+    if (minutes < 60) {
+      const key = minutes === 1 ? 'chat.relative.minutes' : 'chat.relative.minutesPlural';
+      return translate(key, { values: { count: minutes } });
+    }
+
+    if (hours < 24) {
+      const key = hours === 1 ? 'chat.relative.hours' : 'chat.relative.hoursPlural';
+      return translate(key, { values: { count: hours } });
+    }
+
+    if (days < 7) {
+      const key = days === 1 ? 'chat.relative.days' : 'chat.relative.daysPlural';
+      return translate(key, { values: { count: days } });
+    }
+
+    if (weeks < 4) {
+      const key = weeks === 1 ? 'chat.relative.weeks' : 'chat.relative.weeksPlural';
+      return translate(key, { values: { count: weeks } });
+    }
+
+    if (months < 12) {
+      const key = months === 1 ? 'chat.relative.months' : 'chat.relative.monthsPlural';
+      return translate(key, { values: { count: months } });
+    }
+
+    const key = years === 1 ? 'chat.relative.years' : 'chat.relative.yearsPlural';
+    return translate(key, { values: { count: years } });
   }
 
   function isSameDay(a: number, b: number): boolean {
@@ -369,12 +395,14 @@
     const startOfTarget = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
     const diffDays = Math.round((startOfToday - startOfTarget) / (1000 * 60 * 60 * 24));
 
+    const translateDate = get(t) as (key: string) => string;
+
     if (diffDays === 0) {
-      return "Today";
+      return translateDate('chat.dateLabel.today');
     }
 
     if (diffDays === 1) {
-      return "Yesterday";
+      return translateDate('chat.dateLabel.yesterday');
     }
 
     return target.toLocaleDateString(undefined, {
@@ -554,21 +582,22 @@
            type="button"
            onclick={() => onRequestNetworkHistory && onRequestNetworkHistory()}
          >
-           Fetch older messages from relays
+           {$t('chat.history.fetchOlder')}
          </button>
        </div>
 
     {:else if networkHistoryStatus === 'no-more' && messages.length > 0}
         <div class="flex justify-center p-2">
-         <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-500 dark:text-slate-300 shadow-sm backdrop-blur-sm">
-           No more messages available from relays
+          <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-500 dark:text-slate-300 shadow-sm backdrop-blur-sm">
+           {$t('chat.history.none')}
          </div>
+
        </div>
 
     {:else if networkHistoryStatus === 'error' && messages.length > 0}
         <div class="flex justify-center p-2">
          <div class="px-3 py-1 rounded-full typ-meta bg-red-50/80 dark:bg-red-900/40 border border-red-200/80 dark:border-red-500/70 text-red-600 dark:text-red-200 shadow-sm backdrop-blur-sm">
-           Failed to fetch older messages. Try again later.
+           {$t('chat.history.error')}
          </div>
        </div>
 
@@ -584,13 +613,13 @@
       <div class="flex justify-center mt-10">
         <div class="max-w-sm px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md backdrop-blur-xl text-center space-y-1">
           <div class="typ-meta font-semibold uppercase text-gray-500 dark:text-slate-400">
-            No messages yet
+            {$t('chat.empty.noMessagesTitle')}
           </div>
           <div class="typ-body text-gray-600 dark:text-slate-200">
             {#if partnerNpub}
-              Start the conversation with {partnerName || partnerNpub.slice(0, 10) + "..."}.
+              {get(t)('chat.empty.forContact', { values: { name: partnerName || partnerNpub.slice(0, 10) + '...' } })}
             {:else}
-              Select a contact to start chatting.
+              {$t('chat.empty.generic')}
             {/if}
           </div>
         </div>
@@ -714,7 +743,7 @@
           disabled={isSending}
           rows="1"
           class="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm md:text-base dark:text-white disabled:opacity-50 resize-none overflow-hidden placeholder:text-gray-400 dark:placeholder:text-slate-500 py-1"
-          placeholder="Type a message..."
+          placeholder={$t('chat.inputPlaceholder')}
         ></textarea>
 
         {#if inputText.trim().length > 0}
