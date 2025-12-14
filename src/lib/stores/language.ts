@@ -31,18 +31,19 @@ export const language: Writable<Language> = writable<Language>(DEFAULT_LANGUAGE)
 
 export function initLanguage(): void {
     if (typeof window === 'undefined') {
-        // Server-side: initialize i18n with default language only
-        initI18n(DEFAULT_LANGUAGE);
+        // Server-side: i18n is already initialized with the default language
+        // at module load time in `$lib/i18n`.
         return;
     }
-
+ 
     const stored = readStoredLanguage();
     const effective = stored ?? detectNavigatorLocale();
-
+ 
     language.set(effective);
-    initI18n(effective);
+    setLocaleSafe(effective);
     persistLanguage(effective);
 }
+
 
 export function setLanguage(lang: Language): void {
     language.set(lang);

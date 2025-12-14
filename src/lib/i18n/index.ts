@@ -4,10 +4,10 @@ export type Language = 'en' | 'de';
 
 const SUPPORTED_LOCALES: Language[] = ['en', 'de'];
 const DEFAULT_LOCALE: Language = 'en';
-
+ 
 register('en', () => import('./locales/en.ts'));
 register('de', () => import('./locales/de.ts'));
-
+ 
 export function initI18n(initial: Language = DEFAULT_LOCALE): void {
     init({
         fallbackLocale: DEFAULT_LOCALE,
@@ -15,13 +15,19 @@ export function initI18n(initial: Language = DEFAULT_LOCALE): void {
     });
 }
 
+// Initialize i18n at module load so that `$t` can
+// be safely used during SSR and in any context
+// that imports `$lib/i18n`.
+initI18n(DEFAULT_LOCALE);
+ 
 export function setLocaleSafe(lang: Language): void {
     if (!SUPPORTED_LOCALES.includes(lang)) {
         return;
     }
-
+ 
     locale.set(lang);
 }
+
 
 export function detectNavigatorLocale(): Language {
     const nav = getLocaleFromNavigator() ?? DEFAULT_LOCALE;
