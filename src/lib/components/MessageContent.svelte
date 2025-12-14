@@ -229,6 +229,19 @@
         }, 300); // 300ms debounce
     });
 
+    function getDecryptionUrl(url: string): string {
+        try {
+            const u = new URL(url);
+            const segments = u.pathname.split('/');
+            const filename = segments[segments.length - 1];
+            if (!filename) return url;
+            // Always use the CORS-enabled API route for encrypted media
+            return `${u.origin}/api/user_media/${filename}`;
+        } catch {
+            return url;
+        }
+    }
+
     // Auto-decrypt encrypted attachments when the message is visible in the viewport
     $effect(() => {
         if (!fileUrl || fileEncryptionAlgorithm !== 'aes-gcm' || !fileKey || !fileNonce) {
@@ -253,7 +266,7 @@
             isDecrypting = true;
             decryptError = null;
 
-            const response = await fetch(fileUrl);
+            const response = await fetch(getDecryptionUrl(fileUrl));
             if (!response.ok) {
                 throw new Error(`Download failed with status ${response.status}`);
             }

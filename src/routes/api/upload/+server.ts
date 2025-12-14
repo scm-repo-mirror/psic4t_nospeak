@@ -162,8 +162,8 @@ export const POST: RequestHandler = async ({ request }) => {
         const arrayBuffer = await file.arrayBuffer();
         await writeFile(filePath, new Uint8Array(arrayBuffer));
 
-        // Return the file URL - use the dynamic route instead of static file serving
-        const fileUrl = `${baseUrl}/user_media/${uniqueFilename}`;
+        // Return the file URL - use the API route for consistent CORS behavior
+        const fileUrl = `${baseUrl}/api/user_media/${uniqueFilename}`;
 
         return json(
             {
