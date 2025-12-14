@@ -36,6 +36,15 @@ jobs:
         run: npm ci
       - name: Build web assets and sync Capacitor
         run: npm run build:android
+      - name: Workaround for missing capacitor-cordova-android-plugins
+        run: |
+          if [ ! -d "android/capacitor-cordova-android-plugins" ]; then
+            echo "Creating missing capacitor-cordova-android-plugins directory"
+            mkdir -p android/capacitor-cordova-android-plugins/src/main
+            echo "ext.cordovaConfig = [:]" > android/capacitor-cordova-android-plugins/cordova.variables.gradle
+            echo "buildscript { repositories { google(); mavenCentral() } dependencies { classpath 'com.android.tools.build:gradle:8.13.1' } } apply plugin: 'com.android.library' android { namespace \"capacitor.android.plugins\" compileSdk 34 defaultConfig { minSdkVersion 22 targetSdkVersion 34 } }" > android/capacitor-cordova-android-plugins/build.gradle
+            echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="capacitor.android.plugins"/>' > android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
+          fi
       - name: Restore release keystore from secret
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RELEASE_STORE_FILE"
