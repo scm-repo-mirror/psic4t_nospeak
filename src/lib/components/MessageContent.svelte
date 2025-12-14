@@ -3,8 +3,27 @@
     import { getUrlPreviewApiUrl } from '$lib/core/UrlPreviewApi';
     import { IntersectionObserverManager } from '$lib/utils/observers';
     import AudioWaveformPlayer from './AudioWaveformPlayer.svelte';
+    import { decryptAesGcmToBytes } from '$lib/core/FileEncryption';
 
-    let { content, isOwn = false, onImageClick } = $props<{ content: string; isOwn?: boolean; onImageClick?: (url: string) => void }>();
+    let {
+        content,
+        isOwn = false,
+        onImageClick,
+        fileUrl = undefined,
+        fileType = undefined,
+        fileEncryptionAlgorithm = undefined,
+        fileKey = undefined,
+        fileNonce = undefined
+    } = $props<{
+        content: string;
+        isOwn?: boolean;
+        onImageClick?: (url: string) => void;
+        fileUrl?: string;
+        fileType?: string;
+        fileEncryptionAlgorithm?: string;
+        fileKey?: string;
+        fileNonce?: string;
+    }>();
 
     const urlRegex = /(https?:\/\/[^\s]+)/g;
 
@@ -33,6 +52,18 @@
         } catch {
             return false;
         }
+    }
+
+    function isImageMime(mime?: string) {
+        return !!mime && mime.startsWith('image/');
+    }
+
+    function isVideoMime(mime?: string) {
+        return !!mime && mime.startsWith('video/');
+    }
+
+    function isAudioMime(mime?: string) {
+        return !!mime && mime.startsWith('audio/');
     }
  
     function parseMarkdown(text: string) {
@@ -105,6 +136,10 @@
      let isVisible = $state(false);
      let lastPreviewUrl: string | null = null;
      let fetchTimeout: number | null = null;
+
+     let decryptedUrl = $state<string | null>(null);
+     let isDecrypting = $state(false);
+     let decryptError = $state<string | null>(null);
  
      onMount(() => {
         if (typeof window === 'undefined') return;
@@ -193,81 +228,161 @@
             })();
         }, 300); // 300ms debounce
     });
-</script>
+
+    // Auto-decrypt encrypted attachments when the message is visible in the viewport
+    $effect(() => {
+        if (!fileUrl || fileEncryptionAlgorithm !== 'aes-gcm' || !fileKey || !fileNonce) {
+            return;
+        }
+        if (decryptedUrl || decryptError) {
+            return;
+        }
+        if (!isVisible) {
+            return;
+        }
+        // Fire and forget; errors are captured inside decryptAttachment
+        void decryptAttachment();
+    });
+
+    async function decryptAttachment() {
+        if (!fileUrl || fileEncryptionAlgorithm !== 'aes-gcm' || !fileKey || !fileNonce) {
+            return;
+        }
+
+        try {
+            isDecrypting = true;
+            decryptError = null;
+
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+                throw new Error(`Download failed with status ${response.status}`);
+            }
+
+            const ciphertextBuffer = new Uint8Array(await response.arrayBuffer());
+            const plainBytes = await decryptAesGcmToBytes(ciphertextBuffer, fileKey, fileNonce);
+
+            const blob = new Blob([plainBytes.buffer as ArrayBuffer], { type: fileType || 'application/octet-stream' });
+            if (decryptedUrl) {
+                URL.revokeObjectURL(decryptedUrl);
+            }
+            decryptedUrl = URL.createObjectURL(blob);
+        } catch (e) {
+            decryptError = (e as Error).message;
+        } finally {
+            isDecrypting = false;
+        }
+    }
+ </script>
  
-<div bind:this={container} class={`whitespace-pre-wrap break-words leading-relaxed ${isSingleEmoji ? 'text-4xl' : ''}`}>
+ <div bind:this={container} class={`whitespace-pre-wrap break-words leading-relaxed ${isSingleEmoji ? 'text-4xl' : ''}`}>
 
-    {#each parts as part}
-        {#if part.match(/^https?:\/\//)}
-            {#if isImage(part)}
-                {#if onImageClick}
-                    <button
-                        type="button"
-                        class="block my-1 cursor-zoom-in"
-                        onclick={() => onImageClick?.(part)}
-                    >
-                        <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
-                    </button>
-                {:else}
-                    <a href={part} target="_blank" rel="noopener noreferrer" class="block my-1">
-                        <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
-                    </a>
-                {/if}
-            {:else if isVideo(part)}
-                <!-- svelte-ignore a11y_media_has_caption -->
-                <div class="my-1">
-                    <video controls src={part} class="max-w-full rounded max-h-[300px]" preload="metadata"></video>
-                </div>
-            {:else if isAudio(part)}
-                <div class="mt-2 mb-1">
-                    <AudioWaveformPlayer url={part} isOwn={isOwn} />
-                </div>
-            {:else}
+     {#if fileUrl && fileEncryptionAlgorithm === 'aes-gcm' && fileKey && fileNonce}
+         <div class="space-y-2">
+             {#if decryptedUrl}
+                 {#if isImageMime(fileType) || isImage(decryptedUrl)}
+                     {#if onImageClick}
+                         <button
+                             type="button"
+                             class="block my-1 cursor-zoom-in"
+                             onclick={() => onImageClick?.(decryptedUrl!)}
+                         >
+                             <img src={decryptedUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                         </button>
+                     {:else}
+                         <a href={decryptedUrl} target="_blank" rel="noopener noreferrer" class="block my-1">
+                             <img src={decryptedUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                         </a>
+                     {/if}
+                 {:else if isVideoMime(fileType) || isVideo(decryptedUrl)}
+                     <!-- svelte-ignore a11y_media_has_caption -->
+                     <div class="my-1">
+                         <video controls src={decryptedUrl} class="max-w-full rounded max-h-[300px]" preload="metadata"></video>
+                     </div>
+                 {:else if isAudioMime(fileType) || isAudio(decryptedUrl)}
+                     <div class="mt-2 mb-1">
+                         <AudioWaveformPlayer url={decryptedUrl} isOwn={isOwn} />
+                     </div>
+                 {:else}
+                     <a href={decryptedUrl} target="_blank" rel="noopener noreferrer" class="underline hover:opacity-80 break-all">Download attachment</a>
+                 {/if}
+             {:else}
+                 {#if isDecrypting}
+                     <div class="typ-meta text-xs text-gray-500 dark:text-slate-400">Decrypting attachment...</div>
+                 {:else if decryptError}
+                     <div class="typ-meta text-xs text-red-500">{decryptError}</div>
+                 {/if}
+             {/if}
+         </div>
+     {:else}
+         {#each parts as part}
+             {#if part.match(/^https?:\/\//)}
+                 {#if isImage(part)}
+                     {#if onImageClick}
+                         <button
+                             type="button"
+                             class="block my-1 cursor-zoom-in"
+                             onclick={() => onImageClick?.(part)}
+                         >
+                             <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                         </button>
+                     {:else}
+                         <a href={part} target="_blank" rel="noopener noreferrer" class="block my-1">
+                             <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                         </a>
+                     {/if}
+                 {:else if isVideo(part)}
+                     <!-- svelte-ignore a11y_media_has_caption -->
+                     <div class="my-1">
+                         <video controls src={part} class="max-w-full rounded max-h-[300px]" preload="metadata"></video>
+                     </div>
+                 {:else if isAudio(part)}
+                     <div class="mt-2 mb-1">
+                         <AudioWaveformPlayer url={part} isOwn={isOwn} />
+                     </div>
+                 {:else}
+                     <a href={part} target="_blank" rel="noopener noreferrer" class="underline hover:opacity-80 break-all">{part}</a>
+                 {/if}
+             {:else}
+                 <span>{@html parseMarkdown(part)}</span>
+             {/if}
+         {/each}
 
-
-
-                <a href={part} target="_blank" rel="noopener noreferrer" class="underline hover:opacity-80 break-all">{part}</a>
-            {/if}
-        {:else}
-            <span>{@html parseMarkdown(part)}</span>
-        {/if}
-    {/each}
-
-    {#if preview}
-        <div class="mt-2 mb-1">
-            <a
-                href={preview.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="block focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/70 overflow-hidden rounded-xl bg-white/20 dark:bg-slate-800/50 md:bg-white/10 md:dark:bg-slate-800/30 md:backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-800/50 transition-colors"
-            >
-                <div class="flex flex-col sm:flex-row gap-0 sm:gap-0 h-auto sm:h-28">
-                    <div class="shrink-0 w-full sm:w-28 h-32 sm:h-full bg-gray-100/50 dark:bg-slate-800/50 flex items-center justify-center overflow-hidden">
-                        {#if preview.image}
-                            <img src={preview.image} alt="" class="w-full h-full object-cover" loading="lazy" />
-                        {:else}
-                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-                            </svg>
-                        {/if}
-                    </div>
-                    <div class="min-w-0 p-3 flex flex-col justify-center">
-                        {#if preview.title}
-                            <h1 class="m-0 typ-section truncate text-gray-900 dark:text-white leading-tight mb-1">
-                                {preview.title}
-                            </h1>
-                        {/if}
-                        {#if preview.description}
-                            <p class={`m-0 typ-body leading-snug line-clamp-2 ${isOwn ? 'text-blue-100' : 'text-gray-600 dark:text-slate-300'}`}>
-                                {preview.description}
-                            </p>
-                        {/if}
-                        <div class={`typ-meta mt-1.5 opacity-70 truncate ${isOwn ? 'text-blue-200' : 'text-gray-400 dark:text-slate-500'}`}>
-                            {preview.domain}
-                        </div>
-                    </div>
-                </div>
-            </a>
-        </div>
-    {/if}
-</div>
+         {#if preview}
+             <div class="mt-2 mb-1">
+                 <a
+                     href={preview.url}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     class="block focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/70 overflow-hidden rounded-xl bg-white/20 dark:bg-slate-800/50 md:bg-white/10 md:dark:bg-slate-800/30 md:backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-800/50 transition-colors"
+                 >
+                     <div class="flex flex-col sm:flex-row gap-0 sm:gap-0 h-auto sm:h-28">
+                         <div class="shrink-0 w-full sm:w-28 h-32 sm:h-full bg-gray-100/50 dark:bg-slate-800/50 flex items-center justify-center overflow-hidden">
+                             {#if preview.image}
+                                 <img src={preview.image} alt="" class="w-full h-full object-cover" loading="lazy" />
+                             {:else}
+                                 <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                 </svg>
+                             {/if}
+                         </div>
+                         <div class="min-w-0 p-3 flex flex-col justify-center">
+                             {#if preview.title}
+                                 <h1 class="m-0 typ-section truncate text-gray-900 dark:text-white leading-tight mb-1">
+                                     {preview.title}
+                                 </h1>
+                             {/if}
+                             {#if preview.description}
+                                 <p class={`m-0 typ-body leading-snug line-clamp-2 ${isOwn ? 'text-blue-100' : 'text-gray-600 dark:text-slate-300'}`}>
+                                     {preview.description}
+                                 </p>
+                             {/if}
+                             <div class={`typ-meta mt-1.5 opacity-70 truncate ${isOwn ? 'text-blue-200' : 'text-gray-400 dark:text-slate-500'}`}>
+                                 {preview.domain}
+                             </div>
+                         </div>
+                     </div>
+                 </a>
+             </div>
+         {/if}
+     {/if}
+ </div>

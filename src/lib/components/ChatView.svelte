@@ -540,21 +540,22 @@
     }
   }
 
-  function handleFileSelect(file: File, type: 'image' | 'video' | 'audio', url?: string) {
-    if (url) {
-      // Insert the full file URL into the message input (no markdown)
-      inputText = (inputText ? inputText + '\n' : '') + url;
-      
-      // Focus input and set cursor to end
-      setTimeout(() => {
-        if (inputElement) {
-          inputElement.focus();
-          inputElement.setSelectionRange(inputText.length, inputText.length);
-          // Auto-resize if needed
-          inputElement.style.height = "auto";
-          inputElement.style.height = Math.min(inputElement.scrollHeight, 150) + "px";
-        }
-      }, 0);
+  async function handleFileSelect(file: File, type: 'image' | 'video' | 'audio', _url?: string) {
+    if (!partnerNpub) return;
+
+    try {
+      isSending = true;
+      await messagingService.sendFileMessage(partnerNpub, file, type);
+      scrollToBottom();
+    } catch (e) {
+      console.error('Failed to send file message:', e);
+      await nativeDialogService.alert({
+        title: translate('chat.sendFailedTitle'),
+        message:
+          translate('chat.sendFailedMessagePrefix') + (e as Error).message
+      });
+    } finally {
+      isSending = false;
     }
   }
 </script>
@@ -718,6 +719,11 @@
              content={msg.message}
              isOwn={msg.direction === "sent"}
              onImageClick={openImageViewer}
+             fileUrl={msg.fileUrl}
+             fileType={msg.fileType}
+             fileEncryptionAlgorithm={msg.fileEncryptionAlgorithm}
+             fileKey={msg.fileKey}
+             fileNonce={msg.fileNonce}
            />
 
            <MessageReactions
@@ -787,7 +793,7 @@
       <div
         class="flex-1 flex items-center bg-white/90 dark:bg-slate-800/90 border border-gray-200 dark:border-slate-700 rounded-3xl px-4 py-1.5 gap-2 shadow-inner focus-within:ring-2 focus-within:ring-blue-500/50 transition-all"
       >
-        <MediaUploadButton onFileSelect={handleFileSelect} inline={true} allowedTypes={["image", "video", "audio"]} />
+        <MediaUploadButton onFileSelect={handleFileSelect} inline={true} allowedTypes={["image", "video", "audio"]} dmEncrypted={true} />
         <textarea
           bind:this={inputElement}
           bind:value={inputText}

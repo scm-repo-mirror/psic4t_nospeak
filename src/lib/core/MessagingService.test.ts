@@ -296,11 +296,18 @@ describe('MessagingService - Auto-add Contacts', () => {
         });
 
         it('sendReaction method is exposed', () => {
-            const messaging = new MessagingService();
-            expect(typeof (messaging as any).sendReaction).toBe('function');
-        });
+             const messaging = new MessagingService();
+             expect(typeof (messaging as any).sendReaction).toBe('function');
+         });
 
-        it('createMessageFromRumor calculates rumorId', async () => {
+        it('sendFileMessage method is exposed', () => {
+            const messaging = new MessagingService();
+            expect(typeof (messaging as any).sendFileMessage).toBe('function');
+        });
+ 
+         it('createMessageFromRumor calculates rumorId', async () => {
+
+
             const s: any = {
                 getPublicKey: vi.fn().mockResolvedValue('79dff8f426826fdd7c32deb1d9e1f9c01234567890abcdef1234567890abcdef'),
             };

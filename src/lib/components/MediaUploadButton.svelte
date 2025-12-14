@@ -3,10 +3,11 @@
     import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from '$lib/core/Nip98Auth';
     import { isAndroidNative, isMobileWeb, nativeDialogService } from '$lib/core/NativeDialogs';
 
-    let { onFileSelect, inline = false, allowedTypes = ['image', 'video'] } = $props<{
+    let { onFileSelect, inline = false, allowedTypes = ['image', 'video'], dmEncrypted = false } = $props<{
         onFileSelect: (file: File, type: 'image' | 'video' | 'audio', url?: string) => void;
         inline?: boolean;
         allowedTypes?: ('image' | 'video' | 'audio')[];
+        dmEncrypted?: boolean; // when true, caller handles encryption/upload (DM attachments)
     }>();
 
     let showDropdown = $state(false);
@@ -192,8 +193,13 @@
             const file = (e.target as HTMLInputElement).files?.[0];
             if (file) {
                 try {
-                    const fileUrl = await uploadFile(file, type);
-                    onFileSelect(file, type, fileUrl);
+                    if (dmEncrypted) {
+                        // For DM attachments, let the caller handle encryption and upload
+                        onFileSelect(file, type);
+                    } else {
+                        const fileUrl = await uploadFile(file, type);
+                        onFileSelect(file, type, fileUrl);
+                    }
                 } catch (error) {
                     console.error('Upload failed:', error);
                     alert(`Upload failed: ${(error as Error).message}`);
@@ -222,8 +228,12 @@
                     : file.name || 'photo';
 
                 const resizedFile = await resizeImageBlobToFile(file, baseName);
-                const fileUrl = await uploadFile(resizedFile, 'image');
-                onFileSelect(resizedFile, 'image', fileUrl);
+                if (dmEncrypted) {
+                    onFileSelect(resizedFile, 'image');
+                } else {
+                    const fileUrl = await uploadFile(resizedFile, 'image');
+                    onFileSelect(resizedFile, 'image', fileUrl);
+                }
             } catch (error) {
                 console.error('Upload failed:', error);
                 alert(`Upload failed: ${(error as Error).message}`);
@@ -256,8 +266,12 @@
                 const blob = await response.blob();
 
                 const resizedFile = await resizeImageBlobToFile(blob, `photo-${Date.now()}`);
-                const fileUrl = await uploadFile(resizedFile, 'image');
-                onFileSelect(resizedFile, 'image', fileUrl);
+                if (dmEncrypted) {
+                    onFileSelect(resizedFile, 'image');
+                } else {
+                    const fileUrl = await uploadFile(resizedFile, 'image');
+                    onFileSelect(resizedFile, 'image', fileUrl);
+                }
             } catch (error) {
                 console.error('Camera capture failed:', error);
                 await nativeDialogService.alert({

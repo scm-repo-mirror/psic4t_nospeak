@@ -12,6 +12,8 @@ import { profileResolver } from './ProfileResolver';
 import { startSync, updateSyncProgress, endSync } from '$lib/stores/sync';
 import { reactionRepo, type Reaction } from '$lib/db/ReactionRepository';
 import { reactionsStore } from '$lib/stores/reactions';
+import { encryptFileWithAesGcm } from './FileEncryption';
+import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from './Nip98Auth';
  
  export class MessagingService {
    private debug: boolean = true;
@@ -223,20 +225,57 @@ import { reactionsStore } from '$lib/stores/reactions';
         partnerNpub = nip19.npubEncode(rumor.pubkey);
       }
 
+      const rumorId = getEventHash(rumor);
+
+      if (rumor.kind === 15) {
+        const fileTypeTag = rumor.tags.find(t => t[0] === 'file-type');
+        const sizeTag = rumor.tags.find(t => t[0] === 'size');
+        const hashTag = rumor.tags.find(t => t[0] === 'x');
+        const plainHashTag = rumor.tags.find(t => t[0] === 'ox');
+        const encAlgTag = rumor.tags.find(t => t[0] === 'encryption-algorithm');
+        const keyTag = rumor.tags.find(t => t[0] === 'decryption-key');
+        const nonceTag = rumor.tags.find(t => t[0] === 'decryption-nonce');
+
+        const fileType = fileTypeTag?.[1];
+        const fileSize = sizeTag ? parseInt(sizeTag[1], 10) || undefined : undefined;
+
+        return {
+          recipientNpub: partnerNpub,
+          message: rumor.content || '',
+          sentAt: rumor.created_at * 1000,
+          eventId: originalEventId,
+          rumorId,
+          direction,
+          createdAt: Date.now(),
+          rumorKind: rumor.kind,
+          fileUrl: rumor.content || undefined,
+          fileType,
+          fileSize,
+          fileHashEncrypted: hashTag?.[1],
+          fileHashPlain: plainHashTag?.[1],
+          fileEncryptionAlgorithm: encAlgTag?.[1],
+          fileKey: keyTag?.[1],
+          fileNonce: nonceTag?.[1]
+        };
+      }
+
+      // Default text (Kind 14) path
       return {
         recipientNpub: partnerNpub,
         message: rumor.content,
         sentAt: rumor.created_at * 1000,
         eventId: originalEventId,
-        rumorId: getEventHash(rumor),
+        rumorId,
         direction,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        rumorKind: rumor.kind
       };
     } catch (e) {
       console.error('Failed to create message from rumor:', e);
       return null;
     }
   }
+
 
   private async processRumor(rumor: NostrEvent, originalEventId: string) {
     const s = get(signer);
@@ -573,7 +612,157 @@ import { reactionsStore } from '$lib/stores/reactions';
     await this.autoAddContact(recipientNpub);
   }
 
+  private mediaTypeToMime(type: 'image' | 'video' | 'audio'): string {
+    if (type === 'image') {
+      return 'image/jpeg';
+    }
+    if (type === 'video') {
+      return 'video/mp4';
+    }
+    return 'audio/mpeg';
+  }
+
+  public async sendFileMessage(
+    recipientNpub: string,
+    file: File,
+    mediaType: 'image' | 'video' | 'audio'
+  ): Promise<void> {
+    const s = get(signer);
+    if (!s) throw new Error('Not authenticated');
+
+    const senderPubkey = await s.getPublicKey();
+    const senderNpub = nip19.npubEncode(senderPubkey);
+    const { data: recipientPubkey } = nip19.decode(recipientNpub);
+
+    // 1. Get Relays
+    const recipientRelays = await this.getReadRelays(recipientNpub);
+    const senderRelays = await this.getWriteRelays(senderNpub);
+
+    const targetRelays = [...new Set([...recipientRelays, ...senderRelays])];
+    if (targetRelays.length === 0) {
+      targetRelays.push('wss://nostr.data.haus'); // Fallback
+    }
+
+    if (this.debug) console.log('Sending file message to relays:', targetRelays);
+
+    for (const url of targetRelays) {
+      connectionManager.addTemporaryRelay(url);
+    }
+
+    await new Promise(r => setTimeout(r, 500));
+
+    // 2. Encrypt file with AES-GCM
+    const encrypted = await encryptFileWithAesGcm(file);
+
+    const blob = new Blob([encrypted.ciphertext.buffer as ArrayBuffer], {
+      type: file.type || this.mediaTypeToMime(mediaType)
+    });
+    // Use an extensionless filename for encrypted blobs; MIME type carries content type
+    const uploadFile = new File([blob], 'encrypted', { type: blob.type });
+
+    // 3. Upload encrypted blob to canonical media endpoint
+    const authHeader = await buildUploadAuthHeader();
+    if (!authHeader) {
+      throw new Error('You must be logged in to upload media');
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+    formData.append('type', mediaType);
+
+    const uploadResponse = await fetch(CANONICAL_UPLOAD_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader
+      },
+      body: formData
+    });
+
+    if (!uploadResponse.ok) {
+      const text = await uploadResponse.text().catch(() => '');
+      throw new Error(text || `Upload failed with status ${uploadResponse.status}`);
+    }
+
+    let fileUrl: string;
+    try {
+      const json = await uploadResponse.json() as { success?: boolean; url?: string; error?: string };
+      if (!json.success || !json.url) {
+        throw new Error(json.error || 'Upload failed');
+      }
+      fileUrl = json.url;
+    } catch (e) {
+      throw new Error('Invalid response from server while uploading file message');
+    }
+
+    // 4. Create Kind 15 rumor
+    const now = Math.floor(Date.now() / 1000);
+    const mimeType = file.type || this.mediaTypeToMime(mediaType);
+
+    const rumor: Partial<NostrEvent> = {
+      kind: 15,
+      pubkey: senderPubkey,
+      created_at: now,
+      content: fileUrl,
+      tags: [
+        ['p', recipientPubkey as string],
+        ['file-type', mimeType],
+        ['encryption-algorithm', 'aes-gcm'],
+        ['decryption-key', encrypted.key],
+        ['decryption-nonce', encrypted.nonce],
+        ['size', encrypted.size.toString()],
+        ['x', encrypted.hashEncrypted]
+      ]
+    };
+
+    if (encrypted.hashPlain) {
+      rumor.tags!.push(['ox', encrypted.hashPlain]);
+    }
+
+    const rumorId = getEventHash(rumor as NostrEvent);
+
+    // 5. Create Gift Wraps
+    const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
+
+    initRelaySendStatus(giftWrap.id, recipientNpub, targetRelays.length);
+
+    for (const url of targetRelays) {
+      await retryQueue.enqueue(giftWrap, url);
+    }
+
+    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
+    for (const url of senderRelays) {
+      await retryQueue.enqueue(selfGiftWrap, url);
+    }
+
+    setTimeout(() => {
+      connectionManager.cleanupTemporaryConnections();
+    }, 2000);
+
+    // 6. Cache locally immediately
+    await messageRepo.saveMessage({
+      recipientNpub,
+      message: '',
+      sentAt: now * 1000,
+      eventId: selfGiftWrap.id,
+      rumorId,
+      direction: 'sent',
+      createdAt: Date.now(),
+      rumorKind: 15,
+      fileUrl,
+      fileType: mimeType,
+      fileSize: encrypted.size,
+      fileHashEncrypted: encrypted.hashEncrypted,
+      fileHashPlain: encrypted.hashPlain,
+      fileEncryptionAlgorithm: 'aes-gcm',
+      fileKey: encrypted.key,
+      fileNonce: encrypted.nonce
+    });
+
+    await this.autoAddContact(recipientNpub);
+  }
+
   public async sendReaction(
+
     recipientNpub: string,
     targetMessage: { recipientNpub: string; eventId: string; rumorId?: string; direction: 'sent' | 'received' },
     emoji: '👍' | '👎' | '❤️' | '😂'

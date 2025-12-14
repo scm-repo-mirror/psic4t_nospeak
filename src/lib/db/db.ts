@@ -10,6 +10,15 @@ export interface Message {
     rumorId?: string; // Stable ID of the inner rumor
     direction: 'sent' | 'received';
     createdAt: number;
+    rumorKind?: number; // 14 for text, 15 for file messages
+    fileUrl?: string;
+    fileType?: string;
+    fileSize?: number;
+    fileHashEncrypted?: string;
+    fileHashPlain?: string;
+    fileEncryptionAlgorithm?: string; // e.g. "aes-gcm" for nospeak-sent files
+    fileKey?: string;
+    fileNonce?: string;
 }
 
 export interface Profile {
