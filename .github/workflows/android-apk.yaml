@@ -13,6 +13,7 @@ jobs:
       RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
       RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
       RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -57,8 +58,15 @@ jobs:
       - name: Build signed release APK
         working-directory: android
         run: ./gradlew assembleRelease
+      - name: Rename APK with release tag
+        working-directory: android
+        run: |
+          VERSION="${RELEASE_TAG#v}"  # strips leading 'v' if present
+          SRC="app/build/outputs/apk/release/app-release.apk"
+          DST="app/build/outputs/apk/release/nospeak-${VERSION}.apk"
+          cp "$SRC" "$DST"
       - name: Attach APK to GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'release' && github.event.action == 'published'
         with:
-          files: android/app/build/outputs/apk/release/*.apk
+          files: android/app/build/outputs/apk/release/nospeak-*.apk
