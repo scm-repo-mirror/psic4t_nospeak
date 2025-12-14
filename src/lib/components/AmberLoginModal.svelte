@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import QRCode from 'qrcode';
     import { t } from '$lib/i18n';
+    import { copyTextToClipboard } from '$lib/utils/clipboard';
 
     let { uri, onClose } = $props<{ uri: string, onClose: () => void }>();
     
@@ -21,8 +22,8 @@
         }
     });
 
-    function copyUri() {
-        navigator.clipboard.writeText(uri);
+    async function copyUri() {
+        await copyTextToClipboard(uri);
         copied = true;
         setTimeout(() => copied = false, 2000);
     }

@@ -1,22 +1,6 @@
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
-function isAndroidCapacitorShell(): boolean {
-    if (typeof window === 'undefined') {
-        return false;
-    }
-
-    const w = window as unknown as { Capacitor?: { getPlatform?: () => string } };
-
-    if (w.Capacitor && typeof w.Capacitor.getPlatform === 'function') {
-        try {
-            return w.Capacitor.getPlatform() === 'android';
-        } catch {
-            return false;
-        }
-    }
-
-    return false;
-}
+import { isAndroidCapacitorShell } from './platform';
 
 export function softVibrate(): void {
     if (!isAndroidCapacitorShell()) {

@@ -15,23 +15,7 @@ function getServerBaseUrl(): string | null {
     return DEFAULT_SERVER_BASE_URL;
 }
 
-function isAndroidCapacitorShell(): boolean {
-    if (typeof window === 'undefined') {
-        return false;
-    }
-
-    const w = window as unknown as { Capacitor?: { getPlatform?: () => string } };
-
-    if (w.Capacitor && typeof w.Capacitor.getPlatform === 'function') {
-        try {
-            return w.Capacitor.getPlatform() === 'android';
-        } catch {
-            return false;
-        }
-    }
-
-    return false;
-}
+import { isAndroidCapacitorShell } from '$lib/utils/platform';
 
 export function getUrlPreviewApiUrl(targetUrl: string): string {
     const encodedTarget = encodeURIComponent(targetUrl);

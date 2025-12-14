@@ -139,7 +139,8 @@ const de = {
         },
         inputPlaceholder: 'Nachricht eingeben...',
         contextMenu: {
-            cite: 'Zitieren'
+            cite: 'Zitieren',
+            copy: 'Kopieren'
         },
         reactions: {
             cannotReactTitle: 'Reaktion nicht möglich',

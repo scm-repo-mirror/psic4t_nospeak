@@ -11,6 +11,8 @@
   import { emojis } from "$lib/utils/emojis";
   import { goto } from '$app/navigation';
   import { softVibrate } from '$lib/utils/haptics';
+  import { copyTextToClipboard } from '$lib/utils/clipboard';
+  import { isAndroidCapacitorShell } from '$lib/utils/platform';
   import { lastRelaySendStatus, clearRelayStatus } from '$lib/stores/sending';
   import { openProfileModal } from '$lib/stores/modals';
   import { openImageViewer } from '$lib/stores/imageViewer';
@@ -60,6 +62,7 @@
     message: null as Message | null,
   });
   let longPressTimer: number | null = null;
+  const isAndroidShell = isAndroidCapacitorShell();
 
   // Emoji picker state
   let showEmojiPicker = $state(false);
@@ -480,6 +483,11 @@
     }, 0);
   }
 
+  async function copyMessage() {
+    if (!contextMenu.message) return;
+    await copyTextToClipboard(contextMenu.message.message);
+  }
+
   function handleMouseDown(e: MouseEvent, message: Message) {
     // Start long press timer for touch devices
     longPressTimer = window.setTimeout(() => {
@@ -694,7 +702,7 @@
         <div
           role="button"
           tabindex="0"
-          class={`max-w-[70%] p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative
+          class={`max-w-[70%] p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative ${isAndroidShell ? 'select-none' : ''}
                          ${
                            msg.direction === "sent"
                              ? "bg-blue-50/10 dark:bg-blue-900/40 text-gray-900 dark:text-slate-100 border border-blue-500/10 dark:border-blue-400/10 rounded-2xl rounded-br-none hover:shadow-md"
@@ -824,4 +832,5 @@
   onClose={closeContextMenu}
   onCite={citeMessage}
   onReact={reactToMessage}
+  onCopy={copyMessage}
 />

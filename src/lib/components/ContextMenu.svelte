@@ -1,13 +1,14 @@
 <script lang="ts">
     import { t } from '$lib/i18n';
 
-    let { x = 0, y = 0, isOpen = false, onClose, onCite, onReact } = $props<{
+    let { x = 0, y = 0, isOpen = false, onClose, onCite, onReact, onCopy } = $props<{
         x: number;
         y: number;
         isOpen: boolean;
         onClose: () => void;
         onCite: () => void;
         onReact: (emoji: '👍' | '👎' | '❤️' | '😂') => void;
+        onCopy: () => void;
     }>();
 
     // Close on click outside
@@ -69,6 +70,12 @@
             onclick={() => { onCite(); onClose(); }}
         >
             {$t('chat.contextMenu.cite')}
+        </button>
+        <button 
+            class="w-full text-left px-4 py-2 hover:bg-gray-100/50 dark:hover:bg-slate-700/50 text-sm dark:text-white transition-colors"
+            onclick={() => { onCopy(); onClose(); }}
+        >
+            {$t('chat.contextMenu.copy')}
         </button>
     </div>
 {/if}
