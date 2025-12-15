@@ -28,13 +28,24 @@
 
 
     $effect(() => {
-        if ($currentUser) {
-            profileRepo.getProfileIgnoreTTL($currentUser.npub).then((p) => {
-                if (p && p.metadata) {
-                    myPicture = p.metadata.picture;
-                }
-            });
+        if (!$currentUser) {
+            myPicture = undefined;
+            return;
         }
+
+        const npub = $currentUser.npub;
+
+        const sub = liveQuery(() => profileRepo.getProfileIgnoreTTL(npub)).subscribe((p) => {
+            if (p && p.metadata) {
+                myPicture = p.metadata.picture;
+            } else {
+                myPicture = undefined;
+            }
+        });
+
+        return () => {
+            sub.unsubscribe();
+        };
     });
 
     async function refreshContacts(dbContacts: ContactItem[]): Promise<void> {

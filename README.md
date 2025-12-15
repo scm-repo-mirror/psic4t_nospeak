@@ -190,18 +190,14 @@ Nospeak Web implements the following NIPs (Nostr Implementation Proposals):
 - **NIP-19**: bech32-encoded entities for keys and identifiers
 
 ### Metadata & Profiles
-- **NIP-28**: Relay list metadata for server discovery
 - **NIP-40**: Reaction events for emoji responses
 
 ### Content & Media
-- **NIP-44**: Outbox model for draft message management
+- **NIP-44**: Encrypted Payloads
 - **NIP-59**: Gift wrapper events for media sharing
-- **NIP-65**: Relay list filtering and management
 
 ### Advanced Features
 - **NIP-07**: Windowed messages for rate limiting
-- **NIP-09**: Event delegation for key management
-- **NIP-26**: Parameterized replaceable events
 
 ## Support
 
