@@ -317,7 +317,14 @@
     setLanguage(value);
   }
 
-  function getCategoryCardClasses(category: Category): string {
+  const BOTTOM_SHEET_CLOSE_THRESHOLD = 100;
+  const BOTTOM_SHEET_ACTIVATION_THRESHOLD = 6;
+  let bottomSheetDragY = $state(0);
+  let isBottomSheetDragging = $state(false);
+  let bottomSheetDragStartY = 0;
+ 
+   function getCategoryCardClasses(category: Category): string {
+
     const base =
       "w-full text-left my-1.5 rounded-2xl px-4 py-3 flex items-center justify-between transition-all duration-150 ease-out bg-white/10 dark:bg-slate-800/40 border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-slate-800/70 hover:shadow-lg active:scale-[0.98]";
 
@@ -338,7 +345,89 @@
     );
   }
 
+  function handleBottomSheetPointerDown(e: PointerEvent) {
+    if (!isAndroidApp) return;
+    e.preventDefault();
+    isBottomSheetDragging = false;
+    bottomSheetDragStartY = e.clientY;
+    bottomSheetDragY = 0;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function handleBottomSheetPointerMove(e: PointerEvent) {
+    if (!isAndroidApp) return;
+    const delta = e.clientY - bottomSheetDragStartY;
+    if (!isBottomSheetDragging) {
+      if (delta > BOTTOM_SHEET_ACTIVATION_THRESHOLD) {
+        isBottomSheetDragging = true;
+      } else {
+        return;
+      }
+    }
+    bottomSheetDragY = delta > 0 ? delta : 0;
+  }
+
+  function handleBottomSheetPointerEnd(e: PointerEvent) {
+    if (!isAndroidApp) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore if pointer capture was not set
+    }
+    if (!isBottomSheetDragging) {
+      bottomSheetDragY = 0;
+      return;
+    }
+    const shouldClose = bottomSheetDragY > BOTTOM_SHEET_CLOSE_THRESHOLD;
+    isBottomSheetDragging = false;
+    bottomSheetDragY = 0;
+    if (shouldClose) {
+      close();
+    }
+  }
+
+  function handleBottomSheetTouchStart(e: TouchEvent) {
+    if (!isAndroidApp) return;
+    if (e.touches.length === 0) return;
+    const touch = e.touches[0];
+    isBottomSheetDragging = false;
+    bottomSheetDragStartY = touch.clientY;
+    bottomSheetDragY = 0;
+  }
+
+  function handleBottomSheetTouchMove(e: TouchEvent) {
+    if (!isAndroidApp) return;
+    if (e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const delta = touch.clientY - bottomSheetDragStartY;
+    if (!isBottomSheetDragging) {
+      if (delta > BOTTOM_SHEET_ACTIVATION_THRESHOLD) {
+        isBottomSheetDragging = true;
+      } else {
+        return;
+      }
+    }
+    bottomSheetDragY = delta > 0 ? delta : 0;
+    e.preventDefault();
+  }
+
+  function handleBottomSheetTouchEnd(e: TouchEvent) {
+    if (!isAndroidApp) return;
+    if (!isBottomSheetDragging) {
+      bottomSheetDragY = 0;
+      return;
+    }
+    const shouldClose = bottomSheetDragY > BOTTOM_SHEET_CLOSE_THRESHOLD;
+    isBottomSheetDragging = false;
+    bottomSheetDragY = 0;
+    if (shouldClose) {
+      close();
+    }
+  }
+
+
   function handleOverlayClick(e: MouseEvent) {
+
     if (e.target === e.currentTarget) {
       close();
     }
@@ -370,17 +459,38 @@
     <div
       in:glassModal={{ duration: 200, scaleFrom: 0.92, blurFrom: 1 }}
       out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
-      class={`bg-white dark:bg-slate-900/80 md:bg-white/95 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative outline-none ${
+      class={`bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative outline-none transition-transform duration-150 ease-out ${
         isAndroidApp
           ? "w-full max-w-xl mx-2 rounded-t-3xl rounded-b-none max-h-[90vh]"
           : "w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl"
       }`}
+      style:transform={isAndroidApp ? `translateY(${bottomSheetDragY}px)` : undefined}
     >
+      {#if isAndroidApp}
+        <div
+          class="absolute inset-x-0 top-0 h-12"
+          onpointerdown={handleBottomSheetPointerDown}
+          onpointermove={handleBottomSheetPointerMove}
+          onpointerup={handleBottomSheetPointerEnd}
+          onpointercancel={handleBottomSheetPointerEnd}
+          ontouchstart={handleBottomSheetTouchStart}
+          ontouchmove={handleBottomSheetTouchMove}
+          ontouchend={handleBottomSheetTouchEnd}
+          ontouchcancel={handleBottomSheetTouchEnd}
+        >
+          <div
+            class="mx-auto mt-2 w-10 h-1.5 rounded-full bg-white/40 dark:bg-slate-700/80 touch-none"
+          ></div>
+        </div>
+      {/if}
+
+
       <button
-        onclick={close}
-        aria-label="Close modal"
-        class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
-      >
+         onclick={close}
+         aria-label="Close modal"
+         class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
+       >
+
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="20"

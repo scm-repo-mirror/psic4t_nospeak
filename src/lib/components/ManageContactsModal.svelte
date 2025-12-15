@@ -36,7 +36,15 @@
      let nip05VerifyToken = 0;
      let searchDebounceId: ReturnType<typeof setTimeout> | null = null;
  
-      function resetState() {
+      const BOTTOM_SHEET_CLOSE_THRESHOLD = 100;
+      const BOTTOM_SHEET_ACTIVATION_THRESHOLD = 6;
+      let bottomSheetDragY = $state(0);
+
+     let isBottomSheetDragging = $state(false);
+     let bottomSheetDragStartY = 0;
+
+       function resetState() {
+
           if (searchDebounceId) {
               clearTimeout(searchDebounceId);
               searchDebounceId = null;
@@ -233,12 +241,95 @@
          isSearching = false;
      }
  
-     function remove(npub: string) {
-        contactRepo.removeContact(npub);
-    }
-</script>
+      function remove(npub: string) {
+         contactRepo.removeContact(npub);
+     }
 
-{#if isOpen}
+      function handleBottomSheetPointerDown(e: PointerEvent) {
+         if (!isAndroidApp) return;
+         e.preventDefault();
+         isBottomSheetDragging = false;
+         bottomSheetDragStartY = e.clientY;
+         bottomSheetDragY = 0;
+         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+     }
+
+      function handleBottomSheetPointerMove(e: PointerEvent) {
+         if (!isAndroidApp) return;
+         const delta = e.clientY - bottomSheetDragStartY;
+         if (!isBottomSheetDragging) {
+             if (delta > BOTTOM_SHEET_ACTIVATION_THRESHOLD) {
+                 isBottomSheetDragging = true;
+             } else {
+                 return;
+             }
+         }
+         bottomSheetDragY = delta > 0 ? delta : 0;
+     }
+
+      function handleBottomSheetPointerEnd(e: PointerEvent) {
+         if (!isAndroidApp) return;
+         try {
+             (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+         } catch {
+             // ignore if pointer capture was not set
+         }
+         if (!isBottomSheetDragging) {
+             bottomSheetDragY = 0;
+             return;
+         }
+         const shouldClose = bottomSheetDragY > BOTTOM_SHEET_CLOSE_THRESHOLD;
+         isBottomSheetDragging = false;
+         bottomSheetDragY = 0;
+         if (shouldClose) {
+             close();
+         }
+       }
+
+       function handleBottomSheetTouchStart(e: TouchEvent) {
+           if (!isAndroidApp) return;
+           if (e.touches.length === 0) return;
+           const touch = e.touches[0];
+           isBottomSheetDragging = false;
+           bottomSheetDragStartY = touch.clientY;
+           bottomSheetDragY = 0;
+       }
+
+       function handleBottomSheetTouchMove(e: TouchEvent) {
+           if (!isAndroidApp) return;
+           if (e.touches.length === 0) return;
+           const touch = e.touches[0];
+           const delta = touch.clientY - bottomSheetDragStartY;
+           if (!isBottomSheetDragging) {
+               if (delta > BOTTOM_SHEET_ACTIVATION_THRESHOLD) {
+                   isBottomSheetDragging = true;
+               } else {
+                   return;
+               }
+           }
+           bottomSheetDragY = delta > 0 ? delta : 0;
+           e.preventDefault();
+       }
+
+       function handleBottomSheetTouchEnd(e: TouchEvent) {
+           if (!isAndroidApp) return;
+           if (!isBottomSheetDragging) {
+               bottomSheetDragY = 0;
+               return;
+           }
+           const shouldClose = bottomSheetDragY > BOTTOM_SHEET_CLOSE_THRESHOLD;
+           isBottomSheetDragging = false;
+           bottomSheetDragY = 0;
+           if (shouldClose) {
+               close();
+           }
+       }
+   </script>
+
+
+ 
+ {#if isOpen}
+
     <div 
         in:fade={{ duration: 130 }}
         out:fade={{ duration: 110 }}
@@ -253,15 +344,35 @@
         onkeydown={(e) => { if(e.key === 'Escape') close(); }}
     >
         <div 
-            in:glassModal={{ duration: 200, scaleFrom: 0.92, blurFrom: 1 }} 
-            out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
-            class={`bg-white dark:bg-slate-900/80 md:bg-white/95 backdrop-blur-xl p-6 shadow-2xl border border-white/20 dark:border-white/10 flex flex-col overflow-hidden outline-none relative ${
-                isAndroidApp
-                    ? "w-full max-w-xl mx-2 rounded-t-3xl rounded-b-none max-h-[90vh]"
-                    : "w-full h-full rounded-none md:w-[480px] md:h-auto md:max-h-[80vh] md:rounded-3xl"
-            }`}
-        >
-            <button onclick={close} aria-label="Close modal" class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
+             in:glassModal={{ duration: 200, scaleFrom: 0.92, blurFrom: 1 }} 
+             out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
+             class={`bg-white dark:bg-slate-900/80 md:bg-white/95 backdrop-blur-xl p-6 shadow-2xl border border-white/20 dark:border-white/10 flex flex-col overflow-hidden outline-none relative transition-transform duration-150 ease-out ${
+                 isAndroidApp
+                     ? "w-full max-w-xl mx-2 rounded-t-3xl rounded-b-none max-h-[90vh]"
+                     : "w-full h-full rounded-none md:w-[480px] md:h-auto md:max-h-[80vh] md:rounded-3xl"
+             }`}
+             style:transform={isAndroidApp ? `translateY(${bottomSheetDragY}px)` : undefined}
+         >
+             {#if isAndroidApp}
+                 <div
+                     class="absolute inset-x-0 top-0 h-12"
+                     onpointerdown={handleBottomSheetPointerDown}
+                     onpointermove={handleBottomSheetPointerMove}
+                     onpointerup={handleBottomSheetPointerEnd}
+                     onpointercancel={handleBottomSheetPointerEnd}
+                     ontouchstart={handleBottomSheetTouchStart}
+                     ontouchmove={handleBottomSheetTouchMove}
+                     ontouchend={handleBottomSheetTouchEnd}
+                     ontouchcancel={handleBottomSheetTouchEnd}
+                 >
+                     <div
+                         class="mx-auto mt-2 w-10 h-1.5 rounded-full bg-white/40 dark:bg-slate-700/80 touch-none"
+                     ></div>
+                 </div>
+             {/if}
+
+             <button onclick={close} aria-label="Close modal" class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
+
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
             <div class="flex items-center justify-between mb-4 px-1">
