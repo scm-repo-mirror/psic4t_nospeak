@@ -207,12 +207,18 @@ const en = {
             savingButton: 'Saving...'
         },
          messagingRelays: {
-             description: 'Configure your NIP-17 messaging relays. These relays are used to receive your encrypted messages. For best performance, 2–3 messaging relays usually work best.',
+             description: 'Configure your NIP-17 messaging relays. These relays are used to receive your encrypted messages. For best performance, 2 messaging relays usually work best.',
              inputPlaceholder: 'wss://relay.example.com',
              addButton: 'Add',
              emptyState: 'No relays configured',
-             tooManyWarning: 'Having more than 3 messaging relays may reduce performance and reliability.'
+             tooManyWarning: 'Having more than 3 messaging relays may reduce performance and reliability.',
+             saveStatusSuccess: 'Saved relay list to {count} relays.',
+             saveStatusPartial: 'Saved relay list to {succeeded} of {attempted} relays.',
+             saveStatusNone: 'Could not save relay list to any relays.',
+             saveStatusError: 'Error saving relay list. Your settings may not be fully propagated.',
+             savingStatus: 'Saving relay settings…'
          },
+
 
         security: {
             loginMethodTitle: 'Login method',

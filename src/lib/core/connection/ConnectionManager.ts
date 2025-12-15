@@ -49,6 +49,12 @@ export class ConnectionManager {
     
     private subscriptions: Set<{ filters: any[], onEvent: (event: any) => void, subMap: Map<string, any> }> = new Set();
 
+    private emitRelayUpdate() {
+        if (this.onRelayListUpdate) {
+            this.onRelayListUpdate(Array.from(this.relays.values()));
+        }
+    }
+
     constructor(config: RetryConfig = DefaultRetryConfig, debug: boolean = false) {
         this.relays = new Map();
         this.defaultConfig = { ...config };
@@ -65,11 +71,9 @@ export class ConnectionManager {
             this.checkAllRelayHealth();
         }, this.config.healthCheckInterval);
 
-        // UI update loop
+        // UI update loop (periodic safety net)
         this.uiUpdateTimer = setInterval(() => {
-            if (this.onRelayListUpdate) {
-                this.onRelayListUpdate(Array.from(this.relays.values()));
-            }
+            this.emitRelayUpdate();
         }, 500);
 
         if (typeof window !== 'undefined') {
@@ -127,6 +131,8 @@ export class ConnectionManager {
             
             if (this.debug) console.log(`Added persistent relay ${url}`);
             
+            this.emitRelayUpdate();
+
             // Trigger initial connection
             this.handleReconnection(url);
         } else {
@@ -135,6 +141,7 @@ export class ConnectionManager {
             if (health.type === ConnectionType.Temporary) {
                 health.type = ConnectionType.Persistent;
                 if (this.debug) console.log(`Upgraded relay ${url} to persistent`);
+                this.emitRelayUpdate();
             }
         }
     }
@@ -156,6 +163,8 @@ export class ConnectionManager {
             
             if (this.debug) console.log(`Added temporary relay ${url}`);
             
+            this.emitRelayUpdate();
+
             // Trigger initial connection
             this.handleReconnection(url);
         }
@@ -170,6 +179,7 @@ export class ConnectionManager {
             this.clearSubscriptionsForRelay(url);
             this.relays.delete(url);
             if (this.debug) console.log(`Removed relay ${url}`);
+            this.emitRelayUpdate();
         }
     }
 
@@ -200,7 +210,7 @@ export class ConnectionManager {
                 toRemove.push(url);
             }
         }
-
+ 
         for (const url of toRemove) {
             this.removeRelay(url);
         }
@@ -208,6 +218,8 @@ export class ConnectionManager {
         if (this.debug && toRemove.length > 0) {
             console.log(`Cleaned up ${toRemove.length} temporary connections`);
         }
+
+        this.emitRelayUpdate();
     }
 
     public clearAllRelays() {
@@ -218,6 +230,8 @@ export class ConnectionManager {
         if (this.debug) {
             console.log(`Cleared all ${allUrls.length} relays`);
         }
+
+        this.emitRelayUpdate();
     }
 
     public getConnectedRelays(): Relay[] {
@@ -240,6 +254,7 @@ export class ConnectionManager {
  
     public setUpdateCallback(callback: (relays: RelayHealth[]) => void) {
         this.onRelayListUpdate = callback;
+        this.emitRelayUpdate();
     }
  
     public setBackgroundModeEnabled(enabled: boolean) {

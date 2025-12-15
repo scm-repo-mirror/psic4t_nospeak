@@ -62,6 +62,8 @@
   };
   let relays = $state<RelayConfig[]>([]);
   let newRelayUrl = $state("");
+  let isSavingRelays = $state(false);
+  let relaySaveStatus = $state<string | null>(null);
 
   function handlePictureUpload(file: File, type: "image" | "video" | "audio", url?: string) {
     if (url) {
@@ -138,11 +140,34 @@
  
   async function saveRelaySettings() {
     const messagingRelays = relays.map((r) => r.url);
-    await relaySettingsService.updateSettings(messagingRelays);
+
+    isSavingRelays = true;
+    relaySaveStatus = null;
+
+    try {
+      const result = await relaySettingsService.updateSettings(messagingRelays);
+
+      if (result.succeeded === 0) {
+        relaySaveStatus = $t('settings.messagingRelays.saveStatusNone') as string;
+      } else if (result.failed === 0) {
+        const template = $t('settings.messagingRelays.saveStatusSuccess') as string;
+        relaySaveStatus = template.replace('{count}', String(result.succeeded));
+      } else {
+        let template = $t('settings.messagingRelays.saveStatusPartial') as string;
+        template = template.replace('{succeeded}', String(result.succeeded));
+        template = template.replace('{attempted}', String(result.attempted));
+        relaySaveStatus = template;
+      }
+    } catch (e) {
+      console.error('Failed to save relay settings:', e);
+      relaySaveStatus = $t('settings.messagingRelays.saveStatusError') as string;
+    } finally {
+      isSavingRelays = false;
+    }
   }
 
 
-  function addRelay() {
+  async function addRelay() {
     if (!newRelayUrl) return;
     let url = newRelayUrl.trim();
 
@@ -153,14 +178,14 @@
 
     if (!relays.find((r) => r.url === url)) {
       relays = [...relays, { url }];
-      saveRelaySettings();
+      await saveRelaySettings();
     }
     newRelayUrl = "";
   }
 
-  function removeRelay(url: string) {
+  async function removeRelay(url: string) {
     relays = relays.filter((r) => r.url !== url);
-    saveRelaySettings();
+    await saveRelaySettings();
   }
 
 
@@ -882,11 +907,25 @@
                 />
                 <button
                   onclick={addRelay}
-                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                  class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSavingRelays}
                 >
                   {$t('settings.messagingRelays.addButton')}
                 </button>
               </div>
+
+              {#if isSavingRelays || relaySaveStatus}
+                <p class="text-xs text-gray-600 dark:text-slate-400">
+                  {#if isSavingRelays}
+                    {$t('settings.messagingRelays.savingStatus')}
+                    {#if relaySaveStatus}
+                       b7 {relaySaveStatus}
+                    {/if}
+                  {:else}
+                    {relaySaveStatus}
+                  {/if}
+                </p>
+              {/if}
  
               <div
                 class="border border-gray-200/60 dark:border-slate-700/70 rounded-2xl bg-white/80 dark:bg-slate-900/60 overflow-hidden shadow-sm divide-y divide-gray-200/60 dark:divide-slate-700/70"
@@ -904,8 +943,9 @@
                     <div class="flex items-center gap-4">
                       <button
                         onclick={() => removeRelay(relay.url)}
-                        class="text-red-500 hover:text-red-700 p-1"
+                        class="text-red-500 hover:text-red-700 p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Remove relay"
+                        disabled={isSavingRelays}
                       >
                         <svg
                           class="w-5 h-5"

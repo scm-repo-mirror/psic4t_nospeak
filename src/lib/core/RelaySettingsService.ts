@@ -6,8 +6,14 @@ import { Relay } from 'nostr-tools';
 import { ConnectionType } from './connection/ConnectionManager';
 import { profileRepo } from '$lib/db/ProfileRepository';
 
+export interface RelayPublishResult {
+    attempted: number;
+    succeeded: number;
+    failed: number;
+}
+
 export class RelaySettingsService {
-    public async updateSettings(messagingRelays: string[]): Promise<void> {
+    public async updateSettings(messagingRelays: string[]): Promise<RelayPublishResult> {
         // 1. Update Profile Repo Cache
         const currentUserData = get(currentUser);
         if (currentUserData) {
@@ -21,13 +27,15 @@ export class RelaySettingsService {
         }
  
         // 2. Publish NIP-17 messaging relay list event
-        await this.publishRelayList(messagingRelays);
+        const publishResult = await this.publishRelayList(messagingRelays);
  
         // 3. Apply settings to current connections
         await this.applyRelaySettings(messagingRelays);
+
+        return publishResult;
     }
  
-    private async publishRelayList(messagingRelays: string[]): Promise<void> {
+    private async publishRelayList(messagingRelays: string[]): Promise<RelayPublishResult> {
         const currentSigner = get(signer);
         const currentUserData = get(currentUser);
         
@@ -62,8 +70,12 @@ export class RelaySettingsService {
                 ...connectionManager.getAllRelayHealth().map((h) => h.url),
                 ...messagingRelays
             ]);
+
+            let attempted = 0;
+            let succeeded = 0;
  
             for (const relayUrl of allRelays) {
+                attempted++;
                 try {
                     // Connect temporarily if not already connected
                     let relay = connectionManager.getRelayHealth(relayUrl)?.relay;
@@ -79,12 +91,18 @@ export class RelaySettingsService {
                     // nostr-tools v2 publish returns a Promise that resolves when OK is received
                     await relay.publish(signedEvent);
                     console.log(`Published messaging relay list to ${relayUrl}`);
+                    succeeded++;
                     
                 } catch (e) {
                     console.error(`Failed to publish messaging relay list to ${relayUrl}:`, e);
                     // Continue with other relays even if one fails
                 }
             }
+            return {
+                attempted,
+                succeeded,
+                failed: attempted - succeeded
+            };
         } catch (e) {
             console.error('Failed to sign or publish messaging relay list event:', e);
             throw e;
