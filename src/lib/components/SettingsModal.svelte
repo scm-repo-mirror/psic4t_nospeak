@@ -317,11 +317,33 @@
     setLanguage(value);
   }
 
+  function getCategoryCardClasses(category: Category): string {
+    const base =
+      "w-full text-left my-1.5 rounded-2xl px-4 py-3 flex items-center justify-between transition-all duration-150 ease-out bg-white/10 dark:bg-slate-800/40 border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-slate-800/70 hover:shadow-lg active:scale-[0.98]";
+
+    if (isAndroidApp) {
+      return base + " text-gray-900 dark:text-slate-100";
+    }
+
+    if (activeCategory === category) {
+      return (
+        base +
+        " text-gray-900 dark:text-white md:bg-blue-50/10 md:dark:bg-blue-900/40 md:font-medium"
+      );
+    }
+
+    return (
+      base +
+      " text-gray-700 dark:text-slate-200 md:text-gray-600 md:dark:text-slate-400 md:hover:bg-gray-100/80 md:dark:hover:bg-slate-800/90 md:hover:text-gray-900 md:dark:hover:text-slate-200"
+    );
+  }
+
   function handleOverlayClick(e: MouseEvent) {
     if (e.target === e.currentTarget) {
       close();
     }
   }
+
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === "Escape") {
@@ -334,7 +356,9 @@
   <div
     in:fade={{ duration: 130 }}
     out:fade={{ duration: 110 }}
-    class="fixed inset-0 bg-black/35 md:bg-black/40 bg-gradient-to-br from-black/40 via-black/35 to-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50"
+    class={`fixed inset-0 bg-black/35 md:bg-black/40 bg-gradient-to-br from-black/40 via-black/35 to-slate-900/40 backdrop-blur-sm flex justify-center z-50 ${
+      isAndroidApp ? "items-end" : "items-center"
+    }`}
     class:android-safe-area-top={isAndroidApp}
     onclick={handleOverlayClick}
     onkeydown={handleKeydown}
@@ -346,7 +370,11 @@
     <div
       in:glassModal={{ duration: 200, scaleFrom: 0.92, blurFrom: 1 }}
       out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
-      class="bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative outline-none"
+      class={`bg-white dark:bg-slate-900/80 md:bg-white/95 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative outline-none ${
+        isAndroidApp
+          ? "w-full max-w-xl mx-2 rounded-t-3xl rounded-b-none max-h-[90vh]"
+          : "w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl"
+      }`}
     >
       <button
         onclick={close}
@@ -394,71 +422,205 @@
           </h2>
         </div>
 
-        <nav class="space-y-1 px-1.5">
+        <nav class="space-y-2 px-1.5">
           <button
-            class={`w-full text-left p-3 my-1.5 rounded-2xl cursor-pointer transition-all duration-150 ease-out ${
-              activeCategory === "General"
-                ? "bg-blue-50/10 dark:bg-blue-900/40 font-medium text-gray-900 dark:text-white"
-                : "text-gray-600 dark:text-slate-400 hover:bg-gray-100/80 dark:hover:bg-slate-800/90 hover:text-gray-900 dark:hover:text-slate-200"
-            }`}
+            class={getCategoryCardClasses("General")}
             onclick={() => {
               activeCategory = "General";
               showMobileContent = true;
             }}
           >
-            {$t("settings.categories.general")}
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+                <svg
+                  class="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 16 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  ></path>
+                </svg>
+              </div>
+              <span class="typ-section text-gray-900 dark:text-slate-100">
+                {$t("settings.categories.general")}
+              </span>
+            </div>
+            <svg
+              class="w-4 h-4 text-gray-400 dark:text-slate-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18l6-6-6-6"></path>
+            </svg>
           </button>
+
           <button
-            class={`w-full text-left p-3 my-1.5 rounded-2xl cursor-pointer transition-all duration-150 ease-out ${
-              activeCategory === "Profile"
-                ? "bg-blue-50/10 dark:bg-blue-900/40 font-medium text-gray-900 dark:text-white"
-                : "text-gray-600 dark:text-slate-400 hover:bg-gray-100/80 dark:hover:bg-slate-800/90 hover:text-gray-900 dark:hover:text-slate-200"
-            }`}
+            class={getCategoryCardClasses("Profile")}
             onclick={() => {
               activeCategory = "Profile";
               showMobileContent = true;
             }}
           >
-            {$t("settings.categories.profile")}
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+                <svg
+                  class="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <span class="typ-section text-gray-900 dark:text-slate-100">
+                {$t("settings.categories.profile")}
+              </span>
+            </div>
+            <svg
+              class="w-4 h-4 text-gray-400 dark:text-slate-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18l6-6-6-6"></path>
+            </svg>
           </button>
+
           <button
-            class={`w-full text-left p-3 my-1.5 rounded-2xl cursor-pointer transition-all duration-150 ease-out ${
-              activeCategory === "Messaging Relays"
-                ? "bg-blue-50/10 dark:bg-blue-900/40 font-medium text-gray-900 dark:text-white"
-                : "text-gray-600 dark:text-slate-400 hover:bg-gray-100/80 dark:hover:bg-slate-800/90 hover:text-gray-900 dark:hover:text-slate-200"
-            }`}
+            class={getCategoryCardClasses("Messaging Relays")}
             onclick={() => {
               activeCategory = "Messaging Relays";
               showMobileContent = true;
             }}
           >
-            {$t("settings.categories.messagingRelays")}
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+                <svg
+                  class="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="6" cy="12" r="2"></circle>
+                  <circle cx="12" cy="6" r="2"></circle>
+                  <circle cx="18" cy="12" r="2"></circle>
+                  <path d="M8 12h4M14 12h4M12 8v2"></path>
+                </svg>
+              </div>
+              <span class="typ-section text-gray-900 dark:text-slate-100">
+                {$t("settings.categories.messagingRelays")}
+              </span>
+            </div>
+            <svg
+              class="w-4 h-4 text-gray-400 dark:text-slate-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18l6-6-6-6"></path>
+            </svg>
           </button>
+
           <button
-            class={`w-full text-left p-3 my-1.5 rounded-2xl cursor-pointer transition-all duration-150 ease-out ${
-              activeCategory === "Security"
-                ? "bg-blue-50/10 dark:bg-blue-900/40 font-medium text-gray-900 dark:text-white"
-                : "text-gray-600 dark:text-slate-400 hover:bg-gray-100/80 dark:hover:bg-slate-800/90 hover:text-gray-900 dark:hover:text-slate-200"
-            }`}
+            class={getCategoryCardClasses("Security")}
             onclick={() => {
               activeCategory = "Security";
               showMobileContent = true;
             }}
           >
-            {$t("settings.categories.security")}
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+                <svg
+                  class="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  <path d="m9 12 2 2 4-4"></path>
+                </svg>
+              </div>
+              <span class="typ-section text-gray-900 dark:text-slate-100">
+                {$t("settings.categories.security")}
+              </span>
+            </div>
+            <svg
+              class="w-4 h-4 text-gray-400 dark:text-slate-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18l6-6-6-6"></path>
+            </svg>
           </button>
+
           <button
-            class={`w-full text-left p-3 my-1.5 rounded-2xl cursor-pointer transition-all duration-150 ease-out ${
-              activeCategory === "About"
-                ? "bg-blue-50/10 dark:bg-blue-900/40 font-medium text-gray-900 dark:text-white"
-                : "text-gray-600 dark:text-slate-400 hover:bg-gray-100/80 dark:hover:bg-slate-800/90 hover:text-gray-900 dark:hover:text-slate-200"
-            }`}
+            class={getCategoryCardClasses("About")}
             onclick={() => {
               activeCategory = "About";
               showMobileContent = true;
             }}
           >
-            {$t("settings.categories.about")}
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+                <svg
+                  class="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </div>
+              <span class="typ-section text-gray-900 dark:text-slate-100">
+                {$t("settings.categories.about")}
+              </span>
+            </div>
+            <svg
+              class="w-4 h-4 text-gray-400 dark:text-slate-500"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 18l6-6-6-6"></path>
+            </svg>
           </button>
         </nav>
       </div>
