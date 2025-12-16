@@ -251,16 +251,6 @@
                 {/if}
             </div>
  
-            <div class="mt-6 flex justify-end gap-3">
-             <button
-                     type="button"
-                     onclick={() => { hapticSelection(); closeWithCleanup(); }}
-
-                    class="px-3 py-1.5 text-xs rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-100 border border-gray-200/60 dark:border-slate-600 transition-colors"
-                >
-                    {$t('common.cancel')}
-                </button>
-            </div>
 
         </div>
     </div>
