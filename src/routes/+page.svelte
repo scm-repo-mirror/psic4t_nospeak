@@ -4,6 +4,7 @@
     import AmberLoginModal from '$lib/components/AmberLoginModal.svelte';
     import KeypairLoginModal from '$lib/components/KeypairLoginModal.svelte';
     import { t } from '$lib/i18n';
+    import { isAndroidCapacitorShell } from '$lib/utils/platform';
 
     let nsec = $state('');
     let error = $state('');
@@ -11,6 +12,7 @@
     let hasExtension = $state(false);
     let amberUri = $state('');
     let showKeypairModal = $state(false);
+    let isAndroidShell = $state(false);
 
     onMount(() => {
         // Check for extension
@@ -22,6 +24,9 @@
         check();
         // Retry shortly after just in case injection is slow
         setTimeout(check, 500);
+
+        // Detect Android Capacitor shell for Amber login availability
+        isAndroidShell = isAndroidCapacitorShell();
     });
 
     async function loginNsec() {
@@ -79,13 +84,15 @@
         {/if}
 
         <div class="space-y-4">
-            <button 
-                onclick={loginAmber}
-                disabled={isLoading}
-                class="w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white font-medium p-3 rounded-xl hover:shadow-lg hover:shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {$t('auth.loginWithAmber')}
-            </button>
+            {#if isAndroidShell}
+                <button 
+                    onclick={loginAmber}
+                    disabled={isLoading}
+                    class="w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white font-medium p-3 rounded-xl hover:shadow-lg hover:shadow-orange-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {$t('auth.loginWithAmber')}
+                </button>
+            {/if}
 
             {#if hasExtension}
                 <button 
@@ -139,7 +146,7 @@
     </div>
 </div>
 
-{#if amberUri}
+{#if isAndroidShell && amberUri}
     <AmberLoginModal 
         uri={amberUri} 
         onClose={() => { amberUri = ''; isLoading = false; }} 
