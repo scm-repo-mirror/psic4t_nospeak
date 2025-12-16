@@ -6,7 +6,7 @@
         class?: string 
     }>();
 
-    const robotUrl = $derived(`https://robohash.org/${npub}.png?set=set1&bgset=bg2`);
+    const robotUrl = $derived(`https://robohash.org/${npub.slice(-10)}.png?set=set1&bgset=bg2`);
     
     let imgError = $state(false);
     
