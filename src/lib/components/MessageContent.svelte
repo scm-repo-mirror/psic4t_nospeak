@@ -13,7 +13,8 @@
         fileType = undefined,
         fileEncryptionAlgorithm = undefined,
         fileKey = undefined,
-        fileNonce = undefined
+        fileNonce = undefined,
+        onMediaLoad = undefined
     } = $props<{
         content: string;
         isOwn?: boolean;
@@ -23,6 +24,7 @@
         fileEncryptionAlgorithm?: string;
         fileKey?: string;
         fileNonce?: string;
+        onMediaLoad?: () => void;
     }>();
 
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -299,18 +301,18 @@
                               class="block my-1 cursor-zoom-in"
                               onclick={() => onImageClick?.(decryptedUrl!, fileUrl)}
                           >
-                              <img src={decryptedUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                              <img src={decryptedUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" onload={() => onMediaLoad?.()} />
                           </button>
 
                      {:else}
                          <a href={decryptedUrl} target="_blank" rel="noopener noreferrer" class="block my-1">
-                             <img src={decryptedUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                             <img src={decryptedUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" onload={() => onMediaLoad?.()} />
                          </a>
                      {/if}
                  {:else if isVideoMime(fileType) || isVideo(decryptedUrl)}
                      <!-- svelte-ignore a11y_media_has_caption -->
                      <div class="my-1">
-                         <video controls src={decryptedUrl} class="max-w-full rounded max-h-[300px]" preload="metadata"></video>
+                         <video controls src={decryptedUrl} class="max-w-full rounded max-h-[300px]" preload="metadata" onloadedmetadata={() => onMediaLoad?.()}></video>
                      </div>
                  {:else if isAudioMime(fileType) || isAudio(decryptedUrl)}
                      <div class="mt-2 mb-1">
@@ -338,17 +340,17 @@
                               onclick={() => onImageClick?.(part, part)}
                           >
 
-                             <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                             <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" onload={() => onMediaLoad?.()} />
                          </button>
                      {:else}
                          <a href={part} target="_blank" rel="noopener noreferrer" class="block my-1">
-                             <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" />
+                             <img src={part} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading="lazy" onload={() => onMediaLoad?.()} />
                          </a>
                      {/if}
                  {:else if isVideo(part)}
                      <!-- svelte-ignore a11y_media_has_caption -->
                      <div class="my-1">
-                         <video controls src={part} class="max-w-full rounded max-h-[300px]" preload="metadata"></video>
+                         <video controls src={part} class="max-w-full rounded max-h-[300px]" preload="metadata" onloadedmetadata={() => onMediaLoad?.()}></video>
                      </div>
                  {:else if isAudio(part)}
                      <div class="mt-2 mb-1">
@@ -373,7 +375,7 @@
                      <div class="flex flex-col sm:flex-row gap-0 sm:gap-0 h-auto sm:h-28">
                          <div class="shrink-0 w-full sm:w-28 h-32 sm:h-full bg-gray-100/50 dark:bg-slate-800/50 flex items-center justify-center overflow-hidden">
                              {#if preview.image}
-                                 <img src={preview.image} alt="" class="w-full h-full object-cover" loading="lazy" />
+                                 <img src={preview.image} alt="" class="w-full h-full object-cover" loading="lazy" onload={() => onMediaLoad?.()} />
                              {:else}
                                  <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>

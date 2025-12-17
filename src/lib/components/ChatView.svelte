@@ -56,10 +56,20 @@
   let currentTime = $state(Date.now());
   let relayStatusTimeout: number | null = null;
    
-  let previousScrollHeight = 0;
-  let isLoadingMore = false;
-  
-  // Single-file media preview state
+   let previousScrollHeight = 0;
+   let isLoadingMore = false;
+   let isSwitchingChat = $state(false);
+
+   $effect(() => {
+     partnerNpub;
+     isSwitchingChat = true;
+     const t = setTimeout(() => {
+       isSwitchingChat = false;
+     }, 1000);
+     return () => clearTimeout(t);
+   });
+   
+   // Single-file media preview state
   let showMediaPreview = $state(false);
   let pendingMediaFile = $state<File | null>(null);
   let pendingMediaType = $state<'image' | 'video' | 'audio' | null>(null);
@@ -271,6 +281,17 @@
           previousScrollHeight = chatContainer.scrollHeight;
           onLoadMore();
       }
+  }
+
+  function handleMediaLoad() {
+    if (!chatContainer) return;
+    // If we are reasonably close to the bottom, keep scrolling down as media loads
+    // This fixes the issue where loading images push the content up
+    const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+    
+    if (isSwitchingChat || distanceFromBottom < 1000) {
+      scrollToBottom();
+    }
   }
 
   function handlePageKeyScroll(e: KeyboardEvent) {
@@ -1031,6 +1052,7 @@
              fileEncryptionAlgorithm={msg.fileEncryptionAlgorithm}
              fileKey={msg.fileKey}
              fileNonce={msg.fileNonce}
+             onMediaLoad={handleMediaLoad}
            />
 
            {#if captionForThis}
