@@ -7,8 +7,10 @@
    import { page } from "$app/state";
    import { hapticSelection } from "$lib/utils/haptics";
    import { currentUser } from "$lib/stores/auth";
-
-   import RelayStatusModal from "$lib/components/RelayStatusModal.svelte";
+   import { AndroidShareTarget, type AndroidSharePayload, fileFromAndroidMediaPayload } from '$lib/core/AndroidShareTarget';
+   import { setPendingAndroidMediaShare, setPendingAndroidTextShare } from '$lib/stores/androidShare';
+ 
+    import RelayStatusModal from "$lib/components/RelayStatusModal.svelte";
     import SettingsModal from "$lib/components/SettingsModal.svelte";
     import ManageContactsModal from "$lib/components/ManageContactsModal.svelte";
     import ProfileModal from "$lib/components/ProfileModal.svelte";
@@ -22,9 +24,9 @@
  
    import { syncState } from "$lib/stores/sync";
 
-  import { configureAndroidStatusBar } from "$lib/core/StatusBar";
-  import { initLanguage } from "$lib/stores/language";
-   import { isAndroidNative } from "$lib/core/NativeDialogs";
+   import { configureAndroidStatusBar } from "$lib/core/StatusBar";
+   import { initLanguage } from "$lib/stores/language";
+   import { isAndroidNative, nativeDialogService } from "$lib/core/NativeDialogs";
    import { initAndroidBackNavigation } from "$lib/core/AndroidBackHandler";
    import ImageViewerOverlay from "$lib/components/ImageViewerOverlay.svelte";
  
@@ -84,14 +86,71 @@
     });
 
     const restored = await authService.restore();
-    isInitialized = true;
-
-    // If restored and on login page, go to chat
-    if (restored && location.pathname === "/") {
-      goto("/chat");
-    }
-
-    if (restored && location.pathname !== "/") {
+     isInitialized = true;
+ 
+     // If restored and on login page, go to chat
+     if (restored && location.pathname === "/") {
+       goto("/chat");
+     }
+ 
+     // Handle Android inbound shares after auth restore
+     if (isAndroidNative() && AndroidShareTarget) {
+       const handleSharePayload = async (payload: AndroidSharePayload): Promise<void> => {
+         if (!payload) {
+             return;
+         }
+ 
+         if (!$currentUser) {
+             try {
+                 await nativeDialogService.alert({
+                     title: 'Share not available',
+                     message: 'Please log in to share.'
+                 });
+             } catch {
+                 // ignore
+             }
+             return;
+         }
+ 
+         if (payload.kind === 'media') {
+             const file = fileFromAndroidMediaPayload(payload);
+             setPendingAndroidMediaShare({
+                 file,
+                 mediaType: payload.mediaType,
+                 requiresContactSelection: true
+             });
+             setPendingAndroidTextShare(null);
+         } else if (payload.kind === 'text') {
+             if (!payload.text || payload.text.trim().length === 0) {
+                 return;
+             }
+             setPendingAndroidTextShare({
+                 text: payload.text,
+                 requiresContactSelection: true
+             });
+             setPendingAndroidMediaShare(null);
+         }
+ 
+         if (location.pathname !== '/chat') {
+             await goto('/chat');
+         }
+       };
+ 
+       try {
+         const initial = await AndroidShareTarget.getInitialShare();
+         if (initial) {
+             await handleSharePayload(initial);
+         }
+       } catch (e) {
+         console.error('Failed to process initial Android share:', e);
+       }
+ 
+       void AndroidShareTarget.addListener('shareReceived', (payload) => {
+         void handleSharePayload(payload);
+       });
+     }
+ 
+     if (restored && location.pathname !== "/") {
       // Wait 5 seconds then refresh all contact profiles and relay information
       setTimeout(async () => {
         console.log("Starting delayed profile and relay refresh after 5 seconds");

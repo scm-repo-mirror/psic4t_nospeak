@@ -23,25 +23,30 @@
   import { get } from 'svelte/store';
   import { isCaptionMessage, getCaptionForParent } from '$lib/core/captionGrouping';
 
-  let {
-    messages = [],
-    partnerNpub,
-    onLoadMore,
-    isFetchingHistory = false,
-    canRequestNetworkHistory = false,
-    onRequestNetworkHistory,
-    networkHistoryStatus = 'idle'
-  } = $props<{
-    messages: Message[];
-    partnerNpub?: string;
-    onLoadMore?: () => void;
-    isFetchingHistory?: boolean;
-    canRequestNetworkHistory?: boolean;
-    onRequestNetworkHistory?: () => void;
-    networkHistoryStatus?: 'idle' | 'loading' | 'no-more' | 'error';
-  }>();
+   let {
+     messages = [],
+     partnerNpub,
+     onLoadMore,
+     isFetchingHistory = false,
+     canRequestNetworkHistory = false,
+     onRequestNetworkHistory,
+     networkHistoryStatus = 'idle',
+     initialSharedMedia = null,
+     initialSharedText = null
+   } = $props<{
+     messages: Message[];
+     partnerNpub?: string;
+     onLoadMore?: () => void;
+     isFetchingHistory?: boolean;
+     canRequestNetworkHistory?: boolean;
+     onRequestNetworkHistory?: () => void;
+     networkHistoryStatus?: 'idle' | 'loading' | 'no-more' | 'error';
+     initialSharedMedia?: { file: File; mediaType: 'image' | 'video' | 'audio' } | null;
+     initialSharedText?: string | null;
+   }>();
+ 
+   let inputText = $state("");
 
-  let inputText = $state("");
   let partnerName = $state("");
   let partnerPicture = $state<string | undefined>(undefined);
   let myPicture = $state<string | undefined>(undefined);
@@ -326,15 +331,40 @@
       };
   });
 
-  // Auto-focus input (desktop only)
-  $effect(() => {
-    partnerNpub; // Trigger on chat switch
-    if (!isSending && inputElement && window.innerWidth >= 768) {
-      inputElement.focus();
-    }
-  });
+   // Auto-focus input (desktop only)
+   $effect(() => {
+     partnerNpub; // Trigger on chat switch
+     if (!isSending && inputElement && window.innerWidth >= 768) {
+       inputElement.focus();
+     }
+   });
 
-  // Update current time every minute to refresh relative times
+   // Apply any initial shared media or text once the chat is ready
+   $effect(() => {
+     if (!partnerNpub) {
+       return;
+     }
+
+     if (initialSharedMedia) {
+       openMediaPreview(initialSharedMedia.file, initialSharedMedia.mediaType);
+       initialSharedMedia = null;
+     }
+
+     if (initialSharedText && initialSharedText.trim().length > 0) {
+       inputText = initialSharedText;
+       initialSharedText = null;
+
+       if (inputElement) {
+         setTimeout(() => {
+           inputElement.style.height = "auto";
+           inputElement.style.height = Math.min(inputElement.scrollHeight, 150) + "px";
+         }, 0);
+       }
+     }
+   });
+ 
+   // Update current time every minute to refresh relative times
+
   $effect(() => {
     const interval = setInterval(() => {
       currentTime = Date.now();

@@ -19,8 +19,10 @@ public class MainActivity extends BridgeActivity {
         // Register custom plugins before bridge initialization
         registerPlugin(AndroidBackgroundMessagingPlugin.class);
         registerPlugin(AndroidNip55SignerPlugin.class);
-
+        registerPlugin(AndroidShareTargetPlugin.class);
+ 
         super.onCreate(savedInstanceState);
+
  
         // Enable edge-to-edge layout and delegate safe areas to the web UI
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -30,6 +32,14 @@ public class MainActivity extends BridgeActivity {
     public void onStart() {
         super.onStart();
         appVisible = true;
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        // Keep the latest Intent available for plugins that read
+        // getActivity().getIntent(), such as the AndroidShareTarget plugin.
+        setIntent(intent);
     }
 
     @Override

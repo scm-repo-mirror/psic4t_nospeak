@@ -5,14 +5,20 @@
     import { onMount } from 'svelte';
     import type { Message } from '$lib/db/db';
     import { messagingService } from '$lib/core/Messaging';
-    import { page } from '$app/state';
-    import { contactRepo } from '$lib/db/ContactRepository';
-    
-    const PAGE_SIZE = 50;
+     import { page } from '$app/state';
+     import { contactRepo } from '$lib/db/ContactRepository';
+     import { consumePendingAndroidMediaShare, consumePendingAndroidTextShare } from '$lib/stores/androidShare';
+     import { isAndroidNative } from '$lib/core/NativeDialogs';
+     
+     const PAGE_SIZE = 50;
+
 
     let messages = $state<Message[]>([]);
-    let currentPartner = $derived(page.params.npub);
-    let isFetchingHistory = $state(false);
+     let currentPartner = $derived(page.params.npub);
+     let isFetchingHistory = $state(false);
+     let initialSharedMedia = $state<{ file: File; mediaType: 'image' | 'video' | 'audio' } | null>(null);
+     let initialSharedText = $state<string | null>(null);
+
     let oldestLoadedTimestamp = $state<number | null>(null);
     let cacheExhausted = $state(false);
     let networkHistoryStatus = $state<'idle' | 'loading' | 'no-more' | 'error'>('idle');
@@ -128,12 +134,27 @@
     }
 
     // Effect to update messages when partner or signer changes
-    $effect(() => {
-        const s = $signer;
-        const partner = currentPartner;
-        if (!s || !partner) return;
-        refreshMessagesForCurrentPartner();
-    });
+     $effect(() => {
+         const s = $signer;
+         const partner = currentPartner;
+         if (!s || !partner) return;
+         refreshMessagesForCurrentPartner();
+     });
+
+     // Consume any pending Android inbound share after contact selection
+     $effect(() => {
+         const partner = currentPartner;
+         if (!partner || !isAndroidNative()) {
+             return;
+         }
+
+         const media = consumePendingAndroidMediaShare();
+         const text = consumePendingAndroidTextShare();
+
+         initialSharedMedia = media ? { file: media.file, mediaType: media.mediaType } : null;
+         initialSharedText = text ? text.text : null;
+     });
+
 
     onMount(() => {
         const handleNewMessage = (event: Event) => {
@@ -160,12 +181,15 @@
 </script>
 
 <ChatView
-    {messages}
-    partnerNpub={currentPartner}
-    onLoadMore={handleLoadMore}
-    {isFetchingHistory}
-    {canRequestNetworkHistory}
-    onRequestNetworkHistory={handleRequestNetworkHistory}
-    networkHistoryStatus={networkHistoryStatus}
-/>
+     {messages}
+     partnerNpub={currentPartner}
+     onLoadMore={handleLoadMore}
+     {isFetchingHistory}
+     {canRequestNetworkHistory}
+     onRequestNetworkHistory={handleRequestNetworkHistory}
+     networkHistoryStatus={networkHistoryStatus}
+     {initialSharedMedia}
+     {initialSharedText}
+ />
+
 
