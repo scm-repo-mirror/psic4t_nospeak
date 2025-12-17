@@ -9,5 +9,7 @@ export async function addContactByNpub(npub: string): Promise<void> {
     }
 
     await profileResolver.resolveProfile(trimmed, true);
-    await contactRepo.addContact(trimmed);
+    // Initialize lastReadAt and lastActivityAt to now so the contact does not appear unread immediately
+    const now = Date.now();
+    await contactRepo.addContact(trimmed, now, now);
 }

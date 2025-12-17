@@ -92,7 +92,7 @@ describe('MessagingService - Auto-add Contacts', () => {
             await (messagingService as any).autoAddContact(npub);
 
             expect(contactRepo.getContacts).toHaveBeenCalled();
-            expect(contactRepo.addContact).toHaveBeenCalledWith(npub, expect.any(Number));
+            expect(contactRepo.addContact).toHaveBeenCalledWith(npub, expect.any(Number), expect.any(Number));
         });
 
         it('should not add contact if already exists', async () => {
@@ -293,6 +293,46 @@ describe('MessagingService - Auto-add Contacts', () => {
             const callArg = upsertSpy.mock.calls[0][0];
             expect(callArg.targetEventId).toBe('target-event-id');
             expect(callArg.emoji).toBe('👍');
+        });
+
+        it('processReactionRumor updates contact activity and triggers notification for incoming reactions', async () => {
+            const myPubkey = '79dff8f426826fdd7c32deb1d9e1f9c01234567890abcdef1234567890abcdef';
+            const otherPubkey = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+            const s: any = {
+                getPublicKey: vi.fn().mockResolvedValue(myPubkey),
+            };
+
+            vi.mocked(get).mockImplementation((store: any) => {
+                if (store === signer) return s;
+                if (store === (currentUser as any)) return { npub: 'npub1me' };
+                return null;
+            });
+
+            const messaging = new MessagingService();
+            const rumor: any = {
+                kind: 7,
+                pubkey: otherPubkey,
+                content: '❤️',
+                created_at: 456,
+                tags: [
+                    ['p', myPubkey],
+                    ['e', 'target-event-id']
+                ]
+            };
+
+            const { contactRepo } = await import('$lib/db/ContactRepository');
+            const markActivitySpy = vi.spyOn(contactRepo, 'markActivity').mockResolvedValue();
+            const { notificationService } = await import('./NotificationService');
+            const notifSpy = vi.spyOn(notificationService, 'showReactionNotification').mockResolvedValue();
+
+            await (messaging as any).processReactionRumor(rumor, 'wrap-id');
+
+            expect(markActivitySpy).toHaveBeenCalledTimes(1);
+            const [npubArg, timestampArg] = markActivitySpy.mock.calls[0];
+            expect(typeof npubArg).toBe('string');
+            expect(timestampArg).toBe(456 * 1000);
+
+            expect(notifSpy).toHaveBeenCalledTimes(1);
         });
 
         it('sendReaction method is exposed', () => {

@@ -243,6 +243,147 @@ export class NotificationService {
         return false;
     }
 
+    public async showReactionNotification(senderNpub: string, emoji: string) {
+        this.loadSettings();
+
+        if (!this.settings.notificationsEnabled) {
+            return;
+        }
+
+        if (typeof document !== 'undefined') {
+            const hasFocus = typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+            const isVisible = document.visibilityState === 'visible';
+
+            let isSameConversation = false;
+            if (typeof window !== 'undefined') {
+                const path = window.location.pathname;
+                if (path.startsWith('/chat/')) {
+                    const currentNpub = decodeURIComponent(path.slice('/chat/'.length).replace(/\/$/, ''));
+                    isSameConversation = currentNpub === senderNpub;
+                }
+            }
+
+            const shouldSuppress = isVisible && hasFocus && isSameConversation;
+
+            if (shouldSuppress) {
+                return;
+            }
+        }
+
+        let senderName = senderNpub.slice(0, 10) + '...';
+        let senderPicture: string | undefined;
+
+        try {
+            const profile = await profileRepo.getProfileIgnoreTTL(senderNpub);
+
+            if (profile && profile.metadata) {
+                senderName = profile.metadata.name || profile.metadata.display_name || profile.metadata.displayName || senderName;
+                senderPicture = profile.metadata.picture;
+            }
+        } catch (e) {
+            console.error('Failed to load sender profile for reaction notification:', e);
+        }
+
+        const message = `reacted ${emoji} to your message`;
+
+        if (this.isAndroidNativeEnv) {
+            await this.showAndroidReactionNotification(senderNpub, senderName, message);
+            return;
+        }
+
+        await this.showWebReactionNotification(senderNpub, senderName, senderPicture, message);
+    }
+
+    private async showAndroidReactionNotification(senderNpub: string, senderName: string, message: string) {
+        try {
+            await this.ensureAndroidChannel();
+
+            const permissions = await LocalNotifications.checkPermissions().catch(() => ({ display: 'denied' as const }));
+            if (permissions.display !== 'granted') {
+                return;
+            }
+
+            const id = Math.floor(Date.now() % 2147483647);
+
+            await LocalNotifications.schedule({
+                notifications: [
+                    {
+                        id,
+                        title: `New reaction from ${senderName}`,
+                        body: message,
+                        channelId: ANDROID_MESSAGE_CHANNEL_ID,
+                        smallIcon: 'ic_stat_nospeak',
+                        extra: {
+                            url: `/chat/${senderNpub}`
+                        }
+                    }
+                ]
+            });
+        } catch (e) {
+            console.error('Failed to show Android reaction notification:', e);
+        }
+    }
+
+    private async showWebReactionNotification(senderNpub: string, senderName: string, senderPicture: string | undefined, message: string) {
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+            return;
+        }
+
+        try {
+            let swRegistration: ServiceWorkerRegistration | undefined;
+
+            if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+                try {
+                    swRegistration = await Promise.race<ServiceWorkerRegistration | undefined>([
+                        navigator.serviceWorker.ready,
+                        new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1000))
+                    ]);
+                } catch (e) {
+                    console.warn('Service Worker check failed:', e);
+                }
+            }
+
+            const title = `New reaction from ${senderName}`;
+
+            if (swRegistration) {
+                await swRegistration.showNotification(title, {
+                    body: message,
+                    icon: senderPicture || DEFAULT_NOTIFICATION_ICON,
+                    badge: DEFAULT_NOTIFICATION_ICON,
+                    tag: `message-${senderNpub}`,
+                    requireInteraction: false,
+                    silent: false,
+                    data: {
+                        url: `/chat/${senderNpub}`
+                    }
+                });
+            } else if (typeof Notification !== 'undefined') {
+                const notification = new Notification(title, {
+                    body: message,
+                    icon: senderPicture || DEFAULT_NOTIFICATION_ICON,
+                    badge: DEFAULT_NOTIFICATION_ICON,
+                    tag: `message-${senderNpub}`,
+                    requireInteraction: false,
+                    silent: false
+                });
+
+                notification.onclick = () => {
+                    if (typeof window !== 'undefined') {
+                        window.focus();
+                        window.location.href = `/chat/${senderNpub}`;
+                    }
+                    notification.close();
+                };
+
+                setTimeout(() => {
+                    notification.close();
+                }, 5000);
+            }
+        } catch (e) {
+            console.error('Failed to show reaction notification:', e);
+        }
+    }
+
     public isSupported(): boolean {
         if (this.isAndroidNativeEnv) {
             return true;
@@ -271,13 +412,20 @@ export class NotificationService {
 
 let notificationServiceInstance: NotificationService | null = null;
 
-export const notificationService = {
-    showNewMessageNotification: (senderNpub: string, message: string) => {
-        if (!notificationServiceInstance) {
-            notificationServiceInstance = new NotificationService();
-        }
-        return notificationServiceInstance.showNewMessageNotification(senderNpub, message);
-    },
+ export const notificationService = {
+     showNewMessageNotification: (senderNpub: string, message: string) => {
+         if (!notificationServiceInstance) {
+             notificationServiceInstance = new NotificationService();
+         }
+         return notificationServiceInstance.showNewMessageNotification(senderNpub, message);
+     },
+     showReactionNotification: (senderNpub: string, emoji: string) => {
+         if (!notificationServiceInstance) {
+             notificationServiceInstance = new NotificationService();
+         }
+         return notificationServiceInstance.showReactionNotification(senderNpub, emoji);
+     },
+
     requestPermission: () => {
         if (!notificationServiceInstance) {
             notificationServiceInstance = new NotificationService();

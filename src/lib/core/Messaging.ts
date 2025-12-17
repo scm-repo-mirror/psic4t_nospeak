@@ -346,6 +346,26 @@ import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from './Nip98Auth';
 
       await reactionRepo.upsertReaction(reaction);
       reactionsStore.applyReactionUpdate(reaction);
+
+      const isFromOtherUser = rumor.pubkey !== myPubkey;
+      if (isFromOtherUser && !this.isFetchingHistory) {
+        const partnerPubkey = rumor.pubkey;
+        const partnerNpub = nip19.npubEncode(partnerPubkey);
+
+        try {
+          await contactRepo.markActivity(partnerNpub, rumor.created_at * 1000);
+        } catch (activityError) {
+          console.error('Failed to mark contact activity for reaction:', activityError);
+        }
+
+        if (!this.isFetchingHistory) {
+          try {
+            await notificationService.showReactionNotification(partnerNpub, content);
+          } catch (notifyError) {
+            console.error('Failed to show reaction notification:', notifyError);
+          }
+        }
+      }
     } catch (e) {
       console.error('Failed to process reaction rumor:', e);
     }
@@ -981,8 +1001,10 @@ import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from './Nip98Auth';
       if (!contactExists) {
         // Fetch profile and relay info first (like manual addition)
         await profileResolver.resolveProfile(npub, true);
-        const lastReadAt = isUnread ? 0 : Date.now();
-        await contactRepo.addContact(npub, lastReadAt);
+        const now = Date.now();
+        const lastReadAt = isUnread ? 0 : now;
+        const lastActivityAt = now;
+        await contactRepo.addContact(npub, lastReadAt, lastActivityAt);
         if (this.debug) console.log(`Auto-added new contact: ${npub}`);
       }
     } catch (error) {

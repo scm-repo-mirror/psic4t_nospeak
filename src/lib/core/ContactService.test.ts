@@ -29,7 +29,7 @@ describe('addContactByNpub', () => {
         await addContactByNpub('  npub1validkey ');
 
         expect(resolveProfileMock).toHaveBeenCalledWith('npub1validkey', true);
-        expect(addContactMock).toHaveBeenCalledWith('npub1validkey');
+        expect(addContactMock).toHaveBeenCalledWith('npub1validkey', expect.any(Number), expect.any(Number));
     });
 
     it('throws for a non-npub value', async () => {

@@ -53,11 +53,13 @@
     async function refreshContacts(dbContacts: ContactItem[]): Promise<void> {
         console.log('ContactList: Processing contacts from DB:', dbContacts.length);
         
-        const contactsData = await Promise.all(dbContacts.map(async (c) => {
-             const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
-             const lastMsgs = await messageRepo.getMessages(c.npub, 1);
-             const lastMsg = lastMsgs[0];
-             const lastMsgTime = lastMsg ? lastMsg.sentAt : 0;
+             const contactsData = await Promise.all(dbContacts.map(async (c) => {
+                 const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
+                 const lastMsgs = await messageRepo.getMessages(c.npub, 1);
+                 const lastMsg = lastMsgs[0];
+                 const lastMsgTime = lastMsg ? lastMsg.sentAt : 0;
+                 const lastActivityTime = Math.max(lastMsgTime || 0, c.lastActivityAt || 0);
+
              const rawLastMessageText = lastMsg ? lastMsg.message : '';
  
              let lastMessageText = rawLastMessageText
@@ -81,17 +83,18 @@
                   nip05 = profile.metadata.nip05 || undefined;
                   nip05Status = profile.nip05Status;
              }
-             return {
-                 npub: c.npub,
-                 name: name,
-                 picture: picture,
-                 hasUnread: (lastMsgTime || 0) > (c.lastReadAt || 0),
-                 lastMessageTime: lastMsgTime,
-                 nip05,
-                 nip05Status,
-                 lastMessageText: lastMessageText || undefined
-             };
-         }));
+                 return {
+                     npub: c.npub,
+                     name: name,
+                     picture: picture,
+                     hasUnread: lastActivityTime > (c.lastReadAt || 0),
+                     lastMessageTime: lastMsgTime,
+                     nip05,
+                     nip05Status,
+                     lastMessageText: lastMessageText || undefined
+                 };
+             }));
+
 
         
         const sortedContacts = contactsData.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));

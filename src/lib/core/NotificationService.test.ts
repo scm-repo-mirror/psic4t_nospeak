@@ -196,6 +196,61 @@ describe('NotificationService (web notifications)', () => {
 
         expect(FakeNotification.calls.length).toBe(0);
     });
+
+    it('shows a browser reaction notification when a different conversation is active or tab is inactive', async () => {
+        isAndroidNativeMock.mockReturnValue(false);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Eve' } });
+
+        if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/chat/npub1alice');
+        }
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'hidden',
+                configurable: true
+            });
+            (document as any).hasFocus = vi.fn().mockReturnValue(false);
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showReactionNotification('npub1eve', '❤️');
+
+        expect(FakeNotification.calls.length).toBe(1);
+        expect(FakeNotification.calls[0].title).toContain('Eve');
+    });
+
+    it('suppresses a browser reaction notification when the same conversation is active in the foreground', async () => {
+        isAndroidNativeMock.mockReturnValue(false);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Frank' } });
+
+        if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/chat/npub1frank');
+        }
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'visible',
+                configurable: true
+            });
+            (document as any).hasFocus = vi.fn().mockReturnValue(true);
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showReactionNotification('npub1frank', '👍');
+
+        expect(FakeNotification.calls.length).toBe(0);
+    });
 });
 
         }
@@ -273,6 +328,32 @@ describe('NotificationService (web notifications)', () => {
         await notificationService.showNewMessageNotification('npub1dave', 'Hi from Dave');
  
         expect(scheduleMock).not.toHaveBeenCalled();
+    });
+
+    it('schedules an Android reaction notification when enabled and permission granted', async () => {
+        isAndroidNativeMock.mockReturnValue(true);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Alice' } });
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'hidden',
+                configurable: true
+            });
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showReactionNotification('npub1alice', '❤️');
+
+        expect(createChannelMock).toHaveBeenCalledTimes(1);
+        expect(scheduleMock).toHaveBeenCalledTimes(1);
+        const args = scheduleMock.mock.calls[0][0];
+        expect(args.notifications[0].title).toContain('New reaction from Alice');
+        expect(args.notifications[0].channelId).toBe('messages');
     });
 });
 

@@ -48,7 +48,9 @@ export interface ContactItem {
     npub: string;
     createdAt: number;
     lastReadAt?: number;
-}
+    lastActivityAt?: number;
+ }
+
 
 export interface Reaction {
     id?: number;
@@ -115,6 +117,11 @@ export class NospeakDB extends Dexie {
         // Version 7: Add rumorId to messages
         this.version(7).stores({
             messages: '++id, [recipientNpub+sentAt], &eventId, sentAt, rumorId'
+        });
+
+        // Version 8: Add lastActivityAt to contacts (no index change)
+        this.version(8).stores({
+            contacts: 'npub'
         });
     }
 
