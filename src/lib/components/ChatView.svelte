@@ -934,12 +934,7 @@
             {partnerName || partnerNpub.slice(0, 10) + "..."}
         </button>
       </div>
-      <img
-         src="/nospeak.svg"
-         alt="nospeak"
-         class="absolute right-4 z-50 pointer-events-none rounded-lg p-3 app-logo"
-         style="width: 38px; height: 38px; padding: 0rem;"
-       />
+
     </div>
   {/if}
 
