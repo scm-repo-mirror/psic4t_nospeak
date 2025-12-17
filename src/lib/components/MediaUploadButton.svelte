@@ -1,11 +1,11 @@
- <script lang="ts">
-      import { get } from 'svelte/store';
- 
-      import FileTypeDropdown from './FileTypeDropdown.svelte';
-      import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from '$lib/core/Nip98Auth';
-      import { isAndroidNative, isMobileWeb, nativeDialogService } from '$lib/core/NativeDialogs';
-      import { hapticSelection } from '$lib/utils/haptics';
-      import { t } from '$lib/i18n';
+<script lang="ts">
+    import { get } from 'svelte/store';
+
+    import FileTypeDropdown from './FileTypeDropdown.svelte';
+    import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from '$lib/core/Nip98Auth';
+    import { isAndroidNative, isMobileWeb, nativeDialogService } from '$lib/core/NativeDialogs';
+    import { hapticSelection } from '$lib/utils/haptics';
+    import { t } from '$lib/i18n';
 
 
 
@@ -339,8 +339,8 @@
         onclick={toggleDropdown}
         disabled={isUploading}
         class={inline
-            ? "flex-shrink-0 h-8 w-8 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
-            : "flex-shrink-0 h-10 w-10 hover:opacity-80 transition-opacity cursor-pointer flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"}
+            ? "flex-shrink-0 h-8 w-8 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden active:scale-90 transition-transform duration-100 ease-out"
+            : "flex-shrink-0 h-10 w-10 hover:opacity-80 cursor-pointer flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden active:scale-90 transition-all duration-100 ease-out"}
         title={
              isUploading
                  ? `${$t('chat.mediaMenu.uploadMediaTooltip')}... ${uploadProgress}%`

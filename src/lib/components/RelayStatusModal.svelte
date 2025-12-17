@@ -6,8 +6,9 @@
      import { glassModal } from '$lib/utils/transitions';
      import { t } from '$lib/i18n';
      import { get } from 'svelte/store';
+     import Button from '$lib/components/ui/Button.svelte';
  
-     let { isOpen, close } = $props<{ isOpen: boolean, close: () => void }>();
+      let { isOpen, close } = $props<{ isOpen: boolean, close: () => void }>();
      const isAndroidApp = isAndroidNative();
 
 
@@ -34,9 +35,15 @@
              out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
              class="bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl p-8 w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden relative outline-none">
 
-            <button onclick={close} aria-label="Close modal" class="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
+            <Button
+                onclick={close}
+                aria-label="Close modal"
+                variant="glass"
+                size="icon"
+                class="absolute top-4 right-4 z-10"
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+            </Button>
             
             <div class="flex justify-between items-center mb-6 px-1">
                 <h2 class="typ-title dark:text-white">{$t('modals.relayStatus.title')}</h2>

@@ -19,6 +19,7 @@
        import { t } from '$lib/i18n';
        import { get } from 'svelte/store';
        import { isAndroidNative } from '$lib/core/NativeDialogs';
+    import Button from '$lib/components/ui/Button.svelte';
 
       
  
@@ -161,21 +162,22 @@
                          class="flex items-center"
                          aria-label="Open profile"
                      >
-                         <Avatar 
-                             npub={$currentUser.npub}
-                             src={myPicture}
-                             size="sm"
-                             class="!w-8 !h-8 md:!w-9 md:!h-9 transition-all duration-150 ease-out"
-                         />
+                        <Avatar 
+                            npub={$currentUser.npub}
+                            src={myPicture}
+                            size="md"
+                            class="!w-11 !h-11 transition-all duration-150 ease-out"
+                        />
                      </button>
  
-                     <button
+                     <Button
                          onclick={() => {
                              hapticSelection();
                               modals.showUserQrModal.set(true);
 
                          }}
-                         class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
+                         variant="glass"
+                         size="icon"
                          aria-label="Show nostr QR code"
                      >
                          <svg
@@ -196,7 +198,7 @@
                              <path d="M19 15h2v2h-2z"></path>
                              <path d="M15 19h2v2h-2z"></path>
                          </svg>
-                     </button>
+                     </Button>
                  </div>
              {/if}
 
@@ -204,33 +206,35 @@
             <span class="absolute left-1/2 -translate-x-1/2 typ-section text-gray-900 dark:text-white tracking-tight pointer-events-none">
                 nospeak
             </span>
-            <button 
+            <Button 
                 onclick={() => {
                     hapticSelection();
                      modals.showSettingsModal.set(true);
 
                 }} 
-                class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
+                variant="glass"
+                size="icon"
                 aria-label="Open settings"
             >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
-            </button>
+            </Button>
         </div>
         <div class="px-4 pb-3 flex justify-between items-center">
              <div class="flex items-center gap-2">
                  <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
 
                      {#if canScanQr}
-                     <button
+                     <Button
                          onclick={() => {
                              hapticSelection();
                              (modals as any).showScanContactQrModal.set(true);
 
                          }}
-                         class="p-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 shadow-sm border border-gray-200/60 dark:border-slate-600 text-gray-700 dark:text-slate-100 transition-colors"
+                         variant="glass"
+                         size="icon"
                          aria-label={$t('contacts.scanQrAria')}
                      >
                          <svg
@@ -245,19 +249,19 @@
                              <line x1="12" y1="5" x2="12" y2="19" />
                              <line x1="5" y1="12" x2="19" y2="12" />
                          </svg>
-                     </button>
+                     </Button>
                  {/if}
              </div>
 
-            <button 
+            <Button 
                 onclick={() => {
                     hapticSelection();
                     modals.showManageContactsModal.set(true);
                 }}
-                class="text-xs px-3 py-1.5 rounded-full bg-white/80 dark:bg-slate-800/80 hover:bg-gray-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-300 font-semibold shadow-sm border border-gray-200/60 dark:border-slate-600 transition-colors"
+                variant="glass"
             >
                 {$t('contacts.manage')}
-            </button>
+            </Button>
         </div>
 
 

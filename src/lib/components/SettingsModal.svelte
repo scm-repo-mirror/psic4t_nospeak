@@ -17,6 +17,10 @@
   import { language, setLanguage } from "$lib/stores/language";
   import { hapticSelection } from "$lib/utils/haptics";
   import type { Language } from "$lib/i18n";
+  import Button from '$lib/components/ui/Button.svelte';
+  import Input from '$lib/components/ui/Input.svelte';
+  import Textarea from '$lib/components/ui/Textarea.svelte';
+  import Toggle from '$lib/components/ui/Toggle.svelte';
  
   const packageVersion = __APP_VERSION__;
 
@@ -283,16 +287,13 @@
   });
 
   async function toggleNotifications() {
-    if (!notificationsEnabled) {
+    // State is already updated by the Toggle component
+    if (notificationsEnabled) {
       // Request permission
       const granted = await notificationService.requestPermission();
-      if (granted) {
-        notificationsEnabled = true;
-        hapticSelection();
+      if (!granted) {
+        notificationsEnabled = false; // Revert if denied
       }
-    } else {
-      notificationsEnabled = false;
-      hapticSelection();
     }
   }
 
@@ -301,13 +302,13 @@
       return;
     }
 
-    backgroundMessagingEnabled = !backgroundMessagingEnabled;
-
+    // State is already updated by the Toggle component
     try {
       await applyAndroidBackgroundMessaging(backgroundMessagingEnabled);
-      hapticSelection();
     } catch (e) {
       console.error("Failed to sync Android background messaging from toggle:", e);
+      // Revert on error?
+      backgroundMessagingEnabled = !backgroundMessagingEnabled;
     }
   }
 
@@ -495,13 +496,15 @@
       {/if}
 
 
-      <button
+      <Button
          onclick={() => {
            hapticSelection();
            close();
          }}
          aria-label="Close modal"
-         class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
+         variant="glass"
+         size="icon"
+         class="hidden md:flex absolute top-4 right-4 z-10"
        >
 
         <svg
@@ -518,7 +521,7 @@
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
-      </button>
+      </Button>
       <!-- Sidebar -->
       <div
         class={`w-full md:w-64 bg-transparent md:bg-white/50 dark:bg-slate-900/50 border-r border-gray-200/50 dark:border-slate-800/50 p-4 flex-col ${
@@ -742,8 +745,10 @@
           class="p-6 flex justify-between items-center border-b border-gray-200/50 dark:border-slate-800/50"
         >
           <div class="flex items-center gap-2">
-            <button
-              class="md:hidden text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+            <Button
+              variant="ghost"
+              size="icon"
+              class="md:hidden"
               onclick={() => (showMobileContent = false)}
               aria-label="Back to categories"
             >
@@ -755,7 +760,7 @@
                   d="M15 19l-7-7 7-7"
                 ></path>
               </svg>
-            </button>
+            </Button>
             <h3 class="typ-section dark:text-white">
               {#if activeCategory === "General"}
                 {$t('settings.categories.general')}
@@ -788,7 +793,7 @@
                   id="theme-mode"
                   bind:value={themeMode}
                   onchange={handleThemeModeChange}
-                  class="ml-4 px-3 py-2 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm"
+                  class="ml-4 px-4 py-2 border border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 >
                   <option value="system">System</option>
                   <option value="light">Light</option>
@@ -809,7 +814,7 @@
                   id="language-select"
                   bind:value={languageValue}
                   onchange={handleLanguageChange}
-                  class="ml-4 px-3 py-2 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white text-sm"
+                  class="ml-4 px-4 py-2 border border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 >
                   <option value="en">English</option>
                   <option value="de">Deutsch</option>
@@ -833,24 +838,15 @@
                   </p>
                 </div>
                 {#if isSupported}
-                  <button
+                  <Toggle
                     id="notifications-toggle"
+                    bind:checked={notificationsEnabled}
                     onclick={toggleNotifications}
-                    class={`ml-4 flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      notificationsEnabled
-                        ? "bg-blue-500"
-                        : "bg-gray-200 dark:bg-slate-600"
-                    }`}
                     aria-label={
                       notificationsEnabled ? "Disable notifications" : "Enable notifications"
                     }
-                  >
-                    <span
-                      class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        notificationsEnabled ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    ></span>
-                  </button>
+                    class="ml-4"
+                  />
                 {:else}
                   <span class="typ-meta text-gray-400 dark:text-slate-500">
                     Not supported
@@ -875,26 +871,17 @@
                       only indicate that encrypted messages have arrived.
                     </p>
                   </div>
-                  <button
+                  <Toggle
                     id="background-messaging-toggle"
+                    bind:checked={backgroundMessagingEnabled}
                     onclick={toggleBackgroundMessaging}
-                    class={`ml-4 flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      backgroundMessagingEnabled
-                        ? "bg-blue-500"
-                        : "bg-gray-200 dark:bg-slate-600"
-                    }`}
                     aria-label={
                       backgroundMessagingEnabled
                         ? "Disable Android background messaging"
                         : "Enable Android background messaging"
                     }
-                  >
-                    <span
-                      class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        backgroundMessagingEnabled ? "translate-x-6" : "translate-x-1"
-                      }`}
-                    ></span>
-                  </button>
+                    class="ml-4"
+                  />
                 </div>
               {/if}
 
@@ -910,23 +897,14 @@
                     {$t("settings.urlPreviews.description")}
                   </p>
                 </div>
-                 <button
+                 <Toggle
                    id="url-previews-toggle"
-                   onclick={() => { urlPreviewsEnabled = !urlPreviewsEnabled; hapticSelection(); }}
-
-                  class={`ml-4 flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    urlPreviewsEnabled ? "bg-blue-500" : "bg-gray-200 dark:bg-slate-600"
-                  }`}
-                  aria-label={
-                    urlPreviewsEnabled ? "Disable URL previews" : "Enable URL previews"
-                  }
-                >
-                  <span
-                    class={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      urlPreviewsEnabled ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  ></span>
-                </button>
+                   bind:checked={urlPreviewsEnabled}
+                   aria-label={
+                     urlPreviewsEnabled ? "Disable URL previews" : "Enable URL previews"
+                   }
+                   class="ml-4"
+                 />
               </div>
             </div>
           {:else if activeCategory === "Profile"}
@@ -939,11 +917,9 @@
                   >
                     {$t('settings.profile.nameLabel')}
                   </label>
-                  <input
+                  <Input
                     id="profile-name"
                     bind:value={profileName}
-                    type="text"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder={$t('settings.profile.namePlaceholder')}
                   />
                 </div>
@@ -955,11 +931,9 @@
                   >
                     {$t('settings.profile.displayNameLabel')}
                   </label>
-                  <input
+                  <Input
                     id="profile-display-name"
                     bind:value={profileDisplayName}
-                    type="text"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder={$t('settings.profile.displayNamePlaceholder')}
                   />
                 </div>
@@ -971,13 +945,12 @@
                   >
                     {$t('settings.profile.aboutLabel')}
                   </label>
-                  <textarea
+                  <Textarea
                     id="profile-about"
                     bind:value={profileAbout}
-                    rows="3"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
                     placeholder={$t('settings.profile.aboutPlaceholder')}
-                  ></textarea>
+                  />
                 </div>
 
                 <div>
@@ -993,11 +966,10 @@
                       allowedTypes={["image"]}
                     />
 
-                    <input
+                    <Input
                       id="profile-picture"
                       bind:value={profilePicture}
                       type="url"
-                      class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder={$t('settings.profile.pictureUrlPlaceholder')}
                     />
                   </div>
@@ -1016,11 +988,10 @@
                       allowedTypes={["image"]}
                     />
 
-                    <input
+                    <Input
                       id="profile-banner"
                       bind:value={profileBanner}
                       type="url"
-                      class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder={$t('settings.profile.bannerUrlPlaceholder')}
                     />
                   </div>
@@ -1033,11 +1004,9 @@
                   >
                     {$t('settings.profile.nip05Label')}
                   </label>
-                  <input
+                  <Input
                     id="profile-nip05"
                     bind:value={profileNip05}
-                    type="text"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder={$t('settings.profile.nip05Placeholder')}
                     oninput={() => (profileNip05Status = "unknown")}
                   />
@@ -1098,11 +1067,10 @@
                   >
                     {$t('settings.profile.websiteLabel')}
                   </label>
-                  <input
+                  <Input
                     id="profile-website"
                     bind:value={profileWebsite}
                     type="url"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder={$t('settings.profile.websitePlaceholder')}
                   />
                 </div>
@@ -1114,24 +1082,22 @@
                   >
                     {$t('settings.profile.lightningLabel')}
                   </label>
-                  <input
+                  <Input
                     id="profile-lud16"
                     bind:value={profileLud16}
-                    type="text"
-                    class="w-full px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder={$t('settings.profile.lightningPlaceholder')}
                   />
                 </div>
 
                 <div class="pt-4 flex justify-end">
-                  <button
+                  <Button
                     onclick={saveProfile}
                     disabled={isSavingProfile}
-                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    variant="primary"
                   >
                     {#if isSavingProfile}
                       <svg
-                        class="animate-spin h-4 w-4 text-white"
+                        class="animate-spin h-4 w-4 text-white mr-2"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
@@ -1154,7 +1120,7 @@
                     {:else}
                       {$t('settings.profile.saveButton')}
                     {/if}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -1171,15 +1137,16 @@
               {/if}
  
               <div class="flex gap-2">
-                <input
+                <Input
                   bind:value={newRelayUrl}
                   placeholder={$t('settings.messagingRelays.inputPlaceholder')}
-                  class="flex-1 h-10 px-3 py-2 border rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onkeydown={(e) => e.key === "Enter" && addRelay()}
+                  class="flex-1"
+                  onkeydown={(e: KeyboardEvent) => e.key === "Enter" && addRelay()}
                 />
-                <button
+                <Button
                   onclick={addRelay}
-                  class="px-4 h-10 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  variant="primary"
+                  size="icon"
                   disabled={isSavingRelays}
                   aria-label={$t('settings.messagingRelays.addButton')}
                 >
@@ -1195,7 +1162,7 @@
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                </button>
+                </Button>
               </div>
 
               {#if isSavingRelays || relaySaveStatus}
@@ -1203,7 +1170,7 @@
                   {#if isSavingRelays}
                     {$t('settings.messagingRelays.savingStatus')}
                     {#if relaySaveStatus}
-                       b7 {relaySaveStatus}
+                       b7 {relaySaveStatus}
                     {/if}
                   {:else}
                     {relaySaveStatus}
@@ -1225,14 +1192,16 @@
                       </p>
                     </div>
                     <div class="flex items-center gap-4">
-                      <button
+                      <Button
                         onclick={() => removeRelay(relay.url)}
-                        class="text-red-500 hover:text-red-700 p-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        variant="danger"
+                        size="icon"
+                        class="!w-8 !h-8"
                         title="Remove relay"
                         disabled={isSavingRelays}
                       >
                         <svg
-                          class="w-5 h-5"
+                          class="w-4 h-4"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1244,7 +1213,7 @@
                             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                           ></path>
                         </svg>
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 {:else}
@@ -1326,12 +1295,11 @@
                 <label class="font-medium dark:text-white" for="security-npub">
                   {$t('settings.security.npubLabel')}
                 </label>
-                <input
+                <Input
                   id="security-npub"
-                  type="text"
                   readonly
                   value={$currentUser?.npub || ""}
-                  class="w-full px-3 py-2 border rounded-md bg-gray-50 dark:bg-slate-800 dark:border-slate-600 dark:text-white text-sm font-mono overflow-x-auto focus:outline-none"
+                  class="font-mono overflow-x-auto"
                 />
               </div>
 
@@ -1341,16 +1309,18 @@
                     {$t('settings.security.nsecLabel')}
                   </label>
                   <div class="relative">
-                    <input
+                    <Input
                       id="security-nsec"
                       type={showNsec ? "text" : "password"}
                       readonly
                       value={storedNsec}
-                      class="w-full px-3 py-2 pr-10 border rounded-md bg-gray-50 dark:bg-slate-800 dark:border-slate-600 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      class="pr-10 font-mono"
                     />
-                    <button
+                    <Button
                       type="button"
-                      class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+                      variant="ghost"
+                      size="icon"
+                      class="absolute inset-y-0 right-0"
                       onclick={() => (showNsec = !showNsec)}
                       aria-label={showNsec ? $t('settings.security.hideNsecAria') : $t('settings.security.showNsecAria')}
                     >
@@ -1391,7 +1361,7 @@
                           />
                         </svg>
                       {/if}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               {/if}
@@ -1406,12 +1376,12 @@
                   <p class="text-sm text-red-700 dark:text-red-300 mb-3">
                     {$t('settings.security.dangerZoneDescription')}
                   </p>
-                  <button
+                  <Button
                     onclick={() => authService.logout()}
-                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+                    variant="danger"
                   >
                     {$t('settings.security.logoutButton')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

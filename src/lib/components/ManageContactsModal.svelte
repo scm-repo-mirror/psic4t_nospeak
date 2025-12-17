@@ -15,9 +15,11 @@
      import { fade } from 'svelte/transition';
      import { glassModal } from '$lib/utils/transitions';
      import { t } from '$lib/i18n';
-     import { get } from 'svelte/store';
- 
-     let { isOpen, close } = $props<{ isOpen: boolean, close: () => void }>();
+    import { get } from 'svelte/store';
+    import Button from '$lib/components/ui/Button.svelte';
+    import Input from '$lib/components/ui/Input.svelte';
+
+    let { isOpen, close } = $props<{ isOpen: boolean, close: () => void }>();
      const isAndroidApp = isAndroidNative();
 
      
@@ -377,10 +379,9 @@
                  </div>
              {/if}
 
-             <button onclick={() => { hapticSelection(); close(); }} aria-label="Close modal" class="hidden md:block absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm">
-
+             <Button variant="glass" size="icon" onclick={() => { hapticSelection(); close(); }} aria-label="Close modal" class="hidden md:flex absolute top-4 right-4 z-10 rounded-full">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+            </Button>
             <div class="flex items-center justify-between mb-4 px-1">
                 <div class="flex items-center gap-2">
                     <h2 class="typ-title dark:text-white">{$t('modals.manageContacts.title')}</h2>
@@ -389,15 +390,17 @@
             
             <div class="mb-6">
                 <div class="flex gap-2 relative">
-                    <input 
+                    <Input 
                         bind:value={newNpub}
                         placeholder={$t('modals.manageContacts.searchPlaceholder')} 
-                        class="flex-1 px-4 h-11 border border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                        class="flex-1"
                     />
-                    <button 
+                    <Button 
                         onclick={add}
                         disabled={isAdding}
-                        class="bg-blue-500 text-white w-11 h-11 rounded-xl hover:bg-blue-600 disabled:opacity-50 font-medium shadow-sm hover:shadow transition-all flex items-center justify-center flex-shrink-0"
+                        variant="primary"
+                        size="icon"
+                        class="flex-shrink-0"
                         aria-label={isNpubMode ? $t('modals.manageContacts.addContactAria') : $t('modals.manageContacts.searchContactsAria')}
                     >
                         {#if isNpubMode}
@@ -419,7 +422,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             {/if}
                         {/if}
-                    </button>
+                    </Button>
 
                     {#if !isNpubMode && newNpub.trim().length >= 3 && (isSearching || searchResults.length > 0 || searchError)}
                         <div class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto z-10 custom-scrollbar">
@@ -531,13 +534,15 @@
 
                             </div>
                         </div>
-                        <button 
+                        <Button 
                             onclick={() => remove(contact.npub)}
-                            class="text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors"
+                            variant="danger"
+                            size="icon"
+                            class="!w-9 !h-9"
                             aria-label={$t('modals.manageContacts.removeContactAria')}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </button>
+                        </Button>
                     </div>
                 {/each}
             </div>

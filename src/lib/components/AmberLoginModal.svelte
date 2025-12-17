@@ -4,6 +4,7 @@
     import QRCode from 'qrcode';
     import { t } from '$lib/i18n';
     import { copyTextToClipboard } from '$lib/utils/clipboard';
+    import Button from '$lib/components/ui/Button.svelte';
 
     let { uri, onClose } = $props<{ uri: string, onClose: () => void }>();
     
@@ -43,26 +44,29 @@
         </p>
 
         <div class="space-y-3">
-            <a 
+            <Button 
                 href={uri}
-                class="block w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white text-center p-3 rounded-xl hover:shadow-lg hover:shadow-orange-500/20 transition-all font-medium"
+                variant="primary"
+                class="w-full"
             >
                 {$t('auth.amber.openInAmber')}
-            </a>
+            </Button>
             
-            <button 
+            <Button 
                 onclick={copyUri}
-                class="block w-full bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200 p-3 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium border border-transparent dark:border-slate-700"
+                variant="glass"
+                class="w-full"
             >
                 {copied ? $t('auth.amber.copied') : $t('auth.amber.copyConnectionString')}
-            </button>
+            </Button>
 
-            <button 
+            <Button 
                 onclick={onClose}
-                class="block w-full text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 p-2 font-medium"
+                variant="ghost"
+                class="w-full"
             >
                 {$t('common.cancel')}
-            </button>
+            </Button>
         </div>
     </div>
 </div>

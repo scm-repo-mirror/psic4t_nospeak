@@ -22,6 +22,8 @@
   import { t } from '$lib/i18n';
   import { get } from 'svelte/store';
   import { isCaptionMessage, getCaptionForParent } from '$lib/core/captionGrouping';
+  import Button from '$lib/components/ui/Button.svelte';
+  import Textarea from '$lib/components/ui/Textarea.svelte';
 
    let {
      messages = [],
@@ -806,13 +808,15 @@
           </div>
         {/if}
 
-        <button
+        <Button
           onclick={resetMediaPreview}
           aria-label="Close modal"
-          class="hidden md:block absolute top-3 right-3 z-10 p-1.5 rounded-full bg-black/25 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
+          variant="glass"
+          size="icon"
+          class="hidden md:flex absolute top-3 right-3 z-10"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
+        </Button>
 
         <div class="flex items-center justify-between mb-2 px-0.5 mt-2 md:mt-0">
           <h2 class="typ-title dark:text-white">
@@ -838,13 +842,13 @@
         <div>
           <label class="typ-meta block mb-1 text-gray-600 dark:text-slate-300">
             {$t('modals.attachmentPreview.captionLabel')}
-            <textarea
-              rows="2"
-              class="w-full mt-1 rounded-xl border border-gray-200 dark:border-slate-700 bg-white/90 dark:bg-slate-800/90 px-3 py-2 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+            <Textarea
+              rows={2}
               bind:value={pendingMediaCaption}
               placeholder={$t('chat.inputPlaceholder')}
               disabled={isSending}
-            ></textarea>
+              class="mt-1"
+            />
           </label>
         </div>
 
@@ -855,23 +859,21 @@
         {/if}
 
         <div class="flex justify-end gap-2 pt-1">
-          <button
-            type="button"
-            class="typ-meta px-3 py-1.5 rounded-full border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 text-gray-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-colors"
+          <Button
+            variant="glass"
             onclick={resetMediaPreview}
             disabled={isSending}
           >
             {$t('modals.attachmentPreview.cancelButton')}
-          </button>
-          <button
-            type="button"
-            class="typ-meta px-4 py-1.5 rounded-full bg-[color:var(--color-green)] text-white shadow-sm hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
+          </Button>
+          <Button
+            variant="primary"
             onclick={confirmSendMedia}
             disabled={isSending || !pendingMediaFile || !pendingMediaType}
           >
             {#if isSending}
               <svg
-                class="animate-spin h-4 w-4 text-white"
+                class="animate-spin h-4 w-4 text-white mr-2"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -887,7 +889,7 @@
             {:else}
               {$t('modals.attachmentPreview.sendButtonIdle')}
             {/if}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -1142,10 +1144,11 @@
         ></textarea>
 
         {#if inputText.trim().length > 0}
-          <button
+          <Button
             type="submit"
-            class="hidden md:inline-flex items-center justify-center w-9 h-9 rounded-full text-white shadow-sm transition-opacity duration-150 ease-out hover:opacity-90 disabled:opacity-50"
-            style="background-color: var(--color-green);"
+            variant="primary"
+            size="icon"
+            class="hidden md:inline-flex flex-shrink-0"
             disabled={isSending}
             aria-label="Send message"
           >
@@ -1160,7 +1163,7 @@
             >
               <polyline points="9 6 15 12 9 18"></polyline>
             </svg>
-          </button>
+          </Button>
         {/if}
       </div>
     </form>

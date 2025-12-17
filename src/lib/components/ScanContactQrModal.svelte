@@ -4,8 +4,9 @@
      import { isAndroidNative } from '$lib/core/NativeDialogs';
      import { decodeQrFromImageData, parseNpubFromQrPayload } from '$lib/utils/qr';
      import { hapticSelection } from '$lib/utils/haptics';
-
-    import { openScanContactQrResult } from '$lib/stores/modals';
+     import Button from '$lib/components/ui/Button.svelte';
+ 
+     import { openScanContactQrResult } from '$lib/stores/modals';
     import { t } from '$lib/i18n';
 
     type ScanStatus =
@@ -186,10 +187,12 @@
             out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
             class="bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl w-full max-w-sm rounded-3xl flex flex-col shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden relative outline-none p-6"
         >
-            <button
+            <Button
                 onclick={closeWithCleanup}
                 aria-label="Close modal"
-                class="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
+                variant="glass"
+                size="icon"
+                class="absolute top-4 right-4 z-10"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -205,7 +208,7 @@
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-            </button>
+            </Button>
 
             <div class="mb-4">
                 <h2 class="typ-title dark:text-white">{$t('modals.scanContactQr.title')}</h2>

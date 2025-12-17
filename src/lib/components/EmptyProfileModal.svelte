@@ -7,6 +7,7 @@
      import { glassModal } from '$lib/utils/transitions';
      import { t } from '$lib/i18n';
      import { get } from 'svelte/store';
+     import Button from '$lib/components/ui/Button.svelte';
  
      let { isOpen = false } = $props<{ isOpen: boolean }>();
 
@@ -117,22 +118,20 @@
                 </div>
 
                 <div class="flex flex-col sm:flex-row justify-end gap-3 mt-4">
-                    <button
-                        type="button"
-                        class="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-800 bg-gray-100/80 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:text-slate-100 border border-gray-200/60 dark:border-slate-700/60"
+                    <Button
+                        variant="ghost"
                         onclick={close}
                         disabled={isSaving}
                     >
                         {$t('modals.emptyProfile.doLater')}
-                    </button>
-                    <button
-                        type="button"
-                        class="px-4 py-2 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    </Button>
+                    <Button
+                        variant="primary"
                         onclick={handleContinue}
                         disabled={isSaving || !username.trim()}
                     >
                         {isSaving ? $t('modals.emptyProfile.saving') : $t('modals.emptyProfile.continue')}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

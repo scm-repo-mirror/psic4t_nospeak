@@ -5,6 +5,7 @@
     import { profileRepo } from '$lib/db/ProfileRepository';
     import { contactRepo } from '$lib/db/ContactRepository';
     import { addContactByNpub } from '$lib/core/ContactService';
+    import Button from '$lib/components/ui/Button.svelte';
 
     let { isOpen, npub, close } = $props<{ isOpen: boolean; npub: string | null; close: () => void }>();
 
@@ -120,10 +121,12 @@
             out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
             class="bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl w-full max-w-sm rounded-3xl flex flex-col shadow-2xl border border-white/20 dark:border-white/10 overflow-hidden relative outline-none p-6"
         >
-            <button
+            <Button
                 onclick={close}
                 aria-label="Close modal"
-                class="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors backdrop-blur-sm"
+                variant="glass"
+                size="icon"
+                class="absolute top-4 right-4 z-10"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -139,7 +142,7 @@
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-            </button>
+            </Button>
 
             <div class="mb-4 text-center">
                 <h2 class="typ-title dark:text-white">Contact from QR</h2>
@@ -186,23 +189,23 @@
             </div>
 
             <div class="mt-6 flex justify-end gap-3">
-                <button
-                    type="button"
+                <Button
+                    variant="glass"
+                    size="sm"
                     onclick={close}
-                    class="px-3 py-1.5 text-xs rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-100 border border-gray-200/60 dark:border-slate-600 transition-colors"
                 >
                     Close
-                </button>
+                </Button>
 
                 {#if !isExistingContact}
-                    <button
-                        type="button"
+                    <Button
+                        variant="primary"
+                        size="sm"
                         onclick={handleAdd}
-                        class="px-3 py-1.5 text-xs rounded-full bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         disabled={isAdding}
                     >
                         Add contact
-                    </button>
+                    </Button>
                 {/if}
             </div>
         </div>
