@@ -17,6 +17,8 @@
         class={`gap-2 ${isAndroidApp ? 'mr-2' : ''}`}
     >
         <div class={`w-2 h-2 rounded-full ${$connectionStats.connected > 0 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`}></div>
-        {$t('connection.relaysLabel')} {$connectionStats.connected}/{$connectionStats.total}
+        <span class="typ-meta">
+            {$t('connection.relaysLabel')} {$connectionStats.connected}/{$connectionStats.total}
+        </span>
     </Button>
 </div>
