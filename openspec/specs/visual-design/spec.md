@@ -149,6 +149,34 @@ Android bottom sheet modals, including Settings and Manage Contacts, SHALL provi
 - **AND** the sheet SHALL not appear to jitter, stutter, or leave visual artifacts during or after these animations
 - **AND** the drag handle or header region SHALL remain visually aligned with the sheet surface throughout the animations.
 
+### Requirement: Crystalline Interactive Components
+The application SHALL use a unified "Crystalline" design system for all interactive elements (Buttons, Inputs, Toggles) to ensure visual consistency and adherence to the glassmorphism aesthetic. These components SHALL share common physics (press-to-recede), shape (pill-based), and color logic (theme-aware transparency).
+
+#### Scenario: Button System Visuals and Physics
+- **GIVEN** a button is rendered in the UI
+- **WHEN** in its default state
+- **THEN** it SHALL be pill-shaped (`rounded-full`) with a standard height of 44px (touch-friendly)
+- **AND** it SHALL use one of the defined variants:
+    - **Glass:** Semi-transparent background (`bg-white/60` or `bg-slate-800/40`), subtle border, and shadow.
+    - **Primary:** Tinted background (Green), brighter on hover, with a crystalline border.
+    - **Danger:** Tinted background (Red), darker text, indicating destructive action.
+    - **Ghost:** Transparent background, visible on hover.
+- **AND** on interaction (press/active), the button SHALL visually recede (scale down and/or darken) rather than light up, simulating a tactile press on a glass surface.
+
+#### Scenario: Input Field Visuals
+- **GIVEN** a text input or textarea is rendered
+- **WHEN** displayed in a modal or form
+- **THEN** it SHALL use a pill shape (`rounded-full`) for single-line inputs and `rounded-2xl` for textareas
+- **AND** it SHALL use a solid but theme-blended background (`bg-gray-50` / `bg-slate-800`) with a subtle border to ensure legibility while matching the glass container
+- **AND** the focus state SHALL use a subtle ring (`ring-blue-500/50`) without a harsh outline.
+
+#### Scenario: Toggle Switch Visuals
+- **GIVEN** a toggle switch is rendered (e.g., in Settings)
+- **WHEN** in the active (checked) state
+- **THEN** the track SHALL use a glowing green glass texture (`bg-green-200/50`)
+- **AND** the knob SHALL be a high-contrast dark green circle (`bg-green-900`) in light mode (or light green in dark mode) to align with the Primary Button text color
+- **AND** the transition between states SHALL be smooth and animated.
+
 ## 1. Design Philosophy
 
 The application follows a "Glass & Slate" aesthetic, prioritizing depth, motion, and airiness over flat utility. The interface simulates a floating glass layer over a dynamic background, creating a sense of context and modernity.
