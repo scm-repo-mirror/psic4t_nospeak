@@ -1,6 +1,7 @@
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 import { isAndroidCapacitorShell } from './platform';
+import { tapSoundClick } from './tapSound';
 
 function callHapticsSafely(invoke: () => Promise<void> | void): void {
     if (!isAndroidCapacitorShell()) {
@@ -25,5 +26,8 @@ export function hapticLightImpact(): void {
 }
 
 export function hapticSelection(): void {
-    callHapticsSafely(() => Haptics.selectionChanged());
+    callHapticsSafely(() => {
+        tapSoundClick();
+        return Haptics.selectionChanged();
+    });
 }

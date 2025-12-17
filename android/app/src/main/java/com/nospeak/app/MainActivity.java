@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AndroidBackgroundMessagingPlugin.class);
         registerPlugin(AndroidNip55SignerPlugin.class);
         registerPlugin(AndroidShareTargetPlugin.class);
+        registerPlugin(AndroidTapSoundPlugin.class);
  
         super.onCreate(savedInstanceState);
 

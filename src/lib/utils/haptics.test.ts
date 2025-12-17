@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { impactMock, selectionChangedMock } = vi.hoisted(() => ({
+const { impactMock, selectionChangedMock, tapSoundClickMock } = vi.hoisted(() => ({
     impactMock: vi.fn().mockResolvedValue(undefined),
-    selectionChangedMock: vi.fn().mockResolvedValue(undefined)
+    selectionChangedMock: vi.fn().mockResolvedValue(undefined),
+    tapSoundClickMock: vi.fn()
 }));
 
 vi.mock('@capacitor/haptics', () => ({
@@ -13,6 +14,10 @@ vi.mock('@capacitor/haptics', () => ({
     ImpactStyle: {
         Light: 'light'
     }
+}));
+
+vi.mock('./tapSound', () => ({
+    tapSoundClick: tapSoundClickMock
 }));
 
 import { hapticLightImpact, hapticSelection } from './haptics';
@@ -76,6 +81,7 @@ describe('hapticSelection', () => {
 
     beforeEach(() => {
         selectionChangedMock.mockClear();
+        tapSoundClickMock.mockClear();
 
         if (originalWindow) {
             globalThis.window = originalWindow;
@@ -92,6 +98,7 @@ describe('hapticSelection', () => {
         }
 
         expect(() => hapticSelection()).not.toThrow();
+        expect(tapSoundClickMock).not.toHaveBeenCalled();
         expect(selectionChangedMock).not.toHaveBeenCalled();
     });
 
@@ -105,6 +112,7 @@ describe('hapticSelection', () => {
         };
 
         expect(() => hapticSelection()).not.toThrow();
+        expect(tapSoundClickMock).toHaveBeenCalled();
         expect(selectionChangedMock).toHaveBeenCalled();
     });
 
@@ -120,5 +128,6 @@ describe('hapticSelection', () => {
         selectionChangedMock.mockRejectedValueOnce(new Error('haptics failed'));
 
         expect(() => hapticSelection()).not.toThrow();
+        expect(tapSoundClickMock).toHaveBeenCalled();
     });
 });

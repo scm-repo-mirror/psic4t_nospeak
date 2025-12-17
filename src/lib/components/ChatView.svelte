@@ -11,6 +11,7 @@
   import { emojis } from "$lib/utils/emojis";
   import { goto } from '$app/navigation';
   import { hapticLightImpact, hapticSelection } from '$lib/utils/haptics';
+  import { tapSoundClick } from '$lib/utils/tapSound';
   import { copyTextToClipboard } from '$lib/utils/clipboard';
   import { isAndroidCapacitorShell } from '$lib/utils/platform';
   import { lastRelaySendStatus, clearRelayStatus } from '$lib/stores/sending';
@@ -902,7 +903,7 @@
       <div class="flex items-center gap-3">
         <button 
             onclick={() => {
-                hapticLightImpact();
+                tapSoundClick();
                 goto('/chat');
             }}
             class="md:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors duration-150 ease-out"

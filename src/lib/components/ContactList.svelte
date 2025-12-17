@@ -171,11 +171,10 @@
                      </button>
  
                      <Button
-                         onclick={() => {
-                             hapticSelection();
-                              modals.showUserQrModal.set(true);
-
-                         }}
+                          onclick={() => {
+                               modals.showUserQrModal.set(true);
+ 
+                          }}
                          variant="glass"
                          size="icon"
                          aria-label="Show nostr QR code"
@@ -206,12 +205,11 @@
             <span class="absolute left-1/2 -translate-x-1/2 typ-section text-gray-900 dark:text-white tracking-tight pointer-events-none">
                 nospeak
             </span>
-            <Button 
-                onclick={() => {
-                    hapticSelection();
-                     modals.showSettingsModal.set(true);
-
-                }} 
+             <Button 
+                 onclick={() => {
+                      modals.showSettingsModal.set(true);
+ 
+                 }} 
                 variant="glass"
                 size="icon"
                 aria-label="Open settings"
@@ -227,12 +225,11 @@
                  <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
 
                      {#if canScanQr}
-                     <Button
-                         onclick={() => {
-                             hapticSelection();
-                             (modals as any).showScanContactQrModal.set(true);
-
-                         }}
+                      <Button
+                          onclick={() => {
+                              (modals as any).showScanContactQrModal.set(true);
+ 
+                          }}
                          variant="glass"
                          size="icon"
                          aria-label={$t('contacts.scanQrAria')}
@@ -253,11 +250,10 @@
                  {/if}
              </div>
 
-            <Button 
-                onclick={() => {
-                    hapticSelection();
-                    modals.showManageContactsModal.set(true);
-                }}
+             <Button 
+                 onclick={() => {
+                     modals.showManageContactsModal.set(true);
+                 }}
                 variant="glass"
             >
                 {$t('contacts.manage')}
