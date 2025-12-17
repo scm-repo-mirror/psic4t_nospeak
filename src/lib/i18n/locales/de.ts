@@ -157,6 +157,17 @@ const de = {
             cannotReactMessage: 'Diese Nachricht ist zu alt für Reaktionen.',
             failedTitle: 'Reaktion fehlgeschlagen',
             failedMessagePrefix: 'Reaktion konnte nicht gesendet werden: '
+        },
+        mediaMenu: {
+            uploadMediaTooltip: 'Medien hochladen',
+            takePhoto: 'Foto aufnehmen',
+            image: 'Bild',
+            video: 'Video',
+            audio: 'Musik'
+        },
+        mediaErrors: {
+            cameraErrorTitle: 'Kamerafehler',
+            cameraErrorMessage: 'Foto konnte nicht aufgenommen werden'
         }
     },
         settings: {

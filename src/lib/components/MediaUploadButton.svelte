@@ -1,8 +1,12 @@
-<script lang="ts">
-     import FileTypeDropdown from './FileTypeDropdown.svelte';
-     import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from '$lib/core/Nip98Auth';
-     import { isAndroidNative, isMobileWeb, nativeDialogService } from '$lib/core/NativeDialogs';
-     import { hapticSelection } from '$lib/utils/haptics';
+ <script lang="ts">
+      import { get } from 'svelte/store';
+ 
+      import FileTypeDropdown from './FileTypeDropdown.svelte';
+      import { buildUploadAuthHeader, CANONICAL_UPLOAD_URL } from '$lib/core/Nip98Auth';
+      import { isAndroidNative, isMobileWeb, nativeDialogService } from '$lib/core/NativeDialogs';
+      import { hapticSelection } from '$lib/utils/haptics';
+      import { t } from '$lib/i18n';
+
 
 
     let { onFileSelect, inline = false, allowedTypes = ['image', 'video'], dmEncrypted = false } = $props<{
@@ -286,8 +290,10 @@
             } catch (error) {
                 console.error('Camera capture failed:', error);
                 await nativeDialogService.alert({
-                    title: 'Camera error',
-                    message: (error as Error).message || 'Failed to capture photo'
+                    title: get(t)('chat.mediaErrors.cameraErrorTitle') as string,
+                    message:
+                        (error as Error).message ||
+                        ((get(t)('chat.mediaErrors.cameraErrorMessage') as string))
                 });
             }
 
@@ -335,7 +341,11 @@
         class={inline
             ? "flex-shrink-0 h-8 w-8 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
             : "flex-shrink-0 h-10 w-10 hover:opacity-80 transition-opacity cursor-pointer flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"}
-        title={isUploading ? `Uploading... ${uploadProgress}%` : 'Upload media'}
+        title={
+             isUploading
+                 ? `${$t('chat.mediaMenu.uploadMediaTooltip')}... ${uploadProgress}%`
+                 : $t('chat.mediaMenu.uploadMediaTooltip')
+         }
     >
         {#if isUploading}
             <div class="absolute inset-0 bg-blue-500 opacity-20" style={`width: ${uploadProgress}%`}></div>
@@ -364,7 +374,7 @@
     {#if showDropdown}
         <div
             bind:this={dropdownElement}
-            class="absolute bottom-full mb-2 left-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden z-50 min-w-[120px]"
+            class="absolute bottom-full mb-2 left-0 bg-white/90 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden z-50 min-w-[120px]"
         >
             <FileTypeDropdown
                 onFileTypeSelect={handleFileTypeSelect}

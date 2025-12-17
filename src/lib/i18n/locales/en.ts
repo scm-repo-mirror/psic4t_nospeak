@@ -155,6 +155,17 @@ const en = {
             cannotReactMessage: 'This message is too old to support reactions.',
             failedTitle: 'Reaction failed',
             failedMessagePrefix: 'Failed to send reaction: '
+        },
+        mediaMenu: {
+            uploadMediaTooltip: 'Upload media',
+            takePhoto: 'Take photo',
+            image: 'Image',
+            video: 'Video',
+            audio: 'Music'
+        },
+        mediaErrors: {
+            cameraErrorTitle: 'Camera error',
+            cameraErrorMessage: 'Failed to capture photo'
         }
     },
         settings: {

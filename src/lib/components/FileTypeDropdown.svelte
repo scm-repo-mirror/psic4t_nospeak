@@ -1,38 +1,41 @@
 <script lang="ts">
-    let {
-        onFileTypeSelect,
-        showCameraOption = false,
-        onTakePhoto,
-        allowedTypes = ['image', 'video']
-    } = $props<{
-        onFileTypeSelect: (type: 'image' | 'video' | 'audio') => void;
-        showCameraOption?: boolean;
-        onTakePhoto?: () => void;
-        allowedTypes?: ('image' | 'video' | 'audio')[];
-    }>();
+     import { t } from '$lib/i18n';
+ 
+     let {
+         onFileTypeSelect,
+         showCameraOption = false,
+         onTakePhoto,
+         allowedTypes = ['image', 'video']
+     } = $props<{
+         onFileTypeSelect: (type: 'image' | 'video' | 'audio') => void;
+         showCameraOption?: boolean;
+         onTakePhoto?: () => void;
+         allowedTypes?: ('image' | 'video' | 'audio')[];
+     }>();
+ 
+     let showImage = $derived(allowedTypes.includes('image'));
+     let showVideo = $derived(allowedTypes.includes('video'));
+     let showAudio = $derived(allowedTypes.includes('audio'));
+ 
+     function handleImageClick() {
+         onFileTypeSelect('image');
+     }
+ 
+     function handleVideoClick() {
+         onFileTypeSelect('video');
+     }
+ 
+     function handleAudioClick() {
+         onFileTypeSelect('audio');
+     }
+ 
+     function handleTakePhotoClick() {
+         if (onTakePhoto) {
+             onTakePhoto();
+         }
+     }
+ </script>
 
-    let showImage = $derived(allowedTypes.includes('image'));
-    let showVideo = $derived(allowedTypes.includes('video'));
-    let showAudio = $derived(allowedTypes.includes('audio'));
-
-    function handleImageClick() {
-        onFileTypeSelect('image');
-    }
-
-    function handleVideoClick() {
-        onFileTypeSelect('video');
-    }
-
-    function handleAudioClick() {
-        onFileTypeSelect('audio');
-    }
-
-    function handleTakePhotoClick() {
-        if (onTakePhoto) {
-            onTakePhoto();
-        }
-    }
-</script>
 
 <div class="py-1">
     {#if showCameraOption && onTakePhoto}
@@ -55,7 +58,7 @@
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-3h8l2 3h3a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
             </svg>
-            <span>Take photo</span>
+            <span>{$t('chat.mediaMenu.takePhoto')}</span>
         </button>
     {/if}
     {#if showImage}
@@ -79,7 +82,7 @@
             <circle cx="8" cy="10" r="2" />
             <path d="M21 15l-4-4-6 6" />
         </svg>
-        <span>Image</span>
+        <span>{$t('chat.mediaMenu.image')}</span>
     </button>
     {/if}
     {#if showVideo}
@@ -102,7 +105,7 @@
             <rect x="3" y="6" width="13" height="12" rx="2" ry="2" />
             <polygon points="16 10 21 7 21 17 16 14" />
         </svg>
-        <span>Video</span>
+        <span>{$t('chat.mediaMenu.video')}</span>
     </button>
     {/if}
     {#if showAudio}
@@ -126,7 +129,7 @@
             <circle cx="6" cy="18" r="3" />
             <circle cx="18" cy="16" r="3" />
         </svg>
-        <span>Music</span>
+        <span>{$t('chat.mediaMenu.audio')}</span>
     </button>
     {/if}
 </div>
