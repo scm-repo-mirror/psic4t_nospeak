@@ -11,29 +11,24 @@
         onCopy: () => void;
     }>();
 
-    // Close on click outside
+    // Close on outside press (pointerdown) so one tap closes,
+    // while long-press open doesn't immediately self-dismiss on release.
     $effect(() => {
-        if (isOpen) {
-            let isMenuJustOpened = true;
-            
-            const handleClick = (e: MouseEvent) => {
-                const target = e.target as HTMLElement;
-                if (!target.closest('.context-menu') && !isMenuJustOpened) {
-                    onClose();
-                }
-                isMenuJustOpened = false;
-            };
-            
-            // Add listener with a small delay to avoid catching the opening click
-            const timeoutId = setTimeout(() => {
-                document.addEventListener('click', handleClick);
-            }, 10);
-            
-            return () => {
-                clearTimeout(timeoutId);
-                document.removeEventListener('click', handleClick);
-            };
-        }
+        if (!isOpen) return;
+
+        const handlePointerDown = (e: PointerEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (!target?.closest('.context-menu')) {
+                onClose();
+            }
+        };
+
+        // Use capture so we close before other handlers run.
+        document.addEventListener('pointerdown', handlePointerDown, true);
+
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown, true);
+        };
     });
 
     function portal(node: HTMLElement) {
