@@ -112,6 +112,15 @@ const de = {
             invalidQr: 'Dieser QR-Code enthält keinen gültigen Kontakt-npub.',
             addFailed: 'Kontakt konnte aus diesem QR nicht hinzugefügt werden. Bitte versuche es erneut.',
             added: 'Kontakt per QR hinzugefügt.'
+        },
+        attachmentPreview: {
+            title: 'Anhangvorschau',
+            imageAlt: 'Anhangvorschau',
+            noPreview: 'Keine Vorschau verfügbar',
+            captionLabel: 'Beschriftung (optional)',
+            cancelButton: 'Abbrechen',
+            sendButtonIdle: 'Senden',
+            sendButtonSending: 'Senden…'
         }
 
     },

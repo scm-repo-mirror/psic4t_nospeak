@@ -111,6 +111,15 @@ const en = {
             invalidQr: 'This QR code does not contain a valid contact npub.',
             addFailed: 'Could not add contact from this QR. Please try again.',
             added: 'Contact added from QR.'
+        },
+        attachmentPreview: {
+            title: 'Attachment preview',
+            imageAlt: 'Attachment preview',
+            noPreview: 'No preview available',
+            captionLabel: 'Caption (optional)',
+            cancelButton: 'Cancel',
+            sendButtonIdle: 'Send',
+            sendButtonSending: 'Sending…'
         }
     },
     chat: {

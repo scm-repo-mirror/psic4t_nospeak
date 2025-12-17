@@ -795,13 +795,13 @@
 
         <div class="flex items-center justify-between mb-2 px-0.5 mt-2 md:mt-0">
           <h2 class="typ-title dark:text-white">
-            Attachment preview
+            {$t('modals.attachmentPreview.title')}
           </h2>
         </div>
 
         <div class="rounded-xl overflow-hidden bg-gray-100/80 dark:bg-slate-800/80 flex items-center justify-center min-h-[160px]">
           {#if pendingMediaType === 'image' && pendingMediaObjectUrl}
-            <img src={pendingMediaObjectUrl} alt="Attachment preview" class="max-h-64 w-full object-contain" />
+            <img src={pendingMediaObjectUrl} alt={$t('modals.attachmentPreview.imageAlt')} class="max-h-64 w-full object-contain" />
           {:else if pendingMediaType === 'video' && pendingMediaObjectUrl}
             <!-- svelte-ignore a11y_media_has_caption -->
             <video src={pendingMediaObjectUrl} controls class="max-h-64 w-full object-contain"></video>
@@ -809,14 +809,14 @@
             <audio src={pendingMediaObjectUrl} controls class="w-full"></audio>
           {:else}
             <div class="typ-body text-gray-500 dark:text-slate-400">
-              No preview available
+              {$t('modals.attachmentPreview.noPreview')}
             </div>
           {/if}
         </div>
 
         <div>
           <label class="typ-meta block mb-1 text-gray-600 dark:text-slate-300">
-            Caption (optional)
+            {$t('modals.attachmentPreview.captionLabel')}
             <textarea
               rows="2"
               class="w-full mt-1 rounded-xl border border-gray-200 dark:border-slate-700 bg-white/90 dark:bg-slate-800/90 px-3 py-2 text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
@@ -840,7 +840,7 @@
             onclick={resetMediaPreview}
             disabled={isSending}
           >
-            Cancel
+            {$t('modals.attachmentPreview.cancelButton')}
           </button>
           <button
             type="button"
@@ -862,9 +862,9 @@
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
-              <span>Sending…</span>
+              <span>{$t('modals.attachmentPreview.sendButtonSending')}</span>
             {:else}
-              Send
+              {$t('modals.attachmentPreview.sendButtonIdle')}
             {/if}
           </button>
         </div>
