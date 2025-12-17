@@ -1,3 +1,7 @@
 # for 1.0
-- better first user experience
 - allow apk download on web app
+
+
+# later
+- Upgrade to Capacitor 8 (supports edge-to-edge)
+- share to most used contacts
