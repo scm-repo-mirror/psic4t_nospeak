@@ -780,7 +780,7 @@
 <div class="relative flex flex-col h-full overflow-hidden bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
   {#if showMediaPreview && pendingMediaFile && pendingMediaType}
     <div
-      class="fixed inset-0 z-30 flex items-end md:items-center justify-center bg-black/40 px-4 md:pb-4"
+      class={`fixed inset-0 z-30 flex items-end md:items-center justify-center bg-black/40 md:pb-4 ${isAndroidShell ? '' : 'px-4'}`}
       role="dialog"
       aria-modal="true"
       tabindex="-1"
@@ -788,7 +788,9 @@
       onkeydown={(e) => { if (e.key === 'Escape') { hapticSelection(); resetMediaPreview(); } }}
     >
       <div
-        class="relative w-full max-w-md bg-white/95 dark:bg-slate-900/95 border border-gray-200/80 dark:border-slate-700/80 rounded-t-2xl md:rounded-2xl shadow-2xl backdrop-blur-xl p-4 space-y-3"
+        class={`relative w-full bg-white/95 dark:bg-slate-900/95 border border-gray-200/80 dark:border-slate-700/80 shadow-2xl backdrop-blur-xl p-4 space-y-3 ${
+          isAndroidShell ? 'rounded-t-3xl' : 'max-w-md rounded-t-2xl md:rounded-2xl'
+        }`}
         style:transform={isAndroidShell ? `translateY(${bottomSheetDragY}px)` : undefined}
       >
         {#if isAndroidShell}
@@ -804,7 +806,7 @@
             ontouchcancel={handleBottomSheetTouchEnd}
           >
             <div
-              class="mx-auto mt-2 w-10 h-1.5 rounded-full bg-white/50 dark:bg-slate-700/80 touch-none"
+              class="mx-auto mt-2 w-10 h-1.5 rounded-full bg-gray-300 dark:bg-slate-600 touch-none"
             ></div>
           </div>
         {/if}

@@ -472,7 +472,7 @@
       out:glassModal={{ duration: 150, scaleFrom: 0.92, blurFrom: 1 }}
       class={`bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl shadow-2xl border border-white/20 dark:border-white/10 flex overflow-hidden relative outline-none transition-transform duration-150 ease-out ${
         isAndroidApp
-          ? "w-full max-w-xl mx-2 rounded-t-3xl rounded-b-none max-h-[90vh]"
+          ? "w-full rounded-t-3xl rounded-b-none max-h-[90vh]"
           : "w-full h-full rounded-none md:max-w-4xl md:mx-4 md:h-[600px] md:rounded-3xl"
       }`}
       style:transform={isAndroidApp ? `translateY(${bottomSheetDragY}px)` : undefined}
@@ -490,7 +490,7 @@
           ontouchcancel={handleBottomSheetTouchEnd}
         >
           <div
-            class="mx-auto mt-2 w-10 h-1.5 rounded-full bg-white/40 dark:bg-slate-700/80 touch-none"
+            class="mx-auto mt-2 w-10 h-1.5 rounded-full bg-gray-300 dark:bg-slate-600 touch-none"
           ></div>
         </div>
       {/if}
