@@ -1304,7 +1304,7 @@
 
   {#if partnerNpub}
     <div
-      class="absolute top-0 left-0 right-0 z-20 p-2 h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out"
+      class="absolute top-0 left-0 right-0 z-20 p-2 h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out relative"
     >
       <div class="flex items-center gap-3">
         <button 
@@ -1342,9 +1342,28 @@
       </div>
 
       {#if partnerNpub !== 'ALL'}
+        <!-- Mobile overlay search input (covers username area) -->
+        <div
+          class={`md:hidden absolute top-2 bottom-2 left-24 right-16 z-30 transition-[opacity,transform] duration-200 ease-out ${
+            isSearchOpen
+              ? 'opacity-100 translate-x-0 pointer-events-auto'
+              : 'opacity-0 translate-x-2 pointer-events-none'
+          }`}
+        >
+          <input
+            bind:value={searchQuery}
+            bind:this={searchInputElement}
+            placeholder="Search"
+            class="w-full h-full px-4 border border-gray-200 dark:border-slate-700 rounded-full bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all placeholder:text-gray-400 dark:placeholder:text-slate-500"
+            aria-label="Search chat"
+            onkeydown={handleSearchKeydown}
+          />
+        </div>
+
         <div class="flex items-center gap-2">
+          <!-- Desktop/tablet inline slide-out -->
           <div
-            class={`transition-[max-width,opacity] duration-200 ease-out ${
+            class={`hidden md:block transition-[max-width,opacity] duration-200 ease-out ${
               isSearchOpen
                 ? 'max-w-56 opacity-100 overflow-visible'
                 : 'max-w-0 opacity-0 overflow-hidden pointer-events-none'
@@ -1364,7 +1383,7 @@
             variant="glass"
             size="icon"
             onclick={toggleSearch}
-            class="h-11 w-11"
+            class="h-11 w-11 relative z-40"
             aria-label="Search chat"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
