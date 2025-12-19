@@ -1,5 +1,36 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+def packageJsonFile = rootProject.file('../package.json')
+def packageJson = null
+
+def packageVersion = '0.0.0'
+if (packageJsonFile.exists()) {
+    try {
+        packageJson = new JsonSlurper().parseText(packageJsonFile.getText('UTF-8'))
+        if (packageJson?.version) {
+            packageVersion = packageJson.version
+        } else {
+            println "[nospeak-android] package.json missing version; defaulting to ${packageVersion}"
+        }
+    } catch (Exception e) {
+        println "[nospeak-android] Failed to parse package.json: ${e.message}; defaulting to ${packageVersion}"
+    }
+} else {
+    println "[nospeak-android] package.json not found at ${packageJsonFile}; defaulting to ${packageVersion}"
+}
+
+def sanitizedSemver = packageVersion.split(/[\-\+]/)[0]
+def semverParts = sanitizedSemver.tokenize('.')
+
+def semverMajor = semverParts.size() > 0 ? (semverParts[0] as int) : 0
+def semverMinor = semverParts.size() > 1 ? (semverParts[1] as int) : 0
+def semverPatch = semverParts.size() > 2 ? (semverParts[2] as int) : 0
+
+def nospeakVersionCode = (semverMajor * 1000000) + (semverMinor * 1000) + semverPatch
+def nospeakVersionName = "v${packageVersion}"
+
 android {
     namespace "com.nospeak.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +38,8 @@ android {
         applicationId "com.nospeak.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode nospeakVersionCode
+        versionName nospeakVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
