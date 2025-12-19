@@ -73,17 +73,33 @@ export class RetryQueue {
         }
 
         try {
-            if (health.relay && health.isConnected) {
-                 await health.relay.publish(item.event);
-                 // Success
-                  if (this.debug) console.log(`Retry successful for ${item.targetRelay}`);
-                  if (item.id) await db.retryQueue.delete(item.id);
-
-                  // Notify UI about per-relay publish success for this event
-                  registerRelaySuccess(item.event.id, item.targetRelay);
-             } else {
+            if (!health.relay || !health.isConnected) {
                 throw new Error('Relay not connected');
             }
+
+            try {
+                await health.relay.publish(item.event);
+            } catch (e) {
+                const message = (e as Error)?.message || String(e);
+                if (message.startsWith('auth-required')) {
+                    this.connectionManager.markRelayAuthRequired(item.targetRelay);
+                    const authenticated = await this.connectionManager.authenticateRelay(item.targetRelay);
+                    if (authenticated) {
+                        await health.relay.publish(item.event);
+                    } else {
+                        throw e;
+                    }
+                } else {
+                    throw e;
+                }
+            }
+
+            // Success
+            if (this.debug) console.log(`Retry successful for ${item.targetRelay}`);
+            if (item.id) await db.retryQueue.delete(item.id);
+
+            // Notify UI about per-relay publish success for this event
+            registerRelaySuccess(item.event.id, item.targetRelay);
         } catch (e) {
             // Failed
             item.attempt++;

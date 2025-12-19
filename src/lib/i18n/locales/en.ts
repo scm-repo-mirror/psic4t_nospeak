@@ -39,7 +39,9 @@ const en = {
         youPrefix: 'You'
     },
     connection: {
-        relaysLabel: 'Relays:'
+        relaysLabel: 'Relays:',
+        authLabel: 'Auth:',
+        authFailedLabel: 'Failed:'
     },
     sync: {
          title: 'Syncing messages...',
@@ -96,6 +98,13 @@ const en = {
             lastConnectedLabel: 'Last Connected:',
             successLabel: 'Success:',
             failureLabel: 'Failures:',
+            authLabel: 'Auth:',
+            authErrorLabel: 'Auth error:',
+            authNotRequired: 'Not required',
+            authRequired: 'Required',
+            authAuthenticating: 'Authenticating',
+            authAuthenticated: 'Authenticated',
+            authFailed: 'Failed',
             typePersistent: 'Persistent',
             typeTemporary: 'Temporary',
             never: 'Never'

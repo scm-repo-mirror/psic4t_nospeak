@@ -16,9 +16,17 @@
         size="sm"
         class={`gap-2 ${isAndroidApp ? 'mr-2' : ''}`}
     >
-        <div class={`w-2 h-2 rounded-full ${$connectionStats.connected > 0 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`}></div>
+        <div
+            class={`w-2 h-2 rounded-full ${
+                $connectionStats.connected === 0 || $connectionStats.authFailedConnected > 0
+                    ? 'bg-red-500'
+                    : $connectionStats.authPendingConnected > 0
+                      ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]'
+                      : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'
+            }`}
+        ></div>
         <span class="typ-meta">
-            {$t('connection.relaysLabel')} {$connectionStats.connected}/{$connectionStats.total}
+            {$t('connection.relaysLabel')} {$connectionStats.connected}/{$connectionStats.total} • {$t('connection.authLabel')} {$connectionStats.authAuthenticatedConnected}/{$connectionStats.authRequiredConnected}{#if $connectionStats.authFailedConnected > 0} • {$t('connection.authFailedLabel')} {$connectionStats.authFailedConnected}{/if}
         </span>
     </Button>
 </div>

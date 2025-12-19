@@ -31,6 +31,33 @@ describe('publishWithDeadline', () => {
         expect(onRelaySuccess).toHaveBeenCalledWith('wss://relay.example.com');
     });
 
+    it('retries after auth-required when auth succeeds', async () => {
+        const publisher = makePublisher(vi.fn());
+        (publisher.publish as any)
+            .mockRejectedValueOnce(new Error('auth-required: write requires auth'))
+            .mockResolvedValueOnce('ok');
+
+        const connectionManager = {
+            getRelayHealth: vi.fn().mockReturnValue({ relay: publisher, isConnected: true }),
+            markRelayAuthRequired: vi.fn(),
+            authenticateRelay: vi.fn().mockResolvedValue(true),
+        };
+
+        const result = await publishWithDeadline({
+            connectionManager,
+            event: { id: 'event', kind: 1 } as any,
+            relayUrls: ['wss://relay.example.com'],
+            deadlineMs: 200,
+        });
+
+        expect(connectionManager.markRelayAuthRequired).toHaveBeenCalledWith('wss://relay.example.com');
+        expect(connectionManager.authenticateRelay).toHaveBeenCalledWith('wss://relay.example.com');
+        expect(publisher.publish).toHaveBeenCalledTimes(2);
+        expect(result.successfulRelays).toEqual(['wss://relay.example.com']);
+        expect(result.failedRelays).toEqual([]);
+        expect(result.timedOutRelays).toEqual([]);
+    });
+
     it('reports timeout when relay never connects', async () => {
         const connectionManager = {
             getRelayHealth: vi.fn().mockReturnValue({ relay: null, isConnected: false }),

@@ -1,6 +1,6 @@
 <script lang="ts">
      import { relayHealths } from '$lib/stores/connection';
-      import { ConnectionType } from '$lib/core/connection/ConnectionManager';
+      import { ConnectionType, type RelayAuthStatus } from '$lib/core/connection/ConnectionManager';
       import { isAndroidNative } from "$lib/core/NativeDialogs";
       import { hapticSelection } from '$lib/utils/haptics';
       import { fade } from 'svelte/transition';
@@ -18,10 +18,19 @@
       let isBottomSheetDragging = $state(false);
       let bottomSheetDragStartY = 0;
 
-     function formatTime(timestamp: number) {
-         if (timestamp === 0) return get(t)('modals.relayStatus.never') as string;
-         return new Date(timestamp).toLocaleTimeString();
-     }
+      function formatTime(timestamp: number) {
+          if (timestamp === 0) return get(t)('modals.relayStatus.never') as string;
+          return new Date(timestamp).toLocaleTimeString();
+      }
+
+      function formatAuthStatus(status: RelayAuthStatus) {
+          if (status === 'not_required') return get(t)('modals.relayStatus.authNotRequired') as string;
+          if (status === 'required') return get(t)('modals.relayStatus.authRequired') as string;
+          if (status === 'authenticating') return get(t)('modals.relayStatus.authAuthenticating') as string;
+          if (status === 'authenticated') return get(t)('modals.relayStatus.authAuthenticated') as string;
+          return get(t)('modals.relayStatus.authFailed') as string;
+      }
+
 
       function handleBottomSheetPointerDown(e: PointerEvent) {
          if (!isAndroidApp) return;
@@ -197,6 +206,16 @@
                                 <span>{$t('modals.relayStatus.failureLabel')}</span>
                                 <span class="typ-meta text-red-600 dark:text-red-400">{health.failureCount}</span>
                             </div>
+                            <div class="flex justify-between typ-meta">
+                                <span>{$t('modals.relayStatus.authLabel')}</span>
+                                <span class="typ-meta text-gray-700 dark:text-slate-300">{formatAuthStatus(health.authStatus)}</span>
+                            </div>
+                            {#if health.lastAuthError}
+                                <div class="col-span-2 flex justify-between typ-meta">
+                                    <span>{$t('modals.relayStatus.authErrorLabel')}</span>
+                                    <span class="typ-meta text-red-600 dark:text-red-400 truncate ml-4">{health.lastAuthError}</span>
+                                </div>
+                            {/if}
                         </div>
                     </div>
                 {/each}

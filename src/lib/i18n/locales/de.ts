@@ -40,7 +40,9 @@ const de = {
     },
 
     connection: {
-        relaysLabel: 'Relays:'
+        relaysLabel: 'Relays:',
+        authLabel: 'Auth:',
+        authFailedLabel: 'Fehlgeschlagen:'
     },
     sync: {
          title: 'Nachrichten werden synchronisiert...',
@@ -97,6 +99,13 @@ const de = {
             lastConnectedLabel: 'Zuletzt verbunden:',
             successLabel: 'Erfolge:',
             failureLabel: 'Fehler:',
+            authLabel: 'Auth:',
+            authErrorLabel: 'Auth-Fehler:',
+            authNotRequired: 'Nicht erforderlich',
+            authRequired: 'Erforderlich',
+            authAuthenticating: 'Authentifiziere',
+            authAuthenticated: 'Authentifiziert',
+            authFailed: 'Fehlgeschlagen',
             typePersistent: 'Persistent',
             typeTemporary: 'Temporär',
             never: 'Nie'

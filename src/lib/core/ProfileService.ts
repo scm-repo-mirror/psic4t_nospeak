@@ -110,7 +110,30 @@ export class ProfileService {
                     }
                 }
 
-                await relay.publish(signedEvent);
+                const relayAny = relay as any;
+                if (!relayAny.onauth) {
+                    relayAny.onauth = async (eventTemplate: any) => {
+                        return await currentSigner.signEvent(eventTemplate);
+                    };
+                }
+
+                try {
+                    await relay.publish(signedEvent);
+                } catch (e) {
+                    const message = (e as Error)?.message || String(e);
+                    if (message.startsWith('auth-required')) {
+                        connectionManager.markRelayAuthRequired?.(relayUrl);
+                        if (connectionManager.getRelayHealth(relayUrl)) {
+                            await connectionManager.authenticateRelay(relayUrl);
+                        } else if (relayAny.auth && relayAny.onauth) {
+                            await relayAny.auth(relayAny.onauth);
+                        }
+                        await relay.publish(signedEvent);
+                    } else {
+                        throw e;
+                    }
+                }
+
                 console.log(`Published profile to ${relayUrl}`);
 
                 if (shouldClose) {

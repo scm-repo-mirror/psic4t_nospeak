@@ -1,9 +1,12 @@
 import { Relay } from 'nostr-tools';
+import type { EventTemplate, NostrEvent } from 'nostr-tools';
 
 export enum ConnectionType {
     Persistent,
     Temporary
 }
+
+export type RelayAuthStatus = 'not_required' | 'required' | 'authenticating' | 'authenticated' | 'failed';
 
 export interface RelayHealth {
     url: string;
@@ -15,6 +18,9 @@ export interface RelayHealth {
     failureCount: number;
     consecutiveFails: number;
     type: ConnectionType;
+    authStatus: RelayAuthStatus;
+    lastAuthAt: number; // timestamp
+    lastAuthError: string | null;
 }
 
 export interface RetryConfig {
@@ -47,7 +53,14 @@ export class ConnectionManager {
     private uiUpdateTimer: ReturnType<typeof setInterval> | null = null;
     private onRelayListUpdate: ((relays: RelayHealth[]) => void) | null = null;
     
-    private subscriptions: Set<{ filters: any[], onEvent: (event: any) => void, subMap: Map<string, any> }> = new Set();
+    private subscriptions: Set<{
+        filters: any[];
+        onEvent: (event: any) => void;
+        subMap: Map<string, any>;
+        authRetryMap: Map<string, boolean>;
+    }> = new Set();
+
+    private authSigner: ((event: EventTemplate) => Promise<NostrEvent>) | null = null;
 
     private emitRelayUpdate() {
         if (this.onRelayListUpdate) {
@@ -60,6 +73,110 @@ export class ConnectionManager {
         this.defaultConfig = { ...config };
         this.config = { ...config };
         this.debug = debug;
+    }
+
+    public setAuthSigner(authSigner: ((event: EventTemplate) => Promise<NostrEvent>) | null) {
+        this.authSigner = authSigner;
+    }
+
+    private updateRelayAuthStatus(url: string, authStatus: RelayAuthStatus, lastAuthError: string | null = null) {
+        const health = this.relays.get(url);
+        if (!health) return;
+
+        health.authStatus = authStatus;
+
+        if (authStatus === 'failed') {
+            health.lastAuthAt = Date.now();
+            health.lastAuthError = lastAuthError || 'Unknown error';
+        } else if (authStatus === 'authenticated') {
+            health.lastAuthAt = Date.now();
+            health.lastAuthError = null;
+        } else {
+            // Keep lastAuthAt, but clear error when leaving failed state.
+            health.lastAuthError = null;
+        }
+
+        this.emitRelayUpdate();
+    }
+
+    public markRelayAuthRequired(url: string) {
+        const health = this.relays.get(url);
+        if (!health) return;
+
+        if (health.authStatus === 'not_required' || health.authStatus === 'authenticated') {
+            this.updateRelayAuthStatus(url, 'required');
+        }
+    }
+
+    public async authenticateRelay(url: string): Promise<boolean> {
+        const health = this.relays.get(url);
+        if (!health?.relay || !health.isConnected) return false;
+
+        const relayAny = health.relay as any;
+        if (!relayAny.auth) return false;
+
+        if (!relayAny.onauth) {
+            this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
+            return false;
+        }
+
+        try {
+            await relayAny.auth(relayAny.onauth);
+            return true;
+        } catch (e) {
+            const message = (e as Error)?.message || String(e);
+            if (message.includes('Missing signer')) {
+                this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
+            } else {
+                this.updateRelayAuthStatus(url, 'failed', message);
+            }
+            return false;
+        }
+    }
+
+    private attachAuthHandlers(url: string, relay: Relay) {
+        const relayAny = relay as any;
+
+        // Provide signing callback used by nostr-tools when an AUTH challenge arrives.
+        relayAny.onauth = async (eventTemplate: EventTemplate) => {
+            if (!this.authSigner) {
+                this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
+                throw new Error('Missing signer');
+            }
+
+            try {
+                return await this.authSigner(eventTemplate);
+            } catch (e) {
+                const message = (e as Error)?.message || String(e);
+                if (message.includes('Missing signer')) {
+                    this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
+                }
+                throw e;
+            }
+        };
+
+        // Wrap relay.auth so we can track auth progress, including auto-auth triggered by nostr-tools.
+        if (typeof relayAny.auth === 'function') {
+            const originalAuth = relayAny.auth.bind(relayAny);
+            relayAny.auth = async (signAuthEvent: (evt: EventTemplate) => Promise<NostrEvent>) => {
+                this.markRelayAuthRequired(url);
+                this.updateRelayAuthStatus(url, 'authenticating');
+
+                try {
+                    const result = await originalAuth(signAuthEvent);
+                    this.updateRelayAuthStatus(url, 'authenticated');
+                    return result;
+                } catch (e) {
+                    const message = (e as Error)?.message || String(e);
+                    if (message.includes('Missing signer')) {
+                        this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
+                    } else {
+                        this.updateRelayAuthStatus(url, 'failed', message);
+                    }
+                    throw e;
+                }
+            };
+        }
     }
 
     public start() {
@@ -125,7 +242,10 @@ export class ConnectionManager {
                 successCount: 0,
                 failureCount: 0,
                 consecutiveFails: 0,
-                type: ConnectionType.Persistent
+                type: ConnectionType.Persistent,
+                authStatus: 'not_required',
+                lastAuthAt: 0,
+                lastAuthError: null
             };
             this.relays.set(url, health);
             
@@ -157,7 +277,10 @@ export class ConnectionManager {
                 successCount: 0,
                 failureCount: 0,
                 consecutiveFails: 0,
-                type: ConnectionType.Temporary
+                type: ConnectionType.Temporary,
+                authStatus: 'not_required',
+                lastAuthAt: 0,
+                lastAuthError: null
             };
             this.relays.set(url, health);
             
@@ -333,7 +456,31 @@ export class ConnectionManager {
 
             try {
                 const s = relay.subscribe(sub.filters, {
-                    onevent: sub.onEvent
+                    onevent: sub.onEvent,
+                    onclose: (reason: string) => {
+                        sub.subMap.delete(relay.url);
+
+                        if (typeof reason !== 'string' || !reason.startsWith('auth-required')) {
+                            return;
+                        }
+
+                        this.markRelayAuthRequired(relay.url);
+
+                        if (sub.authRetryMap.get(relay.url)) {
+                            return;
+                        }
+                        sub.authRetryMap.set(relay.url, true);
+
+                        void (async () => {
+                            const authenticated = await this.authenticateRelay(relay.url);
+                            if (!authenticated) {
+                                return;
+                            }
+
+                            // Re-open this subscription once after successful auth.
+                            this.applySubscriptionsToRelay(relay);
+                        })();
+                    },
                 });
                 sub.subMap.set(relay.url, s);
                 if (this.debug) console.log(`Applied subscription to ${relay.url}`);
@@ -410,18 +557,25 @@ export class ConnectionManager {
             // Handle disconnects
             relay.onclose = () => {
                 if (this.debug) console.log(`Relay ${url} disconnected`);
+
                 health.isConnected = false;
-                health.relay = null; 
+                health.relay = null;
                 this.clearSubscriptionsForRelay(url);
-                
+
+                // Preserve auth requirement state across reconnects.
+                if (health.authStatus === 'authenticated' || health.authStatus === 'authenticating') {
+                    health.authStatus = 'required';
+                }
+                this.emitRelayUpdate();
+
                 // Trigger health check or reconnect?
                 if (health.type === ConnectionType.Persistent) {
                    this.markRelayFailure(url);
                 }
             };
 
-            // Go code does authenticateRelay here. We'll skip for now (Task 4 scope)
-            
+            this.attachAuthHandlers(url, relay);
+
             health.relay = relay;
             health.isConnected = true; // Relay.connect throws if fails
             this.markRelaySuccess(url);
@@ -503,7 +657,8 @@ export class ConnectionManager {
         const subEntry = {
             filters,
             onEvent,
-            subMap: new Map<string, any>()
+            subMap: new Map<string, any>(),
+            authRetryMap: new Map<string, boolean>()
         };
         this.subscriptions.add(subEntry);
 

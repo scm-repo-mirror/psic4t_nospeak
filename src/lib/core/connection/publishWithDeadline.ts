@@ -2,6 +2,8 @@ import type { NostrEvent } from 'nostr-tools';
 
 export interface RelayPublisher {
     publish(event: NostrEvent): Promise<unknown>;
+    auth?: (signAuthEvent: (evt: any) => Promise<any>) => Promise<unknown>;
+    onauth?: ((evt: any) => Promise<any>) | undefined;
 }
 
 export interface RelayHealthSnapshot {
@@ -11,6 +13,8 @@ export interface RelayHealthSnapshot {
 
 export interface ConnectionManagerSnapshot {
     getRelayHealth(url: string): RelayHealthSnapshot | undefined;
+    markRelayAuthRequired?(url: string): void;
+    authenticateRelay?(url: string): Promise<boolean>;
 }
 
 export interface PublishWithDeadlineOptions {
@@ -90,17 +94,68 @@ export async function publishWithDeadline(options: PublishWithDeadlineOptions): 
             return { url, status: 'timeout' as const };
         }
 
-        try {
-            const publishPromise = health.relay.publish(event);
+        const relay = health.relay;
+        if (!relay) {
+            return { url, status: 'timeout' as const };
+        }
+
+        const publishOnce = async () => {
+            const remaining = deadlineAt - Date.now();
+            if (remaining <= 0) {
+                throw new Error('Timeout');
+            }
+
+            const publishPromise = relay.publish(event);
             // Ensure late rejections do not become unhandled rejections.
             publishPromise.catch(() => undefined);
-            await promiseWithTimeout(publishPromise, remainingForPublish);
+            await promiseWithTimeout(publishPromise, remaining);
+        };
+
+        let retriedAfterAuth = false;
+
+        try {
+            await publishOnce();
             onRelaySuccess?.(url);
             return { url, status: 'success' as const };
         } catch (e) {
-            if ((e as Error)?.message === 'Timeout') {
+            const message = (e as Error)?.message || String(e);
+
+            if (message === 'Timeout') {
                 return { url, status: 'timeout' as const };
             }
+
+            if (!retriedAfterAuth && message.startsWith('auth-required')) {
+                retriedAfterAuth = true;
+                connectionManager.markRelayAuthRequired?.(url);
+
+                const remainingForAuth = deadlineAt - Date.now();
+                if (remainingForAuth <= 0) {
+                    return { url, status: 'timeout' as const };
+                }
+
+                try {
+                    const authPromise = connectionManager.authenticateRelay
+                        ? connectionManager.authenticateRelay(url)
+                        : (relay.auth && relay.onauth ? relay.auth(relay.onauth) : false);
+
+                    const authenticated = await promiseWithTimeout(Promise.resolve(authPromise), remainingForAuth);
+
+                    if (authenticated === false) {
+                        return { url, status: 'failure' as const };
+                    }
+
+                    await publishOnce();
+                    onRelaySuccess?.(url);
+                    return { url, status: 'success' as const };
+                } catch (authError) {
+                    const authMessage = (authError as Error)?.message || String(authError);
+                    if (authMessage === 'Timeout') {
+                        return { url, status: 'timeout' as const };
+                    }
+                    return { url, status: 'failure' as const };
+                }
+            }
+
             return { url, status: 'failure' as const };
         }
     };

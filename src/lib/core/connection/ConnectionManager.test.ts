@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ConnectionManager, DefaultRetryConfig } from './ConnectionManager';
+import { ConnectionManager, ConnectionType, DefaultRetryConfig } from './ConnectionManager';
 
 vi.mock('nostr-tools', () => {
     return {
@@ -53,5 +53,47 @@ describe('ConnectionManager', () => {
         cmAny.setBackgroundModeEnabled(false);
         const restoredBackoff = cmAny.calculateBackoff(3);
         expect(restoredBackoff).toBe(normalBackoff);
+    });
+
+    it('re-subscribes once after auth-required close', async () => {
+        const relayUrl = 'wss://relay.example.com';
+
+        const relay: any = {
+            url: relayUrl,
+            close: vi.fn(),
+            subscribe: vi.fn((_filters: any[], params: any) => {
+                setTimeout(() => {
+                    params.onclose?.('auth-required: subscription requires auth');
+                }, 0);
+                return { close: vi.fn() };
+            }),
+        };
+
+        const cmAny = cm as any;
+        cmAny.relays.set(relayUrl, {
+            url: relayUrl,
+            relay,
+            isConnected: true,
+            lastConnected: 0,
+            lastAttempt: 0,
+            successCount: 0,
+            failureCount: 0,
+            consecutiveFails: 0,
+            type: ConnectionType.Persistent,
+            authStatus: 'not_required',
+            lastAuthAt: 0,
+            lastAuthError: null,
+        });
+
+        vi.spyOn(cm, 'authenticateRelay').mockResolvedValue(true);
+
+        const unsubscribe = cm.subscribe([{ kinds: [1] }], vi.fn());
+
+        await vi.runAllTimersAsync();
+
+        expect(relay.subscribe).toHaveBeenCalledTimes(2);
+        expect(cm.authenticateRelay).toHaveBeenCalledTimes(1);
+
+        unsubscribe();
     });
 });
