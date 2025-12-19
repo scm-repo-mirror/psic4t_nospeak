@@ -99,6 +99,18 @@ describe('ContactList header scan QR button', () => {
         expect(content).toContain('navigator.mediaDevices.getUserMedia');
     });
 });
+ 
+
+describe('ContactList Android native long-press behavior', () => {
+    it('suppresses the WebView copy/share context menu', () => {
+        const filePath = join(__dirname, 'ContactList.svelte');
+        const content = readFileSync(filePath, 'utf8');
+ 
+        expect(content).toContain('oncontextmenu');
+        expect(content).toContain('onselectstart');
+        expect(content).toContain('isAndroidApp');
+    });
+});
 
  
 

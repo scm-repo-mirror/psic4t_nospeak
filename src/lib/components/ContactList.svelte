@@ -148,7 +148,21 @@
     }
 </script>
 
-<div class="relative flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-700/70 overflow-hidden">
+<div
+    role="presentation"
+    oncontextmenu={(e) => {
+        if (!isAndroidApp) return;
+        e.preventDefault();
+        e.stopPropagation();
+    }}
+    onselectstart={(e) => {
+        if (!isAndroidApp) return;
+        e.preventDefault();
+    }}
+    class:select-none={isAndroidApp}
+    class:androidNoCallout={isAndroidApp}
+    class="relative flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-700/70 overflow-hidden"
+>
     <div class="absolute top-0 left-0 right-0 z-20 flex flex-col bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-700/70 shadow-sm transition-all duration-200">
         <div class="p-2 h-16 flex items-center justify-between relative">
              {#if $currentUser}
@@ -287,6 +301,16 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div 
                 onclick={() => selectContact(contact.npub)}
+                oncontextmenu={(e) => {
+                    if (!isAndroidApp) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                }}
+                onselectstart={(e) => {
+                    if (!isAndroidApp) return;
+                    e.preventDefault();
+                }}
+                class:select-none={isAndroidApp}
                 class={`p-3 mx-3 my-1.5 rounded-2xl cursor-pointer flex items-center gap-3 transition-all duration-150 ease-out group border border-white/20 dark:border-transparent active:scale-[0.98] ${
                     page.url.pathname.includes(contact.npub) 
                     ? 'bg-blue-50/20 dark:bg-blue-900/50 shadow-sm dark:border-white/10' 
@@ -335,3 +359,11 @@
 
     <ConnectionStatus />
 </div>
+
+<style>
+    .androidNoCallout :global(*) {
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+</style>
