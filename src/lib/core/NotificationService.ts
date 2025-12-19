@@ -6,6 +6,91 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 const DEFAULT_NOTIFICATION_ICON = '/nospeak.svg';
 const ANDROID_MESSAGE_CHANNEL_ID = 'messages';
 
+const ROBOHASH_URL_PREFIX = 'https://robohash.org/';
+const ROBOHASH_URL_SUFFIX = '.png?set=set1&bgset=bg2';
+const ANDROID_NOTIFICATION_ICON_TIMEOUT_MS = 1000;
+
+interface FilesystemWriteFileResult {
+    uri?: string;
+    path?: string;
+}
+
+interface FilesystemLike {
+    writeFile(options: { path: string; data: string; directory?: string; recursive?: boolean }): Promise<FilesystemWriteFileResult>;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0;
+}
+
+function getRobohashAvatarUrl(npub: string): string {
+    return `${ROBOHASH_URL_PREFIX}${npub.slice(-10)}${ROBOHASH_URL_SUFFIX}`;
+}
+
+function getNotificationAvatarUrl(npub: string, picture: string | undefined): string {
+    return isNonEmptyString(picture) ? picture : getRobohashAvatarUrl(npub);
+}
+
+function getFilesystemPlugin(): FilesystemLike | undefined {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    const filesystem = (window as any).Capacitor?.Plugins?.Filesystem;
+
+    if (!filesystem || typeof filesystem.writeFile !== 'function') {
+        return undefined;
+    }
+
+    return filesystem as FilesystemLike;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+    const nodeBuffer = (globalThis as any).Buffer;
+
+    if (nodeBuffer) {
+        return nodeBuffer.from(bytes).toString('base64');
+    }
+
+    let binary = '';
+    const chunkSize = 0x8000;
+
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(offset, offset + chunkSize));
+    }
+
+    return btoa(binary);
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+    if (typeof FileReader === 'undefined') {
+        const buffer = await blob.arrayBuffer();
+        return bytesToBase64(new Uint8Array(buffer));
+    }
+
+    return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+            const result = reader.result;
+
+            if (typeof result !== 'string') {
+                reject(new Error('Failed to convert blob to base64'));
+                return;
+            }
+
+            const commaIndex = result.indexOf(',');
+            resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
+        };
+
+        reader.onerror = () => {
+            reject(reader.error ?? new Error('FileReader error'));
+        };
+
+        reader.readAsDataURL(blob);
+    });
+}
+
 export interface NotificationSettings {
     notificationsEnabled: boolean;
 }
@@ -122,14 +207,59 @@ export class NotificationService {
         }
 
         if (this.isAndroidNativeEnv) {
-            await this.showAndroidNotification(senderNpub, senderName, message);
+            await this.showAndroidNotification(senderNpub, senderName, senderPicture, message);
             return;
         }
 
         await this.showWebNotification(senderNpub, senderName, senderPicture, message);
     }
 
-    private async showAndroidNotification(senderNpub: string, senderName: string, message: string) {
+    private async resolveAndroidNotificationLargeIcon(senderNpub: string, senderPicture: string | undefined): Promise<string | undefined> {
+        const filesystem = getFilesystemPlugin();
+
+        if (!filesystem) {
+            return undefined;
+        }
+
+        try {
+            const avatarUrl = getNotificationAvatarUrl(senderNpub, senderPicture);
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), ANDROID_NOTIFICATION_ICON_TIMEOUT_MS) : undefined;
+
+            let response: Response;
+
+            try {
+                response = await fetch(avatarUrl, controller ? { signal: controller.signal } : undefined);
+            } finally {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            if (!response.ok) {
+                return undefined;
+            }
+
+            const blob = await response.blob();
+            const base64 = await blobToBase64(blob);
+
+            const seed = senderNpub.slice(-10);
+            const path = `nospeak-notification-icons/${seed}.png`;
+
+            const result = await filesystem.writeFile({
+                path,
+                data: base64,
+                directory: 'CACHE',
+                recursive: true
+            });
+
+            return result.uri ?? result.path;
+        } catch {
+            return undefined;
+        }
+    }
+
+    private async showAndroidNotification(senderNpub: string, senderName: string, senderPicture: string | undefined, message: string) {
         try {
             await this.ensureAndroidChannel();
 
@@ -139,20 +269,25 @@ export class NotificationService {
             }
 
             const id = Math.floor(Date.now() % 2147483647);
+            const largeIcon = await this.resolveAndroidNotificationLargeIcon(senderNpub, senderPicture);
+
+            const notification: any = {
+                id,
+                title: `New message from ${senderName}`,
+                body: message,
+                channelId: ANDROID_MESSAGE_CHANNEL_ID,
+                smallIcon: 'ic_stat_nospeak',
+                extra: {
+                    url: `/chat/${senderNpub}`
+                }
+            };
+
+            if (isNonEmptyString(largeIcon)) {
+                notification.largeIcon = largeIcon;
+            }
 
             await LocalNotifications.schedule({
-                notifications: [
-                    {
-                        id,
-                        title: `New message from ${senderName}`,
-                        body: message,
-                        channelId: ANDROID_MESSAGE_CHANNEL_ID,
-                        smallIcon: 'ic_stat_nospeak',
-                         extra: {
-                            url: `/chat/${senderNpub}`
-                        }
-                    }
-                ]
+                notifications: [notification]
             });
         } catch (e) {
             console.error('Failed to show Android local notification:', e);
@@ -185,7 +320,7 @@ export class NotificationService {
             if (swRegistration) {
                 await swRegistration.showNotification(`New message from ${senderName}`, {
                     body: message,
-                    icon: senderPicture || DEFAULT_NOTIFICATION_ICON,
+                    icon: getNotificationAvatarUrl(senderNpub, senderPicture),
                     badge: DEFAULT_NOTIFICATION_ICON,
                     tag: `message-${senderNpub}`, // Group notifications by sender
                     requireInteraction: false,
@@ -198,7 +333,7 @@ export class NotificationService {
                 // Fallback for non-SW environments
                 const notification = new Notification(`New message from ${senderName}`, {
                     body: message,
-                    icon: senderPicture || DEFAULT_NOTIFICATION_ICON,
+                    icon: getNotificationAvatarUrl(senderNpub, senderPicture),
                     badge: DEFAULT_NOTIFICATION_ICON,
                     tag: `message-${senderNpub}`, // Group notifications by sender
                     requireInteraction: false,
@@ -287,14 +422,14 @@ export class NotificationService {
         const message = `reacted ${emoji} to your message`;
 
         if (this.isAndroidNativeEnv) {
-            await this.showAndroidReactionNotification(senderNpub, senderName, message);
+            await this.showAndroidReactionNotification(senderNpub, senderName, senderPicture, message);
             return;
         }
 
         await this.showWebReactionNotification(senderNpub, senderName, senderPicture, message);
     }
 
-    private async showAndroidReactionNotification(senderNpub: string, senderName: string, message: string) {
+    private async showAndroidReactionNotification(senderNpub: string, senderName: string, senderPicture: string | undefined, message: string) {
         try {
             await this.ensureAndroidChannel();
 
@@ -304,20 +439,25 @@ export class NotificationService {
             }
 
             const id = Math.floor(Date.now() % 2147483647);
+            const largeIcon = await this.resolveAndroidNotificationLargeIcon(senderNpub, senderPicture);
+
+            const notification: any = {
+                id,
+                title: `New reaction from ${senderName}`,
+                body: message,
+                channelId: ANDROID_MESSAGE_CHANNEL_ID,
+                smallIcon: 'ic_stat_nospeak',
+                extra: {
+                    url: `/chat/${senderNpub}`
+                }
+            };
+
+            if (isNonEmptyString(largeIcon)) {
+                notification.largeIcon = largeIcon;
+            }
 
             await LocalNotifications.schedule({
-                notifications: [
-                    {
-                        id,
-                        title: `New reaction from ${senderName}`,
-                        body: message,
-                        channelId: ANDROID_MESSAGE_CHANNEL_ID,
-                        smallIcon: 'ic_stat_nospeak',
-                        extra: {
-                            url: `/chat/${senderNpub}`
-                        }
-                    }
-                ]
+                notifications: [notification]
             });
         } catch (e) {
             console.error('Failed to show Android reaction notification:', e);
@@ -348,7 +488,7 @@ export class NotificationService {
             if (swRegistration) {
                 await swRegistration.showNotification(title, {
                     body: message,
-                    icon: senderPicture || DEFAULT_NOTIFICATION_ICON,
+                    icon: getNotificationAvatarUrl(senderNpub, senderPicture),
                     badge: DEFAULT_NOTIFICATION_ICON,
                     tag: `message-${senderNpub}`,
                     requireInteraction: false,
@@ -360,7 +500,7 @@ export class NotificationService {
             } else if (typeof Notification !== 'undefined') {
                 const notification = new Notification(title, {
                     body: message,
-                    icon: senderPicture || DEFAULT_NOTIFICATION_ICON,
+                    icon: getNotificationAvatarUrl(senderNpub, senderPicture),
                     badge: DEFAULT_NOTIFICATION_ICON,
                     tag: `message-${senderNpub}`,
                     requireInteraction: false,

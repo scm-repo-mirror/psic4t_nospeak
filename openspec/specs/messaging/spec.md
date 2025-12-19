@@ -320,30 +320,13 @@ The Manage Contacts modal SHALL support searching for users by name or phrase us
 - **AND** SHALL add the selected user to the contacts list with the same fields and downstream behaviour as a contact added by manually entering their `npub`
 
 ### Requirement: Themed Logo and Icon Branding for Messaging
-The messaging interface and related browser surfaces SHALL use the updated nospeak logo with Catppuccin-aligned coloring. In-app chat views SHALL render the nospeak logo using a theme-aware style that displays Latte Lavender in bright/light appearances and a white logo matching Frappe text color in dark appearances. Browser favicons, PWA icons, and messaging notification icons SHALL use a Latte Text-tinted version of the nospeak logo.
+The messaging interface and related browser surfaces SHALL use the updated nospeak logo with Catppuccin-aligned coloring. In-app chat views SHALL render the nospeak logo using a theme-aware style that displays Latte Lavender in bright/light appearances and a white logo matching Frappe text color in dark appearances. Browser favicons and PWA icons SHALL use a Latte Text-tinted version of the nospeak logo. Messaging notifications SHALL use the Latte Text-tinted nospeak logo for their badge and for any platform-required small status-bar icon.
 
-#### Scenario: Chat header logo reflects bright theme
-- **GIVEN** the effective theme is light (Catppuccin Latte)
-- **WHEN** the user views any chat conversation
-- **THEN** the nospeak logo shown in the chat header appears in a bright violet consistent with Catppuccin Latte Lavender
-- **AND** the logo uses a single shared styling mechanism so that other in-app uses of the nospeak logo share the same appearance.
-
-#### Scenario: Chat header logo reflects dark theme
-- **GIVEN** the effective theme is dark (Catppuccin Frappe)
-- **WHEN** the user views any chat conversation
-- **THEN** the nospeak logo shown in the chat header appears as a white logo that visually matches the Catppuccin Frappe text color against dark backgrounds
-- **AND** changing the theme mode between Light, Dark, and System updates the header logo appearance without requiring a reload.
-
-#### Scenario: Favicons and PWA icons use Latte Lavender
-- **WHEN** the user views the nospeak web app in a browser tab or installs it as a PWA
-- **THEN** the browser tab favicon, app icon, and any PWA home screen or app switcher icons use a nospeak logo tinted with Catppuccin Latte Lavender
-- **AND** these icons remain Latte Lavender regardless of the runtime theme mode.
-
-#### Scenario: Messaging notifications show Latte Lavender icon
+#### Scenario: Messaging notifications show Latte Lavender branded badge
 - **GIVEN** the user has granted notification permission and notifications are enabled in Settings
 - **WHEN** a new message notification is shown for an incoming message
-- **THEN** the notification icon and badge use a nospeak logo tinted with Catppuccin Latte Lavender
-- **AND** the icon asset used for notifications is consistent with the branding used for favicons and PWA icons.
+- **THEN** the notification badge uses a nospeak logo tinted with Catppuccin Latte Lavender
+- **AND** where the platform requires a small status-bar icon (for example Android), it uses the same branded Latte Lavender nospeak icon asset.
 
 ### Requirement: NIP-05 Verification for Profiles and Contacts
 The messaging experience SHALL treat NIP-05 identifiers as identity hints only when they have been verified against NIP-05 DNS records, and SHALL avoid displaying verification badges or icons for identifiers that have not been validated. The system SHALL cache NIP-05 verification status per profile so that messaging UIs can consistently display whether a given contact's identifier is verified, invalid for their key, or unknown.
@@ -1076,4 +1059,37 @@ When running inside the Android Capacitor app shell with background messaging en
 - **THEN** the native service SHALL treat this event as an opaque encrypted message
 - **AND** SHALL raise a generic Android OS notification for a new encrypted message using the same notification channel and wording used for other background DM gift-wraps
 - **AND** the user SHALL only see the decrypted sender, message, and reaction details after returning to the app and allowing the foreground messaging pipeline to process the event.
+
+### Requirement: Sender Avatar Fallback for Messaging Notifications
+When a message or reaction notification is shown for a specific sender, the system SHALL prefer showing the sender’s profile picture when available. When the sender has no profile picture, the system SHALL instead use a deterministic robohash avatar derived from the sender’s `npub` using the same seed logic as the in-app avatar fallback. If the avatar cannot be resolved due to platform limitations or fetch failures, the system SHALL fall back to the branded nospeak icon while still showing the notification.
+
+#### Scenario: Web notification uses sender profile picture when available
+- **GIVEN** the user has granted notification permission and notifications are enabled in Settings
+- **AND** Contact A has `metadata.picture` set to a non-empty URL
+- **WHEN** a new message notification is shown for an incoming message from Contact A
+- **THEN** the web/PWA notification icon uses Contact A’s `metadata.picture` URL.
+
+#### Scenario: Web notification uses robohash avatar when profile picture missing
+- **GIVEN** the user has granted notification permission and notifications are enabled in Settings
+- **AND** Contact B has no profile picture (`metadata.picture` is missing or empty)
+- **WHEN** a new message notification is shown for an incoming message from Contact B
+- **THEN** the web/PWA notification icon uses the deterministic robohash avatar URL derived from Contact B’s `npub`.
+
+#### Scenario: Android notification shows sender avatar as large icon
+- **GIVEN** the user is running nospeak inside the Android Capacitor app shell
+- **AND** message notifications are enabled in Settings → General
+- **AND** the Android OS has granted permission for local notifications
+- **WHEN** a new message notification is shown for an incoming message from Contact C
+- **THEN** the Android notification uses the branded nospeak icon as the small status-bar icon
+- **AND** it SHOULD show Contact C’s avatar as the large icon, using Contact C’s profile picture when available and otherwise using the deterministic robohash avatar.
+
+#### Scenario: Android notifications still fire when sender avatar cannot be resolved
+- **GIVEN** the user is running nospeak inside the Android Capacitor app shell
+- **AND** message notifications are enabled in Settings → General
+- **AND** the Android OS has granted permission for local notifications
+- **AND** Contact D has no profile picture
+- **AND** the robohash avatar cannot be fetched or stored (for example due to lack of network access)
+- **WHEN** a new message notification is shown for an incoming message from Contact D
+- **THEN** the Android OS notification is still shown
+- **AND** it uses the branded nospeak icon assets required for Android notifications.
 

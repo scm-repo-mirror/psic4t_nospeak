@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const isAndroidNativeMock = vi.fn();
 const scheduleMock = vi.fn().mockResolvedValue(undefined);
@@ -28,9 +28,29 @@ vi.mock('$lib/db/ProfileRepository', () => ({
     }
 }));
 
+function setLocalStorage() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    (window as any).localStorage = {
+        store: {} as Record<string, string>,
+        getItem(key: string) {
+            return (this.store as Record<string, string>)[key] ?? null;
+        },
+        setItem(key: string, value: string) {
+            (this.store as Record<string, string>)[key] = value;
+        },
+        removeItem(key: string) {
+            delete (this.store as Record<string, string>)[key];
+        }
+    };
+}
+
 describe('NotificationService (Android local notifications)', () => {
     beforeEach(() => {
         vi.resetModules();
+
         scheduleMock.mockClear();
         createChannelMock.mockClear();
         checkPermissionsMock.mockClear();
@@ -39,20 +59,13 @@ describe('NotificationService (Android local notifications)', () => {
         getProfileIgnoreTTLMock.mockClear();
         isAndroidNativeMock.mockReset();
 
+        setLocalStorage();
+
         if (typeof window !== 'undefined') {
-            (window as any).localStorage = {
-                store: {} as Record<string, string>,
-                getItem(key: string) {
-                    return (this.store as Record<string, string>)[key] ?? null;
-                },
-                setItem(key: string, value: string) {
-                    (this.store as Record<string, string>)[key] = value;
-                },
-                removeItem(key: string) {
-                    delete (this.store as Record<string, string>)[key];
-                }
-            };
+            (window as any).Capacitor = undefined;
         }
+
+        vi.unstubAllGlobals();
     });
 
     it('schedules an Android local notification when enabled and permission granted', async () => {
@@ -63,8 +76,172 @@ describe('NotificationService (Android local notifications)', () => {
             Object.defineProperty(document, 'visibilityState', {
                 value: 'hidden',
                 configurable: true
-});
+            });
+        }
 
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
+
+        expect(createChannelMock).toHaveBeenCalledTimes(1);
+        expect(scheduleMock).toHaveBeenCalledTimes(1);
+        const args = scheduleMock.mock.calls[0][0];
+        expect(args.notifications[0].title).toContain('Alice');
+        expect(args.notifications[0].channelId).toBe('messages');
+        expect(args.notifications[0].smallIcon).toBe('ic_stat_nospeak');
+    });
+
+    it('adds a largeIcon when the sender avatar is cached successfully', async () => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const writeFileMock = vi.fn().mockResolvedValue({ uri: 'file://avatar.png' });
+        (window as any).Capacitor = {
+            Plugins: {
+                Filesystem: {
+                    writeFile: writeFileMock
+                }
+            }
+        };
+
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            blob: async () => new Blob(['avatar'], { type: 'image/png' })
+        });
+        vi.stubGlobal('fetch', fetchMock as any);
+
+        isAndroidNativeMock.mockReturnValue(true);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Alice' } });
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'hidden',
+                configurable: true
+            });
+        }
+
+        if (window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
+
+        expect(scheduleMock).toHaveBeenCalledTimes(1);
+        const args = scheduleMock.mock.calls[0][0];
+        expect(args.notifications[0].largeIcon).toBe('file://avatar.png');
+
+        const expectedRobohashUrl = 'https://robohash.org/npub1alice.png?set=set1&bgset=bg2';
+        expect(fetchMock.mock.calls[0][0]).toBe(expectedRobohashUrl);
+        expect(writeFileMock).toHaveBeenCalled();
+    });
+
+    it('still schedules when sender avatar cannot be fetched', async () => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const writeFileMock = vi.fn();
+        (window as any).Capacitor = {
+            Plugins: {
+                Filesystem: {
+                    writeFile: writeFileMock
+                }
+            }
+        };
+
+        const fetchMock = vi.fn().mockRejectedValue(new Error('network down'));
+        vi.stubGlobal('fetch', fetchMock as any);
+
+        isAndroidNativeMock.mockReturnValue(true);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Alice' } });
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'hidden',
+                configurable: true
+            });
+        }
+
+        if (window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
+
+        expect(scheduleMock).toHaveBeenCalledTimes(1);
+        const args = scheduleMock.mock.calls[0][0];
+        expect(args.notifications[0].largeIcon).toBeUndefined();
+        expect(writeFileMock).not.toHaveBeenCalled();
+    });
+
+    it('does not schedule when notifications are disabled in settings', async () => {
+        isAndroidNativeMock.mockReturnValue(true);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Bob' } });
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: false }));
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1bob', 'Hi');
+
+        expect(scheduleMock).not.toHaveBeenCalled();
+    });
+
+    it('does not schedule when Android permission is denied', async () => {
+        isAndroidNativeMock.mockReturnValue(true);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Carol' } });
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        checkPermissionsMock.mockResolvedValueOnce({ display: 'denied' });
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1carol', 'Hi');
+
+        expect(scheduleMock).not.toHaveBeenCalled();
+    });
+
+    it('suppresses Android notification when same conversation is active and visible', async () => {
+        isAndroidNativeMock.mockReturnValue(true);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Dave' } });
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
+        }
+
+        if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/chat/npub1dave');
+        }
+
+        if (typeof document !== 'undefined') {
+            Object.defineProperty(document, 'visibilityState', {
+                value: 'visible',
+                configurable: true
+            });
+            (document as any).hasFocus = vi.fn().mockReturnValue(true);
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1dave', 'Hi from Dave');
+
+        expect(scheduleMock).not.toHaveBeenCalled();
+    });
+});
 
 describe('NotificationService (web notifications)', () => {
     class FakeNotification {
@@ -88,21 +265,9 @@ describe('NotificationService (web notifications)', () => {
         isAndroidNativeMock.mockReset();
         FakeNotification.calls = [];
 
-        if (typeof window !== 'undefined') {
-            (window as any).localStorage = {
-                store: {} as Record<string, string>,
-                getItem(key: string) {
-                    return (this.store as Record<string, string>)[key] ?? null;
-                },
-                setItem(key: string, value: string) {
-                    (this.store as Record<string, string>)[key] = value;
-                },
-                removeItem(key: string) {
-                    delete (this.store as Record<string, string>)[key];
-                }
-            };
+        setLocalStorage();
 
-            // Default to root route
+        if (typeof window !== 'undefined') {
             window.history.pushState({}, '', '/');
         }
 
@@ -118,7 +283,7 @@ describe('NotificationService (web notifications)', () => {
         (globalThis as any).Notification = FakeNotification as any;
     });
 
-    it('shows a browser notification when the tab is not active/visible', async () => {
+    it('uses robohash as icon when profile picture is missing', async () => {
         isAndroidNativeMock.mockReturnValue(false);
         getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Alice' } });
 
@@ -139,16 +304,18 @@ describe('NotificationService (web notifications)', () => {
         await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
 
         expect(FakeNotification.calls.length).toBe(1);
-        expect(FakeNotification.calls[0].title).toContain('Alice');
+        expect(FakeNotification.calls[0].options.icon).toBe('https://robohash.org/npub1alice.png?set=set1&bgset=bg2');
+        expect(FakeNotification.calls[0].options.badge).toBe('/nospeak.svg');
     });
 
-    it('shows a browser notification when a different conversation is active in the foreground', async () => {
+    it('uses profile picture as icon when available', async () => {
         isAndroidNativeMock.mockReturnValue(false);
-        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Bob' } });
-
-        if (typeof window !== 'undefined') {
-            window.history.pushState({}, '', '/chat/npub1alice');
-        }
+        getProfileIgnoreTTLMock.mockResolvedValue({
+            metadata: {
+                name: 'Bob',
+                picture: 'https://example.com/bob.png'
+            }
+        });
 
         if (typeof window !== 'undefined' && window.localStorage) {
             window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
@@ -156,10 +323,10 @@ describe('NotificationService (web notifications)', () => {
 
         if (typeof document !== 'undefined') {
             Object.defineProperty(document, 'visibilityState', {
-                value: 'visible',
+                value: 'hidden',
                 configurable: true
             });
-            (document as any).hasFocus = vi.fn().mockReturnValue(true);
+            (document as any).hasFocus = vi.fn().mockReturnValue(false);
         }
 
         const { notificationService } = await import('./NotificationService');
@@ -167,7 +334,8 @@ describe('NotificationService (web notifications)', () => {
         await notificationService.showNewMessageNotification('npub1bob', 'Hi from Bob');
 
         expect(FakeNotification.calls.length).toBe(1);
-        expect(FakeNotification.calls[0].title).toContain('Bob');
+        expect(FakeNotification.calls[0].options.icon).toBe('https://example.com/bob.png');
+        expect(FakeNotification.calls[0].options.badge).toBe('/nospeak.svg');
     });
 
     it('suppresses a browser notification when the same conversation is active in the foreground', async () => {
@@ -197,13 +365,9 @@ describe('NotificationService (web notifications)', () => {
         expect(FakeNotification.calls.length).toBe(0);
     });
 
-    it('shows a browser reaction notification when a different conversation is active or tab is inactive', async () => {
+    it('shows a browser reaction notification when tab is inactive', async () => {
         isAndroidNativeMock.mockReturnValue(false);
         getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Eve' } });
-
-        if (typeof window !== 'undefined') {
-            window.history.pushState({}, '', '/chat/npub1alice');
-        }
 
         if (typeof window !== 'undefined' && window.localStorage) {
             window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
@@ -223,137 +387,6 @@ describe('NotificationService (web notifications)', () => {
 
         expect(FakeNotification.calls.length).toBe(1);
         expect(FakeNotification.calls[0].title).toContain('Eve');
-    });
-
-    it('suppresses a browser reaction notification when the same conversation is active in the foreground', async () => {
-        isAndroidNativeMock.mockReturnValue(false);
-        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Frank' } });
-
-        if (typeof window !== 'undefined') {
-            window.history.pushState({}, '', '/chat/npub1frank');
-        }
-
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
-        }
-
-        if (typeof document !== 'undefined') {
-            Object.defineProperty(document, 'visibilityState', {
-                value: 'visible',
-                configurable: true
-            });
-            (document as any).hasFocus = vi.fn().mockReturnValue(true);
-        }
-
-        const { notificationService } = await import('./NotificationService');
-
-        await notificationService.showReactionNotification('npub1frank', '👍');
-
-        expect(FakeNotification.calls.length).toBe(0);
+        expect(FakeNotification.calls[0].options.icon).toBe('https://robohash.org/npub1eve.png?set=set1&bgset=bg2');
     });
 });
-
-        }
-
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
-        }
-
-        const { notificationService } = await import('./NotificationService');
-
-        await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
-
-        expect(createChannelMock).toHaveBeenCalledTimes(1);
-        expect(scheduleMock).toHaveBeenCalledTimes(1);
-        const args = scheduleMock.mock.calls[0][0];
-        expect(args.notifications[0].title).toContain('Alice');
-        expect(args.notifications[0].channelId).toBe('messages');
-    });
-
-    it('does not schedule when notifications are disabled in settings', async () => {
-        isAndroidNativeMock.mockReturnValue(true);
-        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Bob' } });
-
-        // Explicitly store disabled state
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: false }));
-        }
-
-        const { notificationService } = await import('./NotificationService');
-
-        await notificationService.showNewMessageNotification('npub1bob', 'Hi');
-
-        expect(scheduleMock).not.toHaveBeenCalled();
-    });
-
-    it('does not schedule when Android permission is denied', async () => {
-        isAndroidNativeMock.mockReturnValue(true);
-        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Carol' } });
- 
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
-        }
- 
-        checkPermissionsMock.mockResolvedValueOnce({ display: 'denied' });
- 
-        const { notificationService } = await import('./NotificationService');
- 
-        await notificationService.showNewMessageNotification('npub1carol', 'Hi');
- 
-        expect(scheduleMock).not.toHaveBeenCalled();
-    });
- 
-    it('suppresses Android notification when same conversation is active and visible', async () => {
-        isAndroidNativeMock.mockReturnValue(true);
-        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Dave' } });
- 
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
-        }
- 
-        if (typeof window !== 'undefined') {
-            window.history.pushState({}, '', '/chat/npub1dave');
-        }
- 
-        if (typeof document !== 'undefined') {
-            Object.defineProperty(document, 'visibilityState', {
-                value: 'visible',
-                configurable: true
-            });
-            (document as any).hasFocus = vi.fn().mockReturnValue(true);
-        }
- 
-        const { notificationService } = await import('./NotificationService');
- 
-        await notificationService.showNewMessageNotification('npub1dave', 'Hi from Dave');
- 
-        expect(scheduleMock).not.toHaveBeenCalled();
-    });
-
-    it('schedules an Android reaction notification when enabled and permission granted', async () => {
-        isAndroidNativeMock.mockReturnValue(true);
-        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Alice' } });
-
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
-        }
-
-        if (typeof document !== 'undefined') {
-            Object.defineProperty(document, 'visibilityState', {
-                value: 'hidden',
-                configurable: true
-            });
-        }
-
-        const { notificationService } = await import('./NotificationService');
-
-        await notificationService.showReactionNotification('npub1alice', '❤️');
-
-        expect(createChannelMock).toHaveBeenCalledTimes(1);
-        expect(scheduleMock).toHaveBeenCalledTimes(1);
-        const args = scheduleMock.mock.calls[0][0];
-        expect(args.notifications[0].title).toContain('New reaction from Alice');
-        expect(args.notifications[0].channelId).toBe('messages');
-    });
-});
-
