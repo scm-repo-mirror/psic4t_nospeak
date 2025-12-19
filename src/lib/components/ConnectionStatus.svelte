@@ -26,7 +26,7 @@
             }`}
         ></div>
         <span class="typ-meta">
-            {$t('connection.relaysLabel')} {$connectionStats.connected}/{$connectionStats.total} • {$t('connection.authLabel')} {$connectionStats.authAuthenticatedConnected}/{$connectionStats.authRequiredConnected}{#if $connectionStats.authFailedConnected > 0} • {$t('connection.authFailedLabel')} {$connectionStats.authFailedConnected}{/if}
+            {$t('connection.relaysLabel')} {$connectionStats.connected}/{$connectionStats.total}
         </span>
     </Button>
 </div>
