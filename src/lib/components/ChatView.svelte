@@ -116,6 +116,7 @@
     }
   });
 
+  let chatRoot: HTMLElement;
   let chatContainer: HTMLElement;
   let inputElement: HTMLTextAreaElement;
   let currentTime = $state(Date.now());
@@ -423,10 +424,27 @@
     // If we are reasonably close to the bottom, keep scrolling down as media loads
     // This fixes the issue where loading images push the content up
     const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
-    
+
     if (distanceFromBottom < 1000) {
       scrollToBottom();
     }
+  }
+
+  function isPageKey(key: string): boolean {
+    return key === 'PageDown' || key === 'PageUp' || key === 'End' || key === 'Home';
+  }
+
+  function activateMessageWindow(e: PointerEvent) {
+    if (!chatContainer) return;
+
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+
+    if (target.closest('a, button, input, textarea, select, [role="button"], [role="menuitem"], [contenteditable="true"]')) {
+      return;
+    }
+
+    chatContainer.focus({ preventScroll: true });
   }
 
   function handlePageKeyScroll(e: KeyboardEvent) {
@@ -460,21 +478,39 @@
       }
   }
 
-  // Global listener so page keys work while typing
+  // Global listener so page keys scroll the message list while chat is active
+  // (but never while the message input textarea is focused).
   $effect(() => {
       if (typeof window === 'undefined') return;
 
       const onKeydown = (e: KeyboardEvent) => {
           if (!partnerNpub || !chatContainer) return;
+          if (!isPageKey(e.key)) return;
+
+          if (showMediaPreview) {
+              return;
+          }
+
+          if (typeof document !== 'undefined') {
+              const modal = document.querySelector('[aria-modal="true"]');
+              if (modal) {
+                  return;
+              }
+          }
 
           const activeEl = typeof document !== 'undefined'
               ? (document.activeElement as HTMLElement | null)
               : null;
 
-          const isInputFocused = activeEl === inputElement;
-          const isInsideChat = !!activeEl && chatContainer.contains(activeEl);
+          if (activeEl === inputElement) {
+              return;
+          }
 
-          if (!isInputFocused && !isInsideChat) {
+          const isChatActive = !activeEl ||
+              (typeof document !== 'undefined' && activeEl === document.body) ||
+              (!!chatRoot && chatRoot.contains(activeEl));
+
+          if (!isChatActive) {
               return;
           }
 
@@ -986,7 +1022,7 @@
   {/if}
 </svelte:head>
 
-<div class="relative flex flex-col h-full overflow-hidden bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
+<div bind:this={chatRoot} class="relative flex flex-col h-full overflow-hidden bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
   {#if showMediaPreview && pendingMediaFile && pendingMediaType}
     <div
       class={`fixed inset-0 z-30 flex items-end md:items-center justify-center bg-black/40 md:pb-4 ${isAndroidShell ? '' : 'px-4'}`}
@@ -1151,8 +1187,10 @@
 
   <div
     bind:this={chatContainer}
+    tabindex="-1"
     class="flex-1 overflow-y-auto px-4 pb-28 pt-20 space-y-4 custom-scrollbar"
     onscroll={handleScroll}
+    onpointerdown={activateMessageWindow}
   >
     {#if canRequestNetworkHistory && displayMessages.length > 0}
         <div class="flex justify-center p-2">
