@@ -234,46 +234,56 @@
                 </svg>
             </Button>
         </div>
-        <div class="px-2 pb-3 flex justify-between items-center">
-             <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
-
-             <div class="flex items-center -space-x-px">
-                  {#if canScanQr}
-                       <Button
-                           onclick={() => {
-                               (modals as any).showScanContactQrModal.set(true);
-  
-                           }}
-                          variant="glass"
-                          size="icon"
-                          aria-label={$t('contacts.scanQrAria')}
-                          class="rounded-r-none relative z-10"
-                      >
-                          <svg
-                              class="w-5 h-5"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="2"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                          >
-                              <line x1="12" y1="5" x2="12" y2="19" />
-                              <line x1="5" y1="12" x2="19" y2="12" />
-                          </svg>
-                      </Button>
-                  {/if}
-
-                  <Button 
-                      onclick={() => {
-                          modals.showManageContactsModal.set(true);
-                      }}
-                     variant="glass"
-                     class={canScanQr ? "rounded-l-none" : ""}
+            <div class="px-2 pb-3 flex justify-between items-center">
+                 <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
+ 
+                 <div
+                     class="inline-flex items-stretch rounded-full overflow-hidden shadow-sm
+                           bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)]"
                  >
-                     {$t('contacts.manage')}
-                 </Button>
-             </div>
+                   {#if canScanQr}
+                        <Button
+                            onclick={() => {
+                                (modals as any).showScanContactQrModal.set(true);
+   
+                            }}
+                           variant="glass"
+                           size="icon"
+                           aria-label={$t('contacts.scanQrAria')}
+                           class="rounded-none rounded-l-full bg-transparent dark:bg-transparent shadow-none hover:shadow-none focus-visible:z-10"
+                       >
+                           <svg
+                               class="w-5 h-5"
+                               viewBox="0 0 24 24"
+                               fill="none"
+                               stroke="currentColor"
+                               stroke-width="2"
+                               stroke-linecap="round"
+                               stroke-linejoin="round"
+                           >
+                               <line x1="12" y1="5" x2="12" y2="19" />
+                               <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                        </Button>
+                        <div
+                            aria-hidden="true"
+                            class="w-px self-stretch bg-white/80 dark:bg-slate-900/80"
+                        ></div>
+                    {/if}
+ 
+                   <Button 
+                       onclick={() => {
+                           modals.showManageContactsModal.set(true);
+                       }}
+                      variant="glass"
+                      class={`
+                           ${canScanQr ? 'rounded-none rounded-r-full' : 'rounded-full'}
+                            bg-transparent dark:bg-transparent shadow-none hover:shadow-none focus-visible:z-10
+                      `}
+                  >
+                      {$t('contacts.manage')}
+                  </Button>
+              </div>
         </div>
 
 
@@ -313,7 +323,7 @@
                 class:select-none={isAndroidApp}
                 class={`p-3 mx-3 my-1.5 rounded-2xl cursor-pointer flex items-center gap-3 transition-all duration-150 ease-out group border border-white/20 dark:border-transparent active:scale-[0.98] ${
                     page.url.pathname.includes(contact.npub) 
-                    ? 'bg-blue-50/20 dark:bg-blue-900/50 shadow-sm dark:border-white/10' 
+                    ? 'bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)] shadow-sm border-[rgb(var(--color-lavender-rgb)/0.18)] dark:border-[rgb(var(--color-lavender-rgb)/0.24)]' 
                     : 'bg-white/10 dark:bg-transparent hover:bg-white/20 dark:hover:bg-slate-800/70 hover:shadow-lg dark:hover:border-white/10'
                 }`}
             >
