@@ -19,6 +19,24 @@
         [key: string]: any;
     }>();
 
+    const trackClasses = $derived(`
+        relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer items-center rounded-full border-2 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-lavender-rgb)/0.45)] active:scale-95
+        ${checked 
+            ? 'bg-[rgb(var(--color-lavender-rgb)/0.20)] border-[rgb(var(--color-lavender-rgb)/0.30)]' 
+            : 'bg-gray-200/50 dark:bg-slate-800/50 border-transparent hover:bg-gray-300/50 dark:hover:bg-slate-700/50'
+        }
+        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+        ${className}
+    `);
+
+    const thumbClasses = $derived(`
+        pointer-events-none flex items-center justify-center rounded-full shadow-sm transition-all duration-200 ease-out
+        ${checked 
+            ? 'h-6 w-6 translate-x-7 bg-[rgb(var(--color-lavender-rgb))]' 
+            : 'h-4 w-4 translate-x-1 bg-gray-400 dark:bg-slate-500'
+        }
+    `);
+
     function handleClick(e: MouseEvent) {
         if (disabled) return;
         hapticSelection();
@@ -35,27 +53,24 @@
     aria-label={label}
     {disabled}
     onclick={handleClick}
-    class={`
-        relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:scale-95
-        ${checked 
-            ? 'bg-blue-500/10 border-blue-500/30 shadow-sm' 
-            : 'bg-transparent border-gray-300 dark:border-slate-700'
-        }
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-        ${className}
-    `}
+    class={trackClasses}
     {...rest}
 >
     <span class="sr-only">{label}</span>
     <span
         aria-hidden="true"
-        class={`
-            pointer-events-none inline-block h-5 w-5 transform rounded-full shadow-sm transition-all duration-200 ease-in-out
-            ${checked 
-                ? 'translate-x-[22px] bg-blue-400 dark:bg-blue-400' 
-                : 'translate-x-1 bg-blue-500/30 dark:bg-blue-400/20'
-            }
-            translate-y-[3px]
-        `}
-    ></span>
+        class={thumbClasses}
+    >
+        {#if checked}
+            <svg 
+                class="h-4 w-4 text-[rgb(var(--color-base-rgb))] transition-all duration-200"
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                stroke-width="4"
+            >
+                <path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        {/if}
+    </span>
 </button>
