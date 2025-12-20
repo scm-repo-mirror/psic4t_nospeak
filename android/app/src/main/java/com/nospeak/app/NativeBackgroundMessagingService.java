@@ -26,7 +26,9 @@ import android.os.Looper;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.Person;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.IconCompat;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -98,6 +100,7 @@ public class NativeBackgroundMessagingService extends Service {
 
     private final Map<String, Integer> conversationActivityCounts = new HashMap<>();
     private final Map<String, String> conversationLastPreview = new HashMap<>();
+    private final Map<String, Long> conversationLastTimestampMs = new HashMap<>();
 
     private final Map<String, Bitmap> avatarBitmaps = new HashMap<>();
     private final Map<String, String> avatarBitmapKeys = new HashMap<>();
@@ -212,12 +215,13 @@ public class NativeBackgroundMessagingService extends Service {
         eoseFallbackCallbacks.clear();
         conversationActivityCounts.clear();
         conversationLastPreview.clear();
+        conversationLastTimestampMs.clear();
         avatarBitmaps.clear();
         avatarBitmapKeys.clear();
         avatarFetchInFlight.clear();
         retryAttempts.clear();
     }
-
+ 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -503,6 +507,24 @@ public class NativeBackgroundMessagingService extends Service {
         String pictureUrl = identity != null ? identity.pictureUrl : null;
 
         Bitmap avatar = resolveCachedAvatarBitmap(partnerPubkeyHex, pictureUrl);
+        long timestampMs = getConversationLastTimestampMs(partnerPubkeyHex);
+
+        Person userPerson = new Person.Builder()
+                .setName("You")
+                .build();
+
+        Person.Builder senderPersonBuilder = new Person.Builder()
+                .setName(title)
+                .setKey(partnerPubkeyHex);
+        if (avatar != null) {
+            senderPersonBuilder.setIcon(IconCompat.createWithBitmap(avatar));
+        }
+        Person senderPerson = senderPersonBuilder.build();
+
+        NotificationCompat.MessagingStyle messagingStyle = new NotificationCompat.MessagingStyle(userPerson)
+                .setConversationTitle(title)
+                .setGroupConversation(false);
+        messagingStyle.addMessage(new NotificationCompat.MessagingStyle.Message(body, timestampMs, senderPerson));
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
                 .setContentTitle(title)
@@ -510,7 +532,8 @@ public class NativeBackgroundMessagingService extends Service {
                 .setSmallIcon(R.drawable.ic_stat_nospeak)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setStyle(messagingStyle);
 
         if (avatar != null) {
             builder.setLargeIcon(avatar);
@@ -538,40 +561,41 @@ public class NativeBackgroundMessagingService extends Service {
     }
 
     private String buildCombinedActivityBody(String partnerPubkeyHex, String latestPreview) {
-        int nextCount;
+        long now = System.currentTimeMillis();
         synchronized (conversationActivityCounts) {
             Integer current = conversationActivityCounts.get(partnerPubkeyHex);
-            nextCount = current != null ? current + 1 : 1;
+            int nextCount = current != null ? current + 1 : 1;
             conversationActivityCounts.put(partnerPubkeyHex, nextCount);
             conversationLastPreview.put(partnerPubkeyHex, latestPreview);
+            conversationLastTimestampMs.put(partnerPubkeyHex, now);
         }
 
-        if (nextCount <= 1) {
-            return latestPreview;
-        }
-
-        return nextCount + " new items · " + latestPreview;
+        return latestPreview;
     }
 
     private String buildCurrentActivityBody(String partnerPubkeyHex) {
-        int count;
         String preview;
 
         synchronized (conversationActivityCounts) {
-            Integer current = conversationActivityCounts.get(partnerPubkeyHex);
-            count = current != null ? current : 1;
             preview = conversationLastPreview.get(partnerPubkeyHex);
         }
 
         if (preview == null || preview.trim().isEmpty()) {
-            preview = "New message";
+            return "New message";
         }
 
-        if (count <= 1) {
-            return preview;
+        return preview;
+    }
+
+    private long getConversationLastTimestampMs(String partnerPubkeyHex) {
+        synchronized (conversationActivityCounts) {
+            Long timestamp = conversationLastTimestampMs.get(partnerPubkeyHex);
+            if (timestamp != null) {
+                return timestamp;
+            }
         }
 
-        return count + " new items · " + preview;
+        return System.currentTimeMillis();
     }
 
     private void refreshConversationActivityNotification(String partnerPubkeyHex) {
@@ -597,6 +621,24 @@ public class NativeBackgroundMessagingService extends Service {
         String pictureUrl = identity != null ? identity.pictureUrl : null;
 
         Bitmap avatar = resolveCachedAvatarBitmap(partnerPubkeyHex, pictureUrl);
+        long timestampMs = getConversationLastTimestampMs(partnerPubkeyHex);
+
+        Person userPerson = new Person.Builder()
+                .setName("You")
+                .build();
+
+        Person.Builder senderPersonBuilder = new Person.Builder()
+                .setName(title)
+                .setKey(partnerPubkeyHex);
+        if (avatar != null) {
+            senderPersonBuilder.setIcon(IconCompat.createWithBitmap(avatar));
+        }
+        Person senderPerson = senderPersonBuilder.build();
+
+        NotificationCompat.MessagingStyle messagingStyle = new NotificationCompat.MessagingStyle(userPerson)
+                .setConversationTitle(title)
+                .setGroupConversation(false);
+        messagingStyle.addMessage(new NotificationCompat.MessagingStyle.Message(body, timestampMs, senderPerson));
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
                 .setContentTitle(title)
@@ -604,7 +646,8 @@ public class NativeBackgroundMessagingService extends Service {
                 .setSmallIcon(R.drawable.ic_stat_nospeak)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setStyle(messagingStyle);
 
         if (avatar != null) {
             builder.setLargeIcon(avatar);
