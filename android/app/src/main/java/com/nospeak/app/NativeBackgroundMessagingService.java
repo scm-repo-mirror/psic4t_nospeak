@@ -22,6 +22,7 @@ import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.util.Log;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -30,6 +31,8 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.Person;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.pm.ShortcutInfoCompat;
+import androidx.core.content.pm.ShortcutManagerCompat;
 import androidx.core.graphics.drawable.IconCompat;
 
 import org.json.JSONArray;
@@ -62,6 +65,8 @@ import okio.ByteString;
 
 public class NativeBackgroundMessagingService extends Service {
 
+
+    private static final String LOG_TAG = "NativeBgMsgService";
 
     public static final String ACTION_START = "com.nospeak.app.NATIVE_BG_MSG_START";
     public static final String ACTION_UPDATE = "com.nospeak.app.NATIVE_BG_MSG_UPDATE";
@@ -107,6 +112,9 @@ public class NativeBackgroundMessagingService extends Service {
     private final Map<String, Bitmap> avatarBitmaps = new HashMap<>();
     private final Map<String, String> avatarBitmapKeys = new HashMap<>();
     private final Set<String> avatarFetchInFlight = new HashSet<>();
+
+    private final Set<String> conversationShortcutsPublished = new HashSet<>();
+    private final Map<String, String> conversationShortcutAvatarKeys = new HashMap<>();
 
     private String currentPubkeyHex;
     private String currentMode = "amber";
@@ -221,6 +229,8 @@ public class NativeBackgroundMessagingService extends Service {
         avatarBitmaps.clear();
         avatarBitmapKeys.clear();
         avatarFetchInFlight.clear();
+        conversationShortcutsPublished.clear();
+        conversationShortcutAvatarKeys.clear();
         retryAttempts.clear();
     }
  
@@ -231,48 +241,44 @@ public class NativeBackgroundMessagingService extends Service {
                 return;
             }
 
-            // Clean up any legacy foreground-service channel that may still be marked as badgeable
-            // from earlier builds.
-            manager.deleteNotificationChannel("nospeak_background_messaging");
-
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "nospeak background messaging",
-                    NotificationManager.IMPORTANCE_MIN
-            );
-            channel.setDescription("Keeps nospeak connected to read relays in the background");
-            // Do not show app icon badge for the persistent foreground-service notification.
-            channel.setShowBadge(false);
-
-            // Testing-stage behavior: recreate the messages channel so default importance/sound/vibration
-            // changes take effect immediately.
-            manager.deleteNotificationChannel(CHANNEL_MESSAGES_ID);
-
-            NotificationChannel messagesChannel = new NotificationChannel(
-                    CHANNEL_MESSAGES_ID,
-                    "nospeak background messages",
-                    NotificationManager.IMPORTANCE_HIGH
-            );
-            messagesChannel.setDescription("Notifications for new encrypted messages received in background");
-            // Allow app icon badges for actual message notifications.
-            messagesChannel.setShowBadge(true);
-
-            messagesChannel.enableVibration(true);
-            messagesChannel.setVibrationPattern(new long[] { 0, 250, 250, 250 });
-            messagesChannel.enableLights(true);
-            messagesChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-
-            Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-            if (sound != null) {
-                AudioAttributes attrs = new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build();
-                messagesChannel.setSound(sound, attrs);
+            if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+                NotificationChannel channel = new NotificationChannel(
+                        CHANNEL_ID,
+                        "nospeak background messaging",
+                        NotificationManager.IMPORTANCE_MIN
+                );
+                channel.setDescription("Keeps nospeak connected to read relays in the background");
+                // Do not show app icon badge for the persistent foreground-service notification.
+                channel.setShowBadge(false);
+                manager.createNotificationChannel(channel);
             }
 
-            manager.createNotificationChannel(channel);
-            manager.createNotificationChannel(messagesChannel);
+            if (manager.getNotificationChannel(CHANNEL_MESSAGES_ID) == null) {
+                NotificationChannel messagesChannel = new NotificationChannel(
+                        CHANNEL_MESSAGES_ID,
+                        "nospeak background messages",
+                        NotificationManager.IMPORTANCE_HIGH
+                );
+                messagesChannel.setDescription("Notifications for new encrypted messages received in background");
+                // Allow app icon badges for actual message notifications.
+                messagesChannel.setShowBadge(true);
+
+                messagesChannel.enableVibration(true);
+                messagesChannel.setVibrationPattern(new long[] { 0, 250, 250, 250 });
+                messagesChannel.enableLights(true);
+                messagesChannel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+
+                Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                if (sound != null) {
+                    AudioAttributes attrs = new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build();
+                    messagesChannel.setSound(sound, attrs);
+                }
+
+                manager.createNotificationChannel(messagesChannel);
+            }
         }
     }
  
@@ -550,20 +556,19 @@ public class NativeBackgroundMessagingService extends Service {
                 .setGroupConversation(false);
         messagingStyle.addMessage(new NotificationCompat.MessagingStyle.Message(body, timestampMs, senderPerson));
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setSmallIcon(R.drawable.ic_stat_nospeak)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true)
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setStyle(messagingStyle);
+        String conversationId = buildConversationId(partnerPubkeyHex);
+        String avatarKey = pictureUrl != null ? computeAvatarKey(pictureUrl.trim()) : null;
+        boolean shortcutAvailable = ensureConversationShortcut(partnerPubkeyHex, title, senderPerson, avatar, avatarKey);
 
-        if (avatar != null) {
-            builder.setLargeIcon(avatar);
-        }
+        NotificationCompat.Builder builder = buildConversationNotificationBuilder(
+                title,
+                body,
+                pendingIntent,
+                senderPerson,
+                messagingStyle,
+                avatar,
+                shortcutAvailable ? conversationId : null
+        );
 
         manager.notify(notificationId, builder.build());
 
@@ -572,18 +577,152 @@ public class NativeBackgroundMessagingService extends Service {
         }
     }
 
-    private PendingIntent buildChatPendingIntent(String partnerPubkeyHex, int requestCode) {
+    private static String buildConversationId(String partnerPubkeyHex) {
+        return "chat_" + partnerPubkeyHex;
+    }
+
+    private Intent buildChatIntent(String partnerPubkeyHex) {
         Intent intent = new Intent(this, MainActivity.class);
+        intent.setAction(Intent.ACTION_VIEW);
+        intent.addCategory(Intent.CATEGORY_DEFAULT);
+        intent.setData(Uri.parse("nospeak://chat/" + partnerPubkeyHex));
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent.putExtra(EXTRA_ROUTE_KIND, ROUTE_KIND_CHAT);
         intent.putExtra(EXTRA_ROUTE_PARTNER_PUBKEY_HEX, partnerPubkeyHex);
+        return intent;
+    }
 
+    private PendingIntent buildChatPendingIntent(String partnerPubkeyHex, int requestCode) {
         return PendingIntent.getActivity(
                 this,
                 requestCode,
-                intent,
+                buildChatIntent(partnerPubkeyHex),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
+    }
+
+    private boolean ensureConversationShortcut(
+            String partnerPubkeyHex,
+            String title,
+            Person senderPerson,
+            Bitmap avatar,
+            String avatarKey
+    ) {
+        boolean wasPublished;
+        synchronized (conversationShortcutsPublished) {
+            wasPublished = conversationShortcutsPublished.contains(partnerPubkeyHex);
+        }
+
+        boolean shouldPublish = !wasPublished;
+
+        if (avatarKey != null && !avatarKey.isEmpty()) {
+            synchronized (conversationShortcutAvatarKeys) {
+                String existingKey = conversationShortcutAvatarKeys.get(partnerPubkeyHex);
+                if (!avatarKey.equals(existingKey)) {
+                    conversationShortcutAvatarKeys.put(partnerPubkeyHex, avatarKey);
+                    shouldPublish = true;
+                }
+            }
+        }
+
+        if (!shouldPublish) {
+            return true;
+        }
+
+        String shortcutId = buildConversationId(partnerPubkeyHex);
+        ShortcutInfoCompat.Builder shortcutBuilder = new ShortcutInfoCompat.Builder(this, shortcutId)
+                .setShortLabel(title)
+                .setIntent(buildChatIntent(partnerPubkeyHex))
+                .setLongLived(true)
+                .setPerson(senderPerson);
+
+        if (avatar != null) {
+            shortcutBuilder.setIcon(IconCompat.createWithBitmap(avatar));
+        }
+
+        try {
+            ShortcutManagerCompat.pushDynamicShortcut(this, shortcutBuilder.build());
+        } catch (RuntimeException e) {
+            Log.w(LOG_TAG, "Failed to publish conversation shortcut", e);
+            return wasPublished;
+        }
+
+        synchronized (conversationShortcutsPublished) {
+            conversationShortcutsPublished.add(partnerPubkeyHex);
+        }
+
+        return true;
+    }
+
+    private Notification buildRedactedPublicConversationNotification(
+            String title,
+            PendingIntent pendingIntent,
+            Bitmap avatar,
+            @Nullable String conversationId,
+            Person senderPerson
+    ) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
+                .setContentTitle(title)
+                .setContentText("New message")
+                .setSmallIcon(R.drawable.ic_stat_nospeak)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .addPerson(senderPerson);
+
+        if (conversationId != null && !conversationId.isEmpty()) {
+            try {
+                builder.setShortcutId(conversationId);
+            } catch (RuntimeException e) {
+                Log.w(LOG_TAG, "Failed to bind public notification to shortcut", e);
+            }
+        }
+
+        if (avatar != null) {
+            builder.setLargeIcon(avatar);
+        }
+
+        return builder.build();
+    }
+
+    private NotificationCompat.Builder buildConversationNotificationBuilder(
+            String title,
+            String body,
+            PendingIntent pendingIntent,
+            Person senderPerson,
+            NotificationCompat.MessagingStyle messagingStyle,
+            Bitmap avatar,
+            @Nullable String conversationId
+    ) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setSmallIcon(R.drawable.ic_stat_nospeak)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .addPerson(senderPerson)
+                .setStyle(messagingStyle);
+
+        builder.setPublicVersion(buildRedactedPublicConversationNotification(title, pendingIntent, avatar, conversationId, senderPerson));
+
+        if (conversationId != null && !conversationId.isEmpty()) {
+            try {
+                builder.setShortcutId(conversationId);
+            } catch (RuntimeException e) {
+                Log.w(LOG_TAG, "Failed to bind notification to shortcut", e);
+            }
+        }
+
+        if (avatar != null) {
+            builder.setLargeIcon(avatar);
+        }
+
+        return builder;
     }
 
     private String buildCombinedActivityBody(String partnerPubkeyHex, String latestPreview) {
@@ -666,20 +805,19 @@ public class NativeBackgroundMessagingService extends Service {
                 .setGroupConversation(false);
         messagingStyle.addMessage(new NotificationCompat.MessagingStyle.Message(body, timestampMs, senderPerson));
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setSmallIcon(R.drawable.ic_stat_nospeak)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true)
-                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setStyle(messagingStyle);
+        String conversationId = buildConversationId(partnerPubkeyHex);
+        String avatarKey = pictureUrl != null ? computeAvatarKey(pictureUrl.trim()) : null;
+        boolean shortcutAvailable = ensureConversationShortcut(partnerPubkeyHex, title, senderPerson, avatar, avatarKey);
 
-        if (avatar != null) {
-            builder.setLargeIcon(avatar);
-        }
+        NotificationCompat.Builder builder = buildConversationNotificationBuilder(
+                title,
+                body,
+                pendingIntent,
+                senderPerson,
+                messagingStyle,
+                avatar,
+                shortcutAvailable ? conversationId : null
+        );
 
         manager.notify(notificationId, builder.build());
     }
