@@ -331,24 +331,19 @@
   let bottomSheetDragStartY = 0;
  
    function getCategoryCardClasses(category: Category): string {
-
     const base =
-      "w-full text-left my-1.5 rounded-2xl px-4 py-3 flex items-center justify-between transition-all duration-150 ease-out bg-white/10 dark:bg-slate-800/40 border border-white/20 dark:border-white/10 hover:bg-white/20 dark:hover:bg-slate-800/70 hover:shadow-lg active:scale-[0.98]";
-
-    if (isAndroidApp) {
-      return base + " text-gray-900 dark:text-slate-100";
-    }
+      "w-full text-left my-1.5 rounded-full px-4 py-3 flex items-center justify-between transition-all duration-200 ease-out active:scale-[0.98]";
 
     if (activeCategory === category) {
       return (
         base +
-        " text-gray-900 dark:text-white md:bg-blue-50/10 md:dark:bg-blue-900/40 md:font-medium"
+        " bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)] text-[rgb(var(--color-text-rgb)/0.92)] shadow-sm hover:shadow hover:bg-[rgb(var(--color-lavender-rgb)/0.26)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.30)] active:bg-[rgb(var(--color-lavender-rgb)/0.32)] dark:active:bg-[rgb(var(--color-lavender-rgb)/0.36)]"
       );
     }
 
     return (
       base +
-      " text-gray-700 dark:text-slate-200 md:text-gray-600 md:dark:text-slate-400 md:hover:bg-gray-100/80 md:dark:hover:bg-slate-800/90 md:hover:text-gray-900 md:dark:hover:text-slate-200"
+      " bg-transparent text-gray-500 dark:text-gray-400 hover:bg-[rgb(var(--color-lavender-rgb)/0.12)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.16)] hover:text-gray-900 dark:hover:text-white"
     );
   }
 
@@ -542,7 +537,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -558,7 +553,7 @@
                   ></path>
                 </svg>
               </div>
-              <span class="typ-section text-gray-900 dark:text-slate-100">
+              <span class="typ-section">
                 {$t("settings.categories.general")}
               </span>
             </div>
@@ -583,7 +578,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -597,7 +592,7 @@
                   <circle cx="12" cy="7" r="4"></circle>
                 </svg>
               </div>
-              <span class="typ-section text-gray-900 dark:text-slate-100">
+              <span class="typ-section">
                 {$t("settings.categories.profile")}
               </span>
             </div>
@@ -622,7 +617,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -638,7 +633,7 @@
                   <path d="M8 12h4M14 12h4M12 8v2"></path>
                 </svg>
               </div>
-              <span class="typ-section text-gray-900 dark:text-slate-100">
+              <span class="typ-section">
                 {$t("settings.categories.messagingRelays")}
               </span>
             </div>
@@ -663,7 +658,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -677,7 +672,7 @@
                   <path d="m9 12 2 2 4-4"></path>
                 </svg>
               </div>
-              <span class="typ-section text-gray-900 dark:text-slate-100">
+              <span class="typ-section">
                 {$t("settings.categories.security")}
               </span>
             </div>
@@ -702,7 +697,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-white/20 dark:bg-slate-900/40 flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -717,7 +712,7 @@
                   <line x1="12" y1="8" x2="12.01" y2="8"></line>
                 </svg>
               </div>
-              <span class="typ-section text-gray-900 dark:text-slate-100">
+              <span class="typ-section">
                 {$t("settings.categories.about")}
               </span>
             </div>
