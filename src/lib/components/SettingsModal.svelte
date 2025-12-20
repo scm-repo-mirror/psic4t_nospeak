@@ -537,7 +537,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-6 h-6 flex items-center justify-center text-gray-700 dark:text-slate-100 flex-shrink-0">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -578,7 +578,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-6 h-6 flex items-center justify-center text-gray-700 dark:text-slate-100 flex-shrink-0">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -617,7 +617,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-6 h-6 flex items-center justify-center text-gray-700 dark:text-slate-100 flex-shrink-0">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -658,7 +658,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-6 h-6 flex items-center justify-center text-gray-700 dark:text-slate-100 flex-shrink-0">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
@@ -697,7 +697,7 @@
             }}
           >
             <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-full bg-[rgb(var(--color-lavender-rgb)/0.15)] dark:bg-[rgb(var(--color-lavender-rgb)/0.20)] flex items-center justify-center text-gray-700 dark:text-slate-100">
+              <div class="w-6 h-6 flex items-center justify-center text-gray-700 dark:text-slate-100 flex-shrink-0">
                 <svg
                   class="w-5 h-5"
                   viewBox="0 0 24 24"
