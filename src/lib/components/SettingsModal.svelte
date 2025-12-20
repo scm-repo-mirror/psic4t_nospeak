@@ -9,7 +9,7 @@
   import { getCurrentThemeMode, setThemeMode } from "$lib/stores/theme.svelte";
   import type { ThemeMode } from "$lib/stores/theme";
   import MediaUploadButton from "./MediaUploadButton.svelte";
-  import { isAndroidNative, nativeDialogService } from "$lib/core/NativeDialogs";
+  import { isAndroidNative, isMobileWeb, nativeDialogService } from "$lib/core/NativeDialogs";
   import { applyAndroidBackgroundMessaging } from "$lib/core/BackgroundMessaging";
   import { fade } from "svelte/transition";
   import { glassModal } from "$lib/utils/transitions";
@@ -30,6 +30,7 @@
   }>();
 
   const isAndroidApp = isAndroidNative();
+  const isMobile = isAndroidApp || isMobileWeb();
 
   let notificationsEnabled = $state(false);
   let urlPreviewsEnabled = $state(true);
@@ -40,7 +41,7 @@
   type Category = "General" | "Profile" | "Messaging Relays" | "About" | "Security";
   type AuthMethod = "local" | "nip07" | "amber" | "nip46" | "unknown";
 
-  let activeCategory = $state<Category>("General");
+  let activeCategory = $state<Category | null>(isMobile ? null : "General");
 
   let themeMode = $state<ThemeMode>("system");
   let languageValue = $state<Language>("en");
@@ -200,7 +201,7 @@
 
   $effect(() => {
     if (!isOpen) {
-      activeCategory = "General";
+      activeCategory = isMobile ? null : "General";
       showMobileContent = false;
     }
   });
