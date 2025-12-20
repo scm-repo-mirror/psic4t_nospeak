@@ -20,6 +20,7 @@
        import { get } from 'svelte/store';
        import { isAndroidNative } from '$lib/core/NativeDialogs';
     import Button from '$lib/components/ui/Button.svelte';
+    import SplitButton from '$lib/components/ui/SplitButton.svelte';
 
       
  
@@ -235,51 +236,33 @@
             <div class="px-2 pb-3 flex justify-between items-center">
                  <div class="typ-section dark:text-white">{$t('contacts.title')}</div>
  
-                 <div
-                     class="inline-flex items-stretch rounded-full overflow-hidden shadow-sm
-                           bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)]"
-                 >
-                   {#if canScanQr}
-                        <Button
-                            onclick={() => {
-                                (modals as any).showScanContactQrModal.set(true);
-   
-                             }}
-                            size="icon"
-                           aria-label={$t('contacts.scanQrAria')}
-                           class="rounded-none rounded-l-full bg-transparent dark:bg-transparent shadow-none hover:shadow-none focus-visible:z-10"
-                       >
-                           <svg
-                               class="w-5 h-5"
-                               viewBox="0 0 24 24"
-                               fill="none"
-                               stroke="currentColor"
-                               stroke-width="2"
-                               stroke-linecap="round"
-                               stroke-linejoin="round"
-                           >
-                               <line x1="12" y1="5" x2="12" y2="19" />
-                               <line x1="5" y1="12" x2="19" y2="12" />
-                            </svg>
-                        </Button>
-                        <div
-                            aria-hidden="true"
-                            class="w-px self-stretch bg-white/80 dark:bg-slate-900/80"
-                        ></div>
-                    {/if}
- 
-                   <Button 
-                       onclick={() => {
-                           modals.showManageContactsModal.set(true);
-                        }}
-                       class={`
-                           ${canScanQr ? 'rounded-none rounded-r-full' : 'rounded-full'}
-                            bg-transparent dark:bg-transparent shadow-none hover:shadow-none focus-visible:z-10
-                      `}
-                  >
-                      {$t('contacts.manage')}
-                  </Button>
-              </div>
+                 {#if canScanQr}
+                     <SplitButton
+                         variant="filled-tonal"
+                         primaryLabel={$t('contacts.manage')}
+                         primaryOnclick={() => modals.showManageContactsModal.set(true)}
+                         secondaryOnclick={() => (modals as any).showScanContactQrModal.set(true)}
+                         secondaryAriaLabel={$t('contacts.scanQrAria')}
+                     >
+                         {#snippet secondaryIcon()}
+                             <svg
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 stroke-width="2"
+                                 stroke-linecap="round"
+                                 stroke-linejoin="round"
+                             >
+                                 <line x1="12" y1="5" x2="12" y2="19" />
+                                 <line x1="5" y1="12" x2="19" y2="12" />
+                             </svg>
+                         {/snippet}
+                     </SplitButton>
+                 {:else}
+                     <Button onclick={() => modals.showManageContactsModal.set(true)}>
+                         {$t('contacts.manage')}
+                     </Button>
+                 {/if}
         </div>
 
 
