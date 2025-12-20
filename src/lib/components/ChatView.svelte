@@ -22,7 +22,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { fly } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { nativeDialogService, isAndroidNative } from '$lib/core/NativeDialogs';
+  import { nativeDialogService, isAndroidNative, isMobileWeb } from '$lib/core/NativeDialogs';
   import { t } from '$lib/i18n';
   import { get } from 'svelte/store';
   import { isCaptionMessage, getCaptionForParent } from '$lib/core/captionGrouping';
@@ -381,7 +381,9 @@
   });
   let longPressTimer: number | null = null;
   const isAndroidShell = isAndroidCapacitorShell();
-
+  const useFullWidthBubbles = isAndroidShell || isMobileWeb();
+  const useSmallAvatars = useFullWidthBubbles;
+ 
   // Emoji picker state
   let showEmojiPicker = $state(false);
   let emojiSearch = $state("");
@@ -1501,7 +1503,7 @@
               npub={partnerNpub}
               src={partnerPicture}
               size="md"
-              class="!w-14 !h-14 md:!w-10 md:!h-10 transition-all duration-150 ease-out"
+              class={`${useSmallAvatars ? '!w-10 !h-10' : '!w-14 !h-14'} md:!w-10 md:!h-10 transition-all duration-150 ease-out`}
             />
           </button>
         {/if}
@@ -1509,13 +1511,13 @@
         <div
           role="button"
           tabindex="0"
-          class={`max-w-[70%] p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative ${isAndroidShell ? 'select-none' : ''}
-                         ${
-                           msg.direction === "sent"
-                             ? "bg-blue-50/10 dark:bg-blue-900/40 text-gray-900 dark:text-slate-100 border border-blue-500/10 dark:border-blue-400/10 rounded-2xl rounded-br-none hover:shadow-md"
-                             : "bg-white/95 dark:bg-slate-800/95 md:bg-white/80 md:dark:bg-slate-800/80 md:backdrop-blur-sm dark:text-white border border-gray-100 dark:border-slate-700/50 rounded-2xl rounded-bl-none hover:bg-white dark:hover:bg-slate-800"
-                          }`}
-           oncontextmenu={(e) => handleContextMenu(e, msg)}
+          class={`${useFullWidthBubbles ? 'max-w-full' : 'max-w-[70%]'} p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative ${isAndroidShell ? 'select-none' : ''}
+                          ${
+                            msg.direction === "sent"
+                              ? "bg-blue-50/10 dark:bg-blue-900/40 text-gray-900 dark:text-slate-100 border border-blue-500/10 dark:border-blue-400/10 rounded-2xl rounded-br-none hover:shadow-md"
+                              : "bg-white/95 dark:bg-slate-800/95 md:bg-white/80 md:dark:bg-slate-800/80 md:backdrop-blur-sm dark:text-white border border-gray-100 dark:border-slate-700/50 rounded-2xl rounded-bl-none hover:bg-white dark:hover:bg-slate-800"
+                           }`}
+            oncontextmenu={(e) => handleContextMenu(e, msg)}
            onmousedown={(e) => handleMouseDown(e, msg)}
 
           onmouseup={handleMouseUp}
@@ -1580,7 +1582,7 @@
               npub={$currentUser.npub}
               src={myPicture}
               size="md"
-              class="!w-14 !h-14 md:!w-10 md:!h-10 transition-all duration-150 ease-out"
+              class={`${useSmallAvatars ? '!w-10 !h-10' : '!w-14 !h-14'} md:!w-10 md:!h-10 transition-all duration-150 ease-out`}
             />
           </button>
         {/if}
