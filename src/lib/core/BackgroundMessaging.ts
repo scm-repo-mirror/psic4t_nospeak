@@ -74,6 +74,7 @@ interface AndroidBackgroundMessagingPlugin {
         nsecHex?: string;
         readRelays: string[]; // keeps native interface name but will carry messaging relays
         summary: string;
+        notificationsEnabled: boolean;
     }): Promise<void>;
     update(options: { summary: string }): Promise<void>;
     stop(): Promise<void>;
@@ -137,13 +138,17 @@ async function startNativeForegroundService(summary: string, readRelays: string[
          }
      }
  
-     await AndroidBackgroundMessaging.start({
-         mode,
-         pubkeyHex,
-         nsecHex,
-         readRelays,
-         summary
-     });
+      const settings = loadSettings();
+      const notificationsEnabled = settings.notificationsEnabled === true;
+
+      await AndroidBackgroundMessaging.start({
+          mode,
+          pubkeyHex,
+          nsecHex,
+          readRelays,
+          summary,
+          notificationsEnabled
+      });
  }
 
 

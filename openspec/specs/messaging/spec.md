@@ -438,7 +438,7 @@ When message notifications are enabled for the current device and the platform h
 
 #### Scenario: Web browser shows new message notification
 - **GIVEN** the user is accessing nospeak in a supported web browser
-- **AND** message notifications are enabled in Settings  General
+- **AND** message notifications are enabled in Settings → General
 - **AND** the browser has granted notification permission
 - **AND** the nospeak window is not the active, focused foreground tab (for example, the user has switched to another tab, minimized the window, or switched to another application or virtual desktop)
 - **WHEN** a new message addressed to the current user is received and processed by the messaging pipeline
@@ -447,7 +447,7 @@ When message notifications are enabled for the current device and the platform h
 
 #### Scenario: Web browser shows notification for different active conversation
 - **GIVEN** the user is accessing nospeak in a supported web browser
-- **AND** message notifications are enabled in Settings  General
+- **AND** message notifications are enabled in Settings → General
 - **AND** the browser has granted notification permission
 - **AND** the nospeak window is visible and focused
 - **AND** the user is currently viewing an open conversation with Contact A
@@ -457,7 +457,7 @@ When message notifications are enabled for the current device and the platform h
 
 #### Scenario: Web browser suppresses notification for active conversation
 - **GIVEN** the user is accessing nospeak in a supported web browser
-- **AND** message notifications are enabled in Settings  General
+- **AND** message notifications are enabled in Settings → General
 - **AND** the browser has granted notification permission
 - **AND** the nospeak window is visible and focused
 - **AND** the user is currently viewing an open conversation with Contact A
@@ -465,18 +465,29 @@ When message notifications are enabled for the current device and the platform h
 - **THEN** the system SHALL NOT display a browser notification for that message
 - **AND** the message SHALL still appear in the in-app conversation view and update unread indicators according to existing messaging requirements.
 
-#### Scenario: Android app shows local notification for new message
+#### Scenario: Android app shows local notification for new message via background service
 - **GIVEN** the user is running nospeak inside the Android Capacitor app shell
-- **AND** message notifications are enabled in Settings  General
+- **AND** message notifications are enabled in Settings → General
 - **AND** the Android OS has granted permission for local notifications
-- **WHEN** a new message addressed to the current user is received and processed while the app is in the background or not currently visible
-- **THEN** the system SHALL display an Android OS notification for the new message using the configured messages notification channel and icon
+- **AND** Android background messaging is enabled and the native foreground service for background messaging is active
+- **WHEN** a new message addressed to the current user is received while the app UI is not visible
+- **THEN** the native foreground service SHALL emit an Android OS notification for the new message
+- **AND** the notification body SHALL include a short plaintext preview when decryption via the active signer is available
 - **AND** activating the notification SHALL bring the nospeak Android app to the foreground and navigate to the conversation with that sender.
 
+#### Scenario: Android app uses JS-driven notifications only when background messaging disabled
+- **GIVEN** the user is running nospeak inside the Android Capacitor app shell
+- **AND** message notifications are enabled in Settings → General
+- **AND** the Android OS has granted permission for local notifications
+- **AND** Android background messaging is disabled
+- **WHEN** a new message addressed to the current user is received and processed while the app UI is not visible
+- **THEN** the web runtime MAY emit an Android OS notification via the existing notification service
+- **AND** this notification behavior SHALL remain eligible only while the web runtime is executing.
+
 #### Scenario: Notifications suppressed when disabled or permission missing
-- **GIVEN** either message notifications are disabled in Settings  General for the current device or the platform has denied notification permission
-- **WHEN** a new message is received and processed by the messaging pipeline
-- **THEN** the system SHALL NOT show a browser or Android local notification for that message
+- **GIVEN** either message notifications are disabled in Settings → General for the current device or the platform has denied notification permission
+- **WHEN** a new message is received (regardless of whether it is processed by the web runtime or the Android background service)
+- **THEN** the system SHALL NOT show a browser or Android OS notification for that message
 - **AND** the rest of the messaging behavior (message storage and in-app display) SHALL continue to function normally.
 
 ### Requirement: Android Native Dialog Integration for Messaging
@@ -536,22 +547,36 @@ The mobile contacts list SHALL display a single-line preview of the most recent 
 - **AND** SHALL NOT display a last-message preview line, even if stored messages exist for that contact.
 
 ### Requirement: Android Background Message Delivery
-When running inside the Android Capacitor app shell with background messaging enabled, the messaging experience on Android SHALL delegate background message reception and notification to a native foreground service that connects to the user's read relays, subscribes to gift-wrapped messages, and triggers OS notifications even while the WebView is suspended. The native service SHALL always treat gift-wrapped events as opaque envelopes and raise only generic "new encrypted message" notifications, regardless of whether the current session uses an on-device nsec or an external signer such as Amber.
+When running inside the Android Capacitor app shell with background messaging enabled, the messaging experience on Android SHALL delegate background message reception and notification to a native foreground service that connects to the user's read relays, subscribes to gift-wrapped messages, and triggers OS notifications even while the WebView is suspended.
 
-#### Scenario: Background subscriptions deliver generic notifications on Android
+#### Scenario: Background subscriptions deliver plaintext previews on Android
 - **GIVEN** the user is logged in and has enabled background messaging in Settings → General while running inside the Android Capacitor app shell
-- AND the native Android foreground service for background messaging is active
-- WHEN a new gift-wrapped message addressed to the current user is delivered from any configured read relay while the app UI is not visible
-- THEN the native service SHALL treat the event as an opaque envelope and SHALL NOT attempt to decrypt the message content
-- AND it SHALL raise an Android OS notification that indicates a new encrypted message has arrived without revealing the sender's identity or message content
-- AND the user SHALL only see the decrypted sender and content after returning to the app and allowing the existing foreground messaging pipeline (including Amber where applicable) to process the message.
+- **AND** the native Android foreground service for background messaging is active
+- **AND** message notifications are enabled and Android has granted local notification permission
+- **WHEN** a new gift-wrapped message addressed to the current user is delivered from any configured read relay while the app UI is not visible
+- **THEN** the native service SHALL attempt to decrypt the gift-wrap using the active Android signer integration
+- **AND** when the inner rumor is a Kind 14 text message authored by another user, it SHALL raise an Android OS notification whose body includes a truncated plaintext preview
+- **AND** when the inner rumor is a Kind 15 file message authored by another user, it SHALL raise an Android OS notification whose body includes the phrase `Message: Sent you an attachment`
+- **AND** when decryption is not available or fails, it SHALL instead raise a generic notification that indicates a new encrypted message has arrived.
+
+#### Scenario: Background delivery suppresses self-authored message and reaction rumors
+- **GIVEN** the same background messaging setup as above
+- **WHEN** a gift-wrapped event is delivered whose decrypted inner rumor is authored by the current user
+- **THEN** the native service SHALL NOT raise an Android OS message/reaction notification for that event
+- **AND** it SHALL continue to maintain relay subscriptions as long as background messaging remains enabled.
+
+#### Scenario: Background delivery groups message and reaction activity per conversation
+- **GIVEN** background messaging is enabled and the native foreground service is active
+- **AND** the service has already raised a notification for conversation activity with Contact A
+- **WHEN** additional message or reaction gift-wrap events for Contact A are delivered while the app UI is not visible
+- **THEN** the native service SHALL update a single grouped notification entry for Contact A (rather than creating a new notification per event)
+- **AND** the grouped notification SHALL represent combined message and reaction activity.
 
 #### Scenario: Background delivery respects notification settings and permissions
 - **GIVEN** the user is running nospeak in the Android app, and the native background messaging service is active
-- WHEN message notifications are disabled in Settings → General for the current device, or Android has denied local notification permission
-- THEN the native background messaging service SHALL continue to maintain relay subscriptions as long as background messaging remains enabled
-- AND it SHALL NOT surface OS notifications for new messages while notifications are disabled or permission is denied
-- AND the rest of the background behavior (message availability when the app is brought to the foreground) SHALL continue to function according to the current authorization mode.
+- **WHEN** message notifications are disabled in Settings → General for the current device, or Android has denied local notification permission
+- **THEN** the native background messaging service SHALL continue to maintain relay subscriptions as long as background messaging remains enabled
+- **AND** it SHALL NOT surface OS notifications for new messages or reactions while notifications are disabled or permission is denied.
 
 ### Requirement: Energy-Efficient Background Messaging on Android
 The messaging implementation for Android background messaging SHALL minimize energy usage by limiting background work to maintaining relay subscriptions, processing incoming messages, and firing notifications, and SHALL apply conservative reconnection and backoff behavior when connections are lost.
@@ -1034,31 +1059,32 @@ When message notifications are enabled for the current device and the platform h
 - **THEN** the system SHALL NOT display a browser notification for that reaction
 - **AND** the reaction SHALL still be rendered under the corresponding message and SHALL update unread indicators according to the reaction unread requirements.
 
-#### Scenario: Android app shows local notification for reaction in background or different conversation
+#### Scenario: Android app shows local notification for reaction via background service
 - **GIVEN** the user is running nospeak inside the Android Capacitor app shell
 - **AND** message notifications are enabled in Settings → General
 - **AND** the Android OS has granted permission for local notifications
-- **AND** either the app UI is not visible or the user is viewing an open conversation with Contact D
-- **WHEN** a new NIP-25 `kind 7` reaction addressed to the current user is received from Contact E (a different conversation) and processed while the app is running
-- **THEN** the system SHALL display an Android OS notification for the new reaction using the configured messages notification channel and icon
-- **AND** activating the notification SHALL bring the nospeak Android app to the foreground and navigate to the conversation with Contact E.
+- **AND** Android background messaging is enabled and the native foreground service for background messaging is active
+- **WHEN** a new NIP-25 `kind 7` reaction addressed to the current user is received while the app UI is not visible
+- **THEN** the native foreground service SHALL emit an Android OS notification for the new reaction
+- **AND** the notification body SHALL include a short reaction preview (for example, `Reaction: ❤️`)
+- **AND** activating the notification SHALL bring the nospeak Android app to the foreground and navigate to the conversation with that sender.
 
 #### Scenario: Reaction notifications suppressed when disabled or permission missing
 - **GIVEN** either message notifications are disabled in Settings → General for the current device or the platform has denied notification permission
-- **WHEN** a new NIP-25 `kind 7` reaction addressed to the current user is received and processed by the messaging pipeline
-- **THEN** the system SHALL NOT show a browser or Android local notification for that reaction
+- **WHEN** a new NIP-25 `kind 7` reaction addressed to the current user is received
+- **THEN** the system SHALL NOT show a browser or Android OS notification for that reaction
 - **AND** the rest of the messaging behavior for reactions (storage and in-app display under messages, and unread indicators) SHALL continue to function normally.
 
 ### Requirement: Background Messaging Covers Reaction Gift-Wrap Events
-When running inside the Android Capacitor app shell with background messaging enabled, the Android-native foreground service responsible for background messaging SHALL treat gift-wrapped events whose inner rumor is a NIP-25 `kind 7` reaction as opaque encrypted messages and SHALL surface generic encrypted-message notifications for them using the same channel and policy as for other NIP-17 gift-wrapped messages, without learning or exposing the reaction details.
+When running inside the Android Capacitor app shell with background messaging enabled, the Android-native foreground service responsible for background messaging SHALL handle gift-wrapped events whose inner rumor is a NIP-25 `kind 7` reaction and SHALL surface an Android OS notification preview for them when decryption is available.
 
-#### Scenario: Background service raises generic notification for reaction gift-wrap
+#### Scenario: Background service raises reaction preview notification for reaction gift-wrap
 - **GIVEN** the user is logged in, has enabled background messaging in Settings → General, and is running inside the Android Capacitor app shell
 - **AND** the native Android foreground service for background messaging is active and subscribed to NIP-17 DM gift-wrapped events addressed to the user
-- **WHEN** a gift-wrapped event is delivered from any configured read relay whose inner rumor is a NIP-25 `kind 7` reaction involving the current user
-- **THEN** the native service SHALL treat this event as an opaque encrypted message
-- **AND** SHALL raise a generic Android OS notification for a new encrypted message using the same notification channel and wording used for other background DM gift-wraps
-- **AND** the user SHALL only see the decrypted sender, message, and reaction details after returning to the app and allowing the foreground messaging pipeline to process the event.
+- **AND** message notifications are enabled and Android has granted local notification permission
+- **WHEN** a gift-wrapped event is delivered from any configured read relay whose decrypted inner rumor is a NIP-25 `kind 7` reaction authored by another user
+- **THEN** the native service SHALL raise an Android OS notification whose body includes a short reaction preview (for example, `Reaction: ❤️`)
+- **AND** it SHALL include this activity in the same per-conversation grouping used for other background message notifications.
 
 ### Requirement: Sender Avatar Fallback for Messaging Notifications
 When a message or reaction notification is shown for a specific sender, the system SHALL prefer showing the sender’s profile picture when available. When the sender has no profile picture, the system SHALL instead use a deterministic robohash avatar derived from the sender’s `npub` using the same seed logic as the in-app avatar fallback. If the avatar cannot be resolved due to platform limitations or fetch failures, the system SHALL fall back to the branded nospeak icon while still showing the notification.

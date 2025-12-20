@@ -22,6 +22,8 @@ public class AndroidBackgroundMessagingPlugin extends Plugin {
         String nsecHex = call.getString("nsecHex", null);
         JSArray relaysArray = call.getArray("readRelays");
         String summary = call.getString("summary", "Connected to read relays");
+        Boolean notificationsEnabledValue = call.getBoolean("notificationsEnabled", false);
+        boolean notificationsEnabled = notificationsEnabledValue != null && notificationsEnabledValue;
 
         if (pubkeyHex == null || pubkeyHex.isEmpty()) {
             call.reject("pubkeyHex is required");
@@ -43,7 +45,7 @@ public class AndroidBackgroundMessagingPlugin extends Plugin {
             }
         }
 
-        AndroidBackgroundMessagingPrefs.saveStartConfig(getContext(), mode, pubkeyHex, relays, summary);
+        AndroidBackgroundMessagingPrefs.saveStartConfig(getContext(), mode, pubkeyHex, relays, summary, notificationsEnabled);
 
         Intent intent = new Intent(getContext(), NativeBackgroundMessagingService.class);
         intent.setAction(NativeBackgroundMessagingService.ACTION_START);
@@ -54,6 +56,7 @@ public class AndroidBackgroundMessagingPlugin extends Plugin {
         }
         intent.putExtra(NativeBackgroundMessagingService.EXTRA_SUMMARY, summary);
         intent.putExtra(NativeBackgroundMessagingService.EXTRA_READ_RELAYS, relays);
+        intent.putExtra(NativeBackgroundMessagingService.EXTRA_NOTIFICATIONS_ENABLED, notificationsEnabled);
 
         ContextCompat.startForegroundService(getContext(), intent);
         call.resolve();

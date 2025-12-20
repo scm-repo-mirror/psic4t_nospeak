@@ -1,25 +1,32 @@
 package com.nospeak.app;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
- 
+
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
- 
-import org.json.JSONArray;
+import androidx.core.content.ContextCompat;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
  
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -45,19 +52,41 @@ public class NativeBackgroundMessagingService extends Service {
     public static final String EXTRA_NSEC_HEX = "nsecHex";
     public static final String EXTRA_READ_RELAYS = "readRelays";
     public static final String EXTRA_SUMMARY = "summary";
+    public static final String EXTRA_NOTIFICATIONS_ENABLED = "notificationsEnabled";
+
+    public static final String EXTRA_ROUTE_KIND = "nospeak_route_kind";
+    public static final String EXTRA_ROUTE_PARTNER_PUBKEY_HEX = "nospeak_partner_pubkey_hex";
+
+    private static final String ROUTE_KIND_CHAT = "chat";
 
     private static final String CHANNEL_ID = "nospeak_background_service";
     private static final String CHANNEL_MESSAGES_ID = "nospeak_background_messages";
     private static final int NOTIFICATION_ID = 1001;
 
+    private static final int PREVIEW_TRUNCATE_CHARS = 160;
+    private static final String DEDUPE_PREFS_NAME = "nospeak_background_messaging_dedupe";
+    private static final String DEDUPE_PREFS_KEY_IDS = "seenEventIdsJson";
+    private static final int MAX_PERSISTED_EVENT_IDS = 500;
+
+    private static final long EOSE_FALLBACK_DELAY_MS = 8000L;
+
     private String currentSummary = "Connected to read relays";
 
     private OkHttpClient client;
     private final Set<WebSocket> sockets = new HashSet<>();
+
     private final Set<String> seenEventIds = new HashSet<>();
+    private final ArrayDeque<String> seenEventIdQueue = new ArrayDeque<>();
+
     private final Set<WebSocket> historyCompleted = new HashSet<>();
+    private final Map<WebSocket, Runnable> eoseFallbackCallbacks = new HashMap<>();
+
+    private final Map<String, Integer> conversationActivityCounts = new HashMap<>();
+    private final Map<String, String> conversationLastPreview = new HashMap<>();
+
     private String currentPubkeyHex;
     private String currentMode = "amber";
+    private boolean notificationsEnabled = false;
 
     private int configuredRelaysCount = 0;
 
@@ -76,6 +105,7 @@ public class NativeBackgroundMessagingService extends Service {
         handler = new Handler(Looper.getMainLooper());
         serviceRunning = true;
         createNotificationChannel();
+        loadPersistedSeenEventIds();
     }
 
 
@@ -112,6 +142,7 @@ public class NativeBackgroundMessagingService extends Service {
             }
 
             currentPubkeyHex = intent.getStringExtra(EXTRA_PUBKEY_HEX);
+            notificationsEnabled = intent.getBooleanExtra(EXTRA_NOTIFICATIONS_ENABLED, false);
             String[] relays = intent.getStringArrayExtra(EXTRA_READ_RELAYS);
             configuredRelaysCount = relays != null ? relays.length : 0;
 
@@ -157,7 +188,11 @@ public class NativeBackgroundMessagingService extends Service {
         }
         sockets.clear();
         seenEventIds.clear();
+        seenEventIdQueue.clear();
         historyCompleted.clear();
+        eoseFallbackCallbacks.clear();
+        conversationActivityCounts.clear();
+        conversationLastPreview.clear();
         retryAttempts.clear();
     }
 
@@ -205,8 +240,21 @@ public class NativeBackgroundMessagingService extends Service {
         }
         sockets.clear();
         retryAttempts.clear();
-        seenEventIds.clear();
         historyCompleted.clear();
+
+        if (handler != null) {
+            synchronized (eoseFallbackCallbacks) {
+                for (Runnable runnable : eoseFallbackCallbacks.values()) {
+                    handler.removeCallbacks(runnable);
+                }
+                eoseFallbackCallbacks.clear();
+            }
+        } else {
+            eoseFallbackCallbacks.clear();
+        }
+
+        conversationActivityCounts.clear();
+        conversationLastPreview.clear();
  
         if (relays == null) {
             updateServiceNotificationForHealth();
@@ -258,7 +306,8 @@ public class NativeBackgroundMessagingService extends Service {
                 } catch (JSONException e) {
                     // Ignore malformed JSON construction
                 }
- 
+
+                scheduleEoseFallback(webSocket);
                 updateServiceNotificationForHealth();
             }
  
@@ -296,7 +345,9 @@ public class NativeBackgroundMessagingService extends Service {
                 activeSockets.remove(relayUrl);
             }
         }
- 
+
+        cancelEoseFallback(socket);
+
         if (!serviceRunning || handler == null) {
             updateServiceNotificationForHealth();
             return;
@@ -334,6 +385,7 @@ public class NativeBackgroundMessagingService extends Service {
                 synchronized (historyCompleted) {
                     historyCompleted.add(socket);
                 }
+                cancelEoseFallback(socket);
                 return;
             }
 
@@ -348,11 +400,8 @@ public class NativeBackgroundMessagingService extends Service {
             String id = event.optString("id", null);
             if (id == null) return;
 
-            synchronized (seenEventIds) {
-                if (seenEventIds.contains(id)) {
-                    return;
-                }
-                seenEventIds.add(id);
+            if (!markEventIdSeen(id)) {
+                return;
             }
 
             boolean isHistoryCompleteForSocket;
@@ -360,23 +409,380 @@ public class NativeBackgroundMessagingService extends Service {
                 isHistoryCompleteForSocket = historyCompleted.contains(socket);
             }
 
-            // Before EOSE, treat events as history and do not notify.
+            // Before EOSE (or fallback timeout), treat events as history and do not notify.
             if (!isHistoryCompleteForSocket) {
                 return;
             }
 
-            // For now we do not decrypt; show a generic notification
-            showGenericEncryptedMessageNotification();
+            handleLiveGiftWrapEvent(event);
 
         } catch (JSONException e) {
             // Ignore malformed messages
         }
     }
 
+    private void handleLiveGiftWrapEvent(JSONObject giftWrapEvent) {
+        if (!shouldEmitMessageNotification()) {
+            return;
+        }
+
+        if (currentPubkeyHex == null || currentPubkeyHex.isEmpty()) {
+            return;
+        }
+
+        DecryptedRumor rumor = tryDecryptGiftWrapToRumor(giftWrapEvent, currentPubkeyHex);
+        if (rumor == null) {
+            showGenericEncryptedMessageNotification();
+            return;
+        }
+
+        if (rumor.pubkeyHex == null || rumor.pubkeyHex.isEmpty()) {
+            showGenericEncryptedMessageNotification();
+            return;
+        }
+
+        // Suppress notifications for self-authored rumors (including self-sent copies).
+        if (rumor.pubkeyHex.equalsIgnoreCase(currentPubkeyHex)) {
+            return;
+        }
+
+        String partnerPubkeyHex = rumor.pubkeyHex;
+        String preview = resolveRumorPreview(rumor);
+        if (preview == null) {
+            showGenericEncryptedMessageNotification();
+            return;
+        }
+
+        showConversationActivityNotification(partnerPubkeyHex, preview);
+    }
+
+    private void showConversationActivityNotification(String partnerPubkeyHex, String latestPreview) {
+        if (!shouldEmitMessageNotification()) {
+            return;
+        }
+
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) {
+            return;
+        }
+
+        int notificationId = Math.abs(partnerPubkeyHex.hashCode());
+        int requestCode = notificationId + 2000;
+
+        String body = buildCombinedActivityBody(partnerPubkeyHex, latestPreview);
+        PendingIntent pendingIntent = buildChatPendingIntent(partnerPubkeyHex, requestCode);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
+                .setContentTitle("New activity")
+                .setContentText(body)
+                .setSmallIcon(R.drawable.ic_stat_nospeak)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        manager.notify(notificationId, builder.build());
+    }
+
+    private PendingIntent buildChatPendingIntent(String partnerPubkeyHex, int requestCode) {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        intent.putExtra(EXTRA_ROUTE_KIND, ROUTE_KIND_CHAT);
+        intent.putExtra(EXTRA_ROUTE_PARTNER_PUBKEY_HEX, partnerPubkeyHex);
+
+        return PendingIntent.getActivity(
+                this,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+    }
+
+    private String buildCombinedActivityBody(String partnerPubkeyHex, String latestPreview) {
+        int nextCount;
+        synchronized (conversationActivityCounts) {
+            Integer current = conversationActivityCounts.get(partnerPubkeyHex);
+            nextCount = current != null ? current + 1 : 1;
+            conversationActivityCounts.put(partnerPubkeyHex, nextCount);
+            conversationLastPreview.put(partnerPubkeyHex, latestPreview);
+        }
+
+        if (nextCount <= 1) {
+            return latestPreview;
+        }
+
+        return nextCount + " new items · " + latestPreview;
+    }
+
+    private String resolveRumorPreview(DecryptedRumor rumor) {
+        if (rumor.kind == 14) {
+            String content = rumor.content != null ? rumor.content.trim() : "";
+            if (content.isEmpty()) {
+                return "New message";
+            }
+            return truncatePreview(content);
+        }
+
+        if (rumor.kind == 15) {
+            return "Message: Sent you an attachment";
+        }
+
+        if (rumor.kind == 7) {
+            String content = rumor.content != null ? rumor.content.trim() : "";
+            if (content.equals("+")) {
+                content = "👍";
+            } else if (content.equals("-")) {
+                content = "👎";
+            }
+            if (content.isEmpty()) {
+                content = "(reaction)";
+            }
+            return "Reaction: " + truncatePreview(content);
+        }
+
+        return null;
+    }
+
+    private String truncatePreview(String text) {
+        if (text == null) {
+            return "";
+        }
+
+        String trimmed = text.trim();
+        if (trimmed.length() <= PREVIEW_TRUNCATE_CHARS) {
+            return trimmed;
+        }
+
+        return trimmed.substring(0, PREVIEW_TRUNCATE_CHARS - 1) + "…";
+    }
+
+    private boolean shouldEmitMessageNotification() {
+        if (MainActivity.isAppVisible()) {
+            return false;
+        }
+
+        if (!notificationsEnabled) {
+            return false;
+        }
+
+        // Amber-only for now.
+        if (!"amber".equalsIgnoreCase(currentMode)) {
+            return false;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            int permission = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS);
+            if (permission != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void loadPersistedSeenEventIds() {
+        SharedPreferences prefs = getSharedPreferences(DEDUPE_PREFS_NAME, MODE_PRIVATE);
+        String raw = prefs.getString(DEDUPE_PREFS_KEY_IDS, null);
+        if (raw == null || raw.isEmpty()) {
+            return;
+        }
+
+        try {
+            JSONArray ids = new JSONArray(raw);
+            synchronized (seenEventIds) {
+                seenEventIds.clear();
+                seenEventIdQueue.clear();
+
+                for (int i = 0; i < ids.length(); i++) {
+                    String id = ids.optString(i, null);
+                    if (id == null || id.isEmpty()) {
+                        continue;
+                    }
+                    if (seenEventIds.add(id)) {
+                        seenEventIdQueue.addLast(id);
+                    }
+                }
+
+                while (seenEventIdQueue.size() > MAX_PERSISTED_EVENT_IDS) {
+                    String removed = seenEventIdQueue.removeFirst();
+                    seenEventIds.remove(removed);
+                }
+            }
+        } catch (JSONException ignored) {
+            // ignore
+        }
+    }
+
+    private boolean markEventIdSeen(String id) {
+        boolean added;
+        synchronized (seenEventIds) {
+            if (seenEventIds.contains(id)) {
+                return false;
+            }
+
+            added = seenEventIds.add(id);
+            if (added) {
+                seenEventIdQueue.addLast(id);
+                while (seenEventIdQueue.size() > MAX_PERSISTED_EVENT_IDS) {
+                    String removed = seenEventIdQueue.removeFirst();
+                    seenEventIds.remove(removed);
+                }
+            }
+        }
+
+        if (added) {
+            persistSeenEventIds();
+        }
+
+        return added;
+    }
+
+    private void persistSeenEventIds() {
+        JSONArray ids = new JSONArray();
+        synchronized (seenEventIds) {
+            for (String id : seenEventIdQueue) {
+                ids.put(id);
+            }
+        }
+
+        SharedPreferences prefs = getSharedPreferences(DEDUPE_PREFS_NAME, MODE_PRIVATE);
+        prefs.edit().putString(DEDUPE_PREFS_KEY_IDS, ids.toString()).apply();
+    }
+
+    private void scheduleEoseFallback(final WebSocket socket) {
+        if (handler == null) {
+            return;
+        }
+
+        cancelEoseFallback(socket);
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                synchronized (historyCompleted) {
+                    historyCompleted.add(socket);
+                }
+                synchronized (eoseFallbackCallbacks) {
+                    eoseFallbackCallbacks.remove(socket);
+                }
+            }
+        };
+
+        synchronized (eoseFallbackCallbacks) {
+            eoseFallbackCallbacks.put(socket, runnable);
+        }
+
+        handler.postDelayed(runnable, EOSE_FALLBACK_DELAY_MS);
+    }
+
+    private void cancelEoseFallback(WebSocket socket) {
+        if (handler == null) {
+            return;
+        }
+
+        Runnable runnable;
+        synchronized (eoseFallbackCallbacks) {
+            runnable = eoseFallbackCallbacks.remove(socket);
+        }
+
+        if (runnable != null) {
+            handler.removeCallbacks(runnable);
+        }
+    }
+
+    private DecryptedRumor tryDecryptGiftWrapToRumor(JSONObject giftWrapEvent, String currentUserPubkeyHex) {
+        if (giftWrapEvent == null) {
+            return null;
+        }
+
+        String outerSenderPubkeyHex = giftWrapEvent.optString("pubkey", null);
+        String giftWrapCiphertext = giftWrapEvent.optString("content", null);
+
+        if (outerSenderPubkeyHex == null || giftWrapCiphertext == null) {
+            return null;
+        }
+
+        String decryptedGiftWrap = amberNip44Decrypt(giftWrapCiphertext, outerSenderPubkeyHex, currentUserPubkeyHex);
+        if (decryptedGiftWrap == null) {
+            return null;
+        }
+
+        try {
+            JSONObject seal = new JSONObject(decryptedGiftWrap);
+            int sealKind = seal.optInt("kind", -1);
+            if (sealKind != 13) {
+                return null;
+            }
+
+            String sealPubkeyHex = seal.optString("pubkey", null);
+            String sealCiphertext = seal.optString("content", null);
+            if (sealPubkeyHex == null || sealCiphertext == null) {
+                return null;
+            }
+
+            String decryptedSeal = amberNip44Decrypt(sealCiphertext, sealPubkeyHex, currentUserPubkeyHex);
+            if (decryptedSeal == null) {
+                return null;
+            }
+
+            JSONObject rumor = new JSONObject(decryptedSeal);
+            DecryptedRumor result = new DecryptedRumor();
+            result.kind = rumor.optInt("kind", -1);
+            result.pubkeyHex = rumor.optString("pubkey", null);
+            result.content = rumor.optString("content", "");
+            result.tags = rumor.optJSONArray("tags");
+            return result;
+        } catch (JSONException e) {
+            return null;
+        }
+    }
+
+    private String amberNip44Decrypt(String ciphertext, String senderPubkeyHex, String currentUserPubkeyHex) {
+        try {
+            ContentResolver resolver = getContentResolver();
+            Uri uri = Uri.parse("content://com.greenart7c3.nostrsigner.NIP44_DECRYPT");
+            String[] projection = new String[]{ciphertext, senderPubkeyHex, currentUserPubkeyHex};
+            Cursor cursor = resolver.query(uri, projection, null, null, null);
+            if (cursor == null) {
+                return null;
+            }
+            try {
+                int rejectedIndex = cursor.getColumnIndex("rejected");
+                if (rejectedIndex >= 0) {
+                    return null;
+                }
+
+                if (!cursor.moveToFirst()) {
+                    return null;
+                }
+
+                int resultIndex = cursor.getColumnIndex("result");
+                if (resultIndex < 0) {
+                    return null;
+                }
+
+                String plaintext = cursor.getString(resultIndex);
+                if (plaintext == null || plaintext.isEmpty()) {
+                    return null;
+                }
+
+                return plaintext;
+            } finally {
+                cursor.close();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static final class DecryptedRumor {
+        int kind;
+        String pubkeyHex;
+        String content;
+        JSONArray tags;
+    }
 
     private void showGenericEncryptedMessageNotification() {
-        // Only surface background notifications when the app UI is not visible
-        if (MainActivity.isAppVisible()) {
+        if (!shouldEmitMessageNotification()) {
             return;
         }
 

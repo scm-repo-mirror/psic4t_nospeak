@@ -16,6 +16,7 @@ public final class AndroidBackgroundMessagingPrefs {
     private static final String KEY_PUBKEY_HEX = "pubkeyHex";
     private static final String KEY_READ_RELAYS_JSON = "readRelaysJson";
     private static final String KEY_SUMMARY = "summary";
+    private static final String KEY_NOTIFICATIONS_ENABLED = "notificationsEnabled";
 
     private AndroidBackgroundMessagingPrefs() {
     }
@@ -27,19 +28,22 @@ public final class AndroidBackgroundMessagingPrefs {
         public final String pubkeyHex;
         public final String[] readRelays;
         public final String summary;
+        public final boolean notificationsEnabled;
 
         public Config(
                 boolean enabled,
                 String mode,
                 String pubkeyHex,
                 String[] readRelays,
-                String summary
+                String summary,
+                boolean notificationsEnabled
         ) {
             this.enabled = enabled;
             this.mode = mode;
             this.pubkeyHex = pubkeyHex;
             this.readRelays = readRelays;
             this.summary = summary;
+            this.notificationsEnabled = notificationsEnabled;
         }
     }
 
@@ -59,7 +63,8 @@ public final class AndroidBackgroundMessagingPrefs {
             String mode,
             String pubkeyHex,
             String[] readRelays,
-            String summary
+            String summary,
+            boolean notificationsEnabled
     ) {
         JSONArray relaysJson = new JSONArray();
         if (readRelays != null) {
@@ -74,6 +79,7 @@ public final class AndroidBackgroundMessagingPrefs {
         editor.putString(KEY_PUBKEY_HEX, pubkeyHex);
         editor.putString(KEY_READ_RELAYS_JSON, relaysJson.toString());
         editor.putString(KEY_SUMMARY, summary != null ? summary : defaultSummary(readRelays));
+        editor.putBoolean(KEY_NOTIFICATIONS_ENABLED, notificationsEnabled);
         editor.apply();
     }
 
@@ -99,6 +105,7 @@ public final class AndroidBackgroundMessagingPrefs {
         String mode = prefs.getString(KEY_MODE, "amber");
         String pubkeyHex = prefs.getString(KEY_PUBKEY_HEX, null);
         String summary = prefs.getString(KEY_SUMMARY, null);
+        boolean notificationsEnabled = prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, false);
 
         String[] readRelays = new String[0];
         String relaysJsonRaw = prefs.getString(KEY_READ_RELAYS_JSON, null);
@@ -120,7 +127,7 @@ public final class AndroidBackgroundMessagingPrefs {
             summary = defaultSummary(readRelays);
         }
 
-        return new Config(enabled, mode, pubkeyHex, readRelays, summary);
+        return new Config(enabled, mode, pubkeyHex, readRelays, summary, notificationsEnabled);
     }
 
     public static Intent buildStartServiceIntent(Context context) {
@@ -142,6 +149,7 @@ public final class AndroidBackgroundMessagingPrefs {
         }
         serviceIntent.putExtra(NativeBackgroundMessagingService.EXTRA_READ_RELAYS, config.readRelays != null ? config.readRelays : new String[0]);
         serviceIntent.putExtra(NativeBackgroundMessagingService.EXTRA_SUMMARY, config.summary);
+        serviceIntent.putExtra(NativeBackgroundMessagingService.EXTRA_NOTIFICATIONS_ENABLED, config.notificationsEnabled);
         return serviceIntent;
     }
 }

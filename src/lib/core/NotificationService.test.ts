@@ -198,6 +198,24 @@ describe('NotificationService (Android local notifications)', () => {
         expect(scheduleMock).not.toHaveBeenCalled();
     });
 
+    it('does not schedule when background messaging is enabled', async () => {
+        isAndroidNativeMock.mockReturnValue(true);
+        getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Bob' } });
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem(
+                'nospeak-settings',
+                JSON.stringify({ notificationsEnabled: true, backgroundMessagingEnabled: true })
+            );
+        }
+
+        const { notificationService } = await import('./NotificationService');
+
+        await notificationService.showNewMessageNotification('npub1bob', 'Hi');
+
+        expect(scheduleMock).not.toHaveBeenCalled();
+    });
+
     it('does not schedule when Android permission is denied', async () => {
         isAndroidNativeMock.mockReturnValue(true);
         getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Carol' } });

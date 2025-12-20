@@ -7,9 +7,11 @@
    import { page } from "$app/state";
    import { hapticSelection } from "$lib/utils/haptics";
     import { currentUser } from "$lib/stores/auth";
-    import { clearAppBadge, initAppVisibilityAndFocusTracking, syncAppBadge } from "$lib/stores/unreadMessages";
-
-   import { AndroidShareTarget, type AndroidSharePayload, fileFromAndroidMediaPayload } from '$lib/core/AndroidShareTarget';
+     import { clearAppBadge, initAppVisibilityAndFocusTracking, syncAppBadge } from "$lib/stores/unreadMessages";
+ 
+    import { nip19 } from 'nostr-tools';
+    import { AndroidNotificationRouter, type AndroidNotificationRoutePayload } from '$lib/core/AndroidNotificationRouter';
+    import { AndroidShareTarget, type AndroidSharePayload, fileFromAndroidMediaPayload } from '$lib/core/AndroidShareTarget';
    import { setPendingAndroidMediaShare, setPendingAndroidTextShare } from '$lib/stores/androidShare';
  
     import RelayStatusModal from "$lib/components/RelayStatusModal.svelte";
@@ -105,10 +107,45 @@
     const restored = await authService.restore();
      isInitialized = true;
  
-     // If restored and on login page, go to chat
-     if (restored && location.pathname === "/") {
-       goto("/chat");
-     }
+      let routedFromNotification = false;
+ 
+      const handleNotificationRoute = async (payload: AndroidNotificationRoutePayload): Promise<void> => {
+          if (!payload || payload.kind !== 'chat') {
+              return;
+          }
+ 
+          if (!$currentUser) {
+              return;
+          }
+ 
+          try {
+              const partnerNpub = nip19.npubEncode(payload.partnerPubkeyHex);
+              await goto(`/chat/${encodeURIComponent(partnerNpub)}`);
+              routedFromNotification = true;
+          } catch (e) {
+              console.error('Failed to route Android notification tap:', e);
+          }
+      };
+ 
+      if (isAndroidNative() && AndroidNotificationRouter) {
+          try {
+              const initialRoute = await AndroidNotificationRouter.getInitialRoute();
+              if (initialRoute) {
+                  await handleNotificationRoute(initialRoute);
+              }
+          } catch (e) {
+              console.error('Failed to process initial Android notification route:', e);
+          }
+ 
+          void AndroidNotificationRouter.addListener('routeReceived', (payload) => {
+              void handleNotificationRoute(payload);
+          });
+      }
+ 
+      // If restored and on login page, go to chat
+      if (restored && location.pathname === "/" && !routedFromNotification) {
+        goto("/chat");
+      }
  
      // Handle Android inbound shares after auth restore
      if (isAndroidNative() && AndroidShareTarget) {

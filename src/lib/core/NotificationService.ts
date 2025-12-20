@@ -93,6 +93,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 export interface NotificationSettings {
     notificationsEnabled: boolean;
+    backgroundMessagingEnabled?: boolean;
 }
 
 export class NotificationService {
@@ -168,6 +169,10 @@ export class NotificationService {
         this.loadSettings();
 
         if (!this.settings.notificationsEnabled) {
+            return;
+        }
+
+        if (this.isAndroidNativeEnv && this.settings.backgroundMessagingEnabled) {
             return;
         }
 
@@ -382,6 +387,10 @@ export class NotificationService {
         this.loadSettings();
 
         if (!this.settings.notificationsEnabled) {
+            return;
+        }
+
+        if (this.isAndroidNativeEnv && this.settings.backgroundMessagingEnabled) {
             return;
         }
 
