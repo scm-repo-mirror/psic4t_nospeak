@@ -69,13 +69,14 @@ const en = {
              removeContactAria: 'Remove contact'
          },
          profile: {
-             unknownName: 'Unknown',
-             about: 'About',
-             publicKey: 'Public Key',
-             messagingRelays: 'Messaging Relays',
-             noRelays: 'None',
-             notFound: 'Profile not found'
-         },
+              unknownName: 'Unknown',
+              about: 'About',
+              publicKey: 'Public Key',
+              messagingRelays: 'Messaging Relays',
+              noRelays: 'None',
+              refreshing: 'Refreshing profile…',
+              notFound: 'Profile not found'
+          },
 
         emptyProfile: {
             title: 'Finish setting up your profile',

@@ -70,13 +70,14 @@ const de = {
              removeContactAria: 'Kontakt entfernen'
          },
          profile: {
-             unknownName: 'Unbekannt',
-             about: 'Über',
-             publicKey: 'Öffentlicher Schlüssel',
-             messagingRelays: 'Messaging-Relays',
-             noRelays: 'Keine',
-             notFound: 'Profil nicht gefunden'
-         },
+              unknownName: 'Unbekannt',
+              about: 'Über',
+              publicKey: 'Öffentlicher Schlüssel',
+              messagingRelays: 'Messaging-Relays',
+              noRelays: 'Keine',
+              refreshing: 'Profil wird aktualisiert…',
+              notFound: 'Profil nicht gefunden'
+          },
 
         emptyProfile: {
             title: 'Profil-Einrichtung abschließen',

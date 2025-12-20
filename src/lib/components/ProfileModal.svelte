@@ -1,35 +1,91 @@
 <script lang="ts">
+    import { discoverUserRelays } from '$lib/core/connection/Discovery';
+    import { getDisplayedNip05 } from '$lib/core/Nip05Display';
+    import type { Profile } from '$lib/db/db';
+    import { contactRepo } from '$lib/db/ContactRepository';
     import { profileRepo } from '$lib/db/ProfileRepository';
-     import type { Profile } from '$lib/db/db';
-      import Avatar from './Avatar.svelte';
-      import { getDisplayedNip05 } from '$lib/core/Nip05Display';
-      import { hapticSelection } from '$lib/utils/haptics';
+    import { t } from '$lib/i18n';
+    import { isAndroidNative } from '$lib/core/NativeDialogs';
+    import Button from '$lib/components/ui/Button.svelte';
+    import { currentUser } from '$lib/stores/auth';
+    import { glassModal } from '$lib/utils/transitions';
+    import { hapticSelection } from '$lib/utils/haptics';
+    import { fade } from 'svelte/transition';
+    import { get } from 'svelte/store';
 
-     import { isAndroidNative } from "$lib/core/NativeDialogs";
-     import { fade } from 'svelte/transition';
-     import { glassModal } from '$lib/utils/transitions';
-      import { t } from '$lib/i18n';
-      import { get } from 'svelte/store';
-      import Button from '$lib/components/ui/Button.svelte';
-  
-       let { isOpen, close, npub } = $props<{ isOpen: boolean, close: () => void, npub: string }>();
-      const isAndroidApp = isAndroidNative();
+    import Avatar from './Avatar.svelte';
 
+    let { isOpen, close, npub } = $props<{ isOpen: boolean; close: () => void; npub: string }>();
 
-    
+    const isAndroidApp = isAndroidNative();
+
     let profile = $state<Profile | undefined>(undefined);
     let loading = $state(false);
+    let isRefreshing = $state(false);
+    let isContact = $state(false);
+
+    let contactCheckNonce = 0;
+
+    const canRefresh = $derived(isContact && !!$currentUser && $currentUser.npub !== npub);
 
     $effect(() => {
         if (isOpen && npub) {
-            loadProfile();
+            void loadProfile();
+            void checkIsContact();
+        } else {
+            isRefreshing = false;
+            isContact = false;
         }
     });
 
-    async function loadProfile() {
-        loading = true;
-        profile = await profileRepo.getProfileIgnoreTTL(npub);
-        loading = false;
+    async function loadProfile(options: { showLoading?: boolean } = {}): Promise<void> {
+        const showLoading = options.showLoading !== false;
+
+        if (showLoading) {
+            loading = true;
+        }
+
+        try {
+            profile = await profileRepo.getProfileIgnoreTTL(npub);
+        } finally {
+            if (showLoading) {
+                loading = false;
+            }
+        }
+    }
+
+    async function checkIsContact(): Promise<void> {
+        const nonce = ++contactCheckNonce;
+
+        try {
+            const contacts = await contactRepo.getContacts();
+
+            if (nonce !== contactCheckNonce || !isOpen) {
+                return;
+            }
+
+            isContact = contacts.some((contact) => contact.npub === npub);
+        } catch (e) {
+            console.error('ProfileModal: failed to load contacts', e);
+            isContact = false;
+        }
+    }
+
+    async function refreshProfile(): Promise<void> {
+        if (!canRefresh || isRefreshing) {
+            return;
+        }
+
+        isRefreshing = true;
+
+        try {
+            await discoverUserRelays(npub, false);
+            await loadProfile({ showLoading: false });
+        } catch (e) {
+            console.error('ProfileModal: failed to refresh profile', e);
+        } finally {
+            isRefreshing = false;
+        }
     }
 
     function formatRelays(relays: string[]) {
@@ -109,8 +165,42 @@
 
                     <!-- Profile Header -->
                     <div class="px-6 relative">
-                        <div class="-mt-16 mb-3 inline-block rounded-full p-1 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
-                             <Avatar npub={npub} src={profile.metadata?.picture} size="2xl" class="rounded-full" />
+                        <div class="-mt-16 mb-3 inline-flex items-center gap-2">
+                            <div class="rounded-full p-1 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
+                                {#if canRefresh}
+                                    <button
+                                        type="button"
+                                        class="block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900"
+                                        aria-label="Refresh profile"
+                                        onclick={refreshProfile}
+                                        disabled={isRefreshing}
+                                    >
+                                        <Avatar npub={npub} src={profile.metadata?.picture} size="2xl" class="rounded-full" />
+                                    </button>
+                                {:else}
+                                    <Avatar npub={npub} src={profile.metadata?.picture} size="2xl" class="rounded-full" />
+                                {/if}
+                            </div>
+
+                            {#if isRefreshing}
+                                <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400">
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="animate-spin"
+                                    >
+                                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                    </svg>
+                                    <span>{$t('modals.profile.refreshing')}</span>
+                                </div>
+                            {/if}
                         </div>
 
                         <div class="flex flex-col mb-4">
