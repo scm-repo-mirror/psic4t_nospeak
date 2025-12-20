@@ -2,6 +2,7 @@ import { connectionManager } from './connection/instance';
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { nip19 } from 'nostr-tools';
 import { verifyNip05 } from './Nip05Verifier';
+import { cacheAndroidProfileIdentity, extractKind0Picture, extractKind0Username } from './AndroidProfileCache';
 
 export class ProfileResolver {
     
@@ -9,6 +10,22 @@ export class ProfileResolver {
         // 1. Try cache
         const cached = await profileRepo.getProfile(npub);
         if (cached && !forceRefresh) {
+            try {
+                const decoded = nip19.decode(npub);
+                const pubkey = typeof decoded.data === 'string' ? decoded.data : null;
+                const username = extractKind0Username(cached.metadata);
+                if (pubkey && username) {
+                    await cacheAndroidProfileIdentity({
+                        pubkeyHex: pubkey,
+                        username,
+                        picture: extractKind0Picture(cached.metadata) ?? undefined,
+                        updatedAt: Date.now()
+                    });
+                }
+            } catch (e) {
+                console.warn('Failed to cache Android profile identity from cached profile:', e);
+            }
+
             console.log(`Using cached profile for ${npub}`);
             return;
         }
@@ -73,6 +90,17 @@ export class ProfileResolver {
             const finalize = async () => {
                 const nip05Info = await buildNip05Info(metadata);
                 await profileRepo.cacheProfile(npub, metadata, messagingRelays, nip05Info);
+
+                const username = extractKind0Username(metadata);
+                if (username) {
+                    await cacheAndroidProfileIdentity({
+                        pubkeyHex: pubkey,
+                        username,
+                        picture: extractKind0Picture(metadata) ?? undefined,
+                        updatedAt: Date.now()
+                    });
+                }
+
                 resolve();
             };
 

@@ -80,7 +80,29 @@ public class AndroidBackgroundMessagingPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void stop(PluginCall call) {
+    public void cacheProfile(PluginCall call) {
+        String pubkeyHex = call.getString("pubkeyHex");
+        String username = call.getString("username");
+        String picture = call.getString("picture", null);
+        Double updatedAtValue = call.getDouble("updatedAt", null);
+        long updatedAt = updatedAtValue != null ? updatedAtValue.longValue() : System.currentTimeMillis();
+
+        if (pubkeyHex == null || pubkeyHex.isEmpty()) {
+            call.reject("pubkeyHex is required");
+            return;
+        }
+
+        if (username == null || username.trim().isEmpty()) {
+            call.reject("username is required");
+            return;
+        }
+
+        AndroidProfileCachePrefs.upsert(getContext(), pubkeyHex, username, picture, updatedAt);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stop(PluginCall call) { 
         AndroidBackgroundMessagingPrefs.setEnabled(getContext(), false);
 
         Intent intent = new Intent(getContext(), NativeBackgroundMessagingService.class);

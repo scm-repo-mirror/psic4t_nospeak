@@ -12,6 +12,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.BitmapShader;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Shader;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -25,21 +31,30 @@ import androidx.core.content.ContextCompat;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
- 
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
- 
-import okhttp3.OkHttpClient;
 
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 import okio.ByteString;
+
 
 public class NativeBackgroundMessagingService extends Service {
 
@@ -83,6 +98,10 @@ public class NativeBackgroundMessagingService extends Service {
 
     private final Map<String, Integer> conversationActivityCounts = new HashMap<>();
     private final Map<String, String> conversationLastPreview = new HashMap<>();
+
+    private final Map<String, Bitmap> avatarBitmaps = new HashMap<>();
+    private final Map<String, String> avatarBitmapKeys = new HashMap<>();
+    private final Set<String> avatarFetchInFlight = new HashSet<>();
 
     private String currentPubkeyHex;
     private String currentMode = "amber";
@@ -193,6 +212,9 @@ public class NativeBackgroundMessagingService extends Service {
         eoseFallbackCallbacks.clear();
         conversationActivityCounts.clear();
         conversationLastPreview.clear();
+        avatarBitmaps.clear();
+        avatarBitmapKeys.clear();
+        avatarFetchInFlight.clear();
         retryAttempts.clear();
     }
 
@@ -456,6 +478,8 @@ public class NativeBackgroundMessagingService extends Service {
         showConversationActivityNotification(partnerPubkeyHex, preview);
     }
 
+    private static final int AVATAR_TARGET_PX = 192;
+
     private void showConversationActivityNotification(String partnerPubkeyHex, String latestPreview) {
         if (!shouldEmitMessageNotification()) {
             return;
@@ -472,15 +496,31 @@ public class NativeBackgroundMessagingService extends Service {
         String body = buildCombinedActivityBody(partnerPubkeyHex, latestPreview);
         PendingIntent pendingIntent = buildChatPendingIntent(partnerPubkeyHex, requestCode);
 
+        AndroidProfileCachePrefs.Identity identity = AndroidProfileCachePrefs.get(getApplicationContext(), partnerPubkeyHex);
+        String title = identity != null && identity.username != null && !identity.username.trim().isEmpty()
+                ? identity.username.trim()
+                : "New activity";
+        String pictureUrl = identity != null ? identity.pictureUrl : null;
+
+        Bitmap avatar = resolveCachedAvatarBitmap(partnerPubkeyHex, pictureUrl);
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
-                .setContentTitle("New activity")
+                .setContentTitle(title)
                 .setContentText(body)
                 .setSmallIcon(R.drawable.ic_stat_nospeak)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
+        if (avatar != null) {
+            builder.setLargeIcon(avatar);
+        }
+
         manager.notify(notificationId, builder.build());
+
+        if (avatar == null && pictureUrl != null && !pictureUrl.trim().isEmpty()) {
+            fetchConversationAvatar(partnerPubkeyHex, pictureUrl.trim());
+        }
     }
 
     private PendingIntent buildChatPendingIntent(String partnerPubkeyHex, int requestCode) {
@@ -513,7 +553,291 @@ public class NativeBackgroundMessagingService extends Service {
         return nextCount + " new items · " + latestPreview;
     }
 
-    private String resolveRumorPreview(DecryptedRumor rumor) {
+    private String buildCurrentActivityBody(String partnerPubkeyHex) {
+        int count;
+        String preview;
+
+        synchronized (conversationActivityCounts) {
+            Integer current = conversationActivityCounts.get(partnerPubkeyHex);
+            count = current != null ? current : 1;
+            preview = conversationLastPreview.get(partnerPubkeyHex);
+        }
+
+        if (preview == null || preview.trim().isEmpty()) {
+            preview = "New message";
+        }
+
+        if (count <= 1) {
+            return preview;
+        }
+
+        return count + " new items · " + preview;
+    }
+
+    private void refreshConversationActivityNotification(String partnerPubkeyHex) {
+        if (!shouldEmitMessageNotification()) {
+            return;
+        }
+
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) {
+            return;
+        }
+
+        int notificationId = Math.abs(partnerPubkeyHex.hashCode());
+        int requestCode = notificationId + 2000;
+
+        PendingIntent pendingIntent = buildChatPendingIntent(partnerPubkeyHex, requestCode);
+        String body = buildCurrentActivityBody(partnerPubkeyHex);
+
+        AndroidProfileCachePrefs.Identity identity = AndroidProfileCachePrefs.get(getApplicationContext(), partnerPubkeyHex);
+        String title = identity != null && identity.username != null && !identity.username.trim().isEmpty()
+                ? identity.username.trim()
+                : "New activity";
+        String pictureUrl = identity != null ? identity.pictureUrl : null;
+
+        Bitmap avatar = resolveCachedAvatarBitmap(partnerPubkeyHex, pictureUrl);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_MESSAGES_ID)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setSmallIcon(R.drawable.ic_stat_nospeak)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        if (avatar != null) {
+            builder.setLargeIcon(avatar);
+        }
+
+        manager.notify(notificationId, builder.build());
+    }
+
+    private Bitmap resolveCachedAvatarBitmap(String partnerPubkeyHex, String pictureUrl) {
+        if (pictureUrl == null || pictureUrl.isEmpty()) {
+            return null;
+        }
+
+        String key = computeAvatarKey(pictureUrl);
+        if (key == null) {
+            return null;
+        }
+
+        synchronized (avatarBitmaps) {
+            Bitmap cached = avatarBitmaps.get(partnerPubkeyHex);
+            String cachedKey = avatarBitmapKeys.get(partnerPubkeyHex);
+            if (cached != null && key.equals(cachedKey)) {
+                return cached;
+            }
+        }
+
+        File file = new File(getAvatarCacheDir(), key + ".png");
+        if (!file.exists()) {
+            return null;
+        }
+
+        Bitmap decoded = BitmapFactory.decodeFile(file.getAbsolutePath());
+        if (decoded == null) {
+            return null;
+        }
+
+        synchronized (avatarBitmaps) {
+            avatarBitmaps.put(partnerPubkeyHex, decoded);
+            avatarBitmapKeys.put(partnerPubkeyHex, key);
+        }
+
+        return decoded;
+    }
+
+    private void fetchConversationAvatar(final String partnerPubkeyHex, final String pictureUrl) {
+        if (!shouldEmitMessageNotification()) {
+            return;
+        }
+
+        if (!serviceRunning) {
+            return;
+        }
+
+        final String key = computeAvatarKey(pictureUrl);
+        if (key == null) {
+            return;
+        }
+
+        File targetFile = new File(getAvatarCacheDir(), key + ".png");
+        if (targetFile.exists()) {
+            if (handler != null) {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        refreshConversationActivityNotification(partnerPubkeyHex);
+                    }
+                });
+            }
+            return;
+        }
+
+        synchronized (avatarFetchInFlight) {
+            if (avatarFetchInFlight.contains(partnerPubkeyHex)) {
+                return;
+            }
+            avatarFetchInFlight.add(partnerPubkeyHex);
+        }
+
+        Request request = new Request.Builder().url(pictureUrl).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                synchronized (avatarFetchInFlight) {
+                    avatarFetchInFlight.remove(partnerPubkeyHex);
+                }
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    if (!response.isSuccessful()) {
+                        return;
+                    }
+
+                    ResponseBody body = response.body();
+                    if (body == null) {
+                        return;
+                    }
+
+                    byte[] bytes = body.bytes();
+                    Bitmap decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    if (decoded == null) {
+                        return;
+                    }
+
+                    Bitmap normalized = normalizeAvatarBitmap(decoded, AVATAR_TARGET_PX);
+                    if (normalized == null) {
+                        return;
+                    }
+
+                    if (!writeAvatarBitmap(targetFile, normalized)) {
+                        return;
+                    }
+
+                    synchronized (avatarBitmaps) {
+                        avatarBitmaps.put(partnerPubkeyHex, normalized);
+                        avatarBitmapKeys.put(partnerPubkeyHex, key);
+                    }
+
+                    if (handler != null) {
+                        handler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                refreshConversationActivityNotification(partnerPubkeyHex);
+                            }
+                        });
+                    }
+                } finally {
+                    synchronized (avatarFetchInFlight) {
+                        avatarFetchInFlight.remove(partnerPubkeyHex);
+                    }
+                    response.close();
+                }
+            }
+        });
+    }
+
+    private File getAvatarCacheDir() {
+        File dir = new File(getCacheDir(), "nospeak_avatar_cache");
+        if (!dir.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+        }
+        return dir;
+    }
+
+    private String computeAvatarKey(String url) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(url.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return null;
+        }
+    }
+
+    private Bitmap normalizeAvatarBitmap(Bitmap bitmap, int targetPx) {
+        if (bitmap == null) {
+            return null;
+        }
+
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+
+        int size = Math.min(width, height);
+        int left = Math.max(0, (width - size) / 2);
+        int top = Math.max(0, (height - size) / 2);
+
+        Bitmap square = Bitmap.createBitmap(bitmap, left, top, size, size);
+        Bitmap scaled = Bitmap.createScaledBitmap(square, targetPx, targetPx, true);
+
+        return makeCircularBitmap(scaled);
+    }
+
+    private Bitmap makeCircularBitmap(Bitmap bitmap) {
+        if (bitmap == null) {
+            return null;
+        }
+
+        int size = Math.min(bitmap.getWidth(), bitmap.getHeight());
+        if (size <= 0) {
+            return null;
+        }
+
+        Bitmap output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        paint.setShader(new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
+
+        float radius = size / 2f;
+        canvas.drawCircle(radius, radius, radius, paint);
+
+        return output;
+    }
+
+    private boolean writeAvatarBitmap(File file, Bitmap bitmap) {
+        if (file == null || bitmap == null) {
+            return false;
+        }
+
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            parent.mkdirs();
+        }
+
+        FileOutputStream out = null;
+        try {
+            out = new FileOutputStream(file);
+            return bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+        } catch (IOException e) {
+            return false;
+        } finally {
+            if (out != null) {
+                try {
+                    out.close();
+                } catch (IOException ignored) {
+                    // ignore
+                }
+            }
+        }
+    }
+
+    private String resolveRumorPreview(DecryptedRumor rumor) { 
         if (rumor.kind == 14) {
             String content = rumor.content != null ? rumor.content.trim() : "";
             if (content.isEmpty()) {

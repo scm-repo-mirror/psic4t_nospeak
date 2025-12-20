@@ -559,24 +559,14 @@ When running inside the Android Capacitor app shell with background messaging en
 - **AND** when the inner rumor is a Kind 15 file message authored by another user, it SHALL raise an Android OS notification whose body includes the phrase `Message: Sent you an attachment`
 - **AND** when decryption is not available or fails, it SHALL instead raise a generic notification that indicates a new encrypted message has arrived.
 
-#### Scenario: Background delivery suppresses self-authored message and reaction rumors
+#### Scenario: Background notifications show cached sender identity when available
 - **GIVEN** the same background messaging setup as above
-- **WHEN** a gift-wrapped event is delivered whose decrypted inner rumor is authored by the current user
-- **THEN** the native service SHALL NOT raise an Android OS message/reaction notification for that event
-- **AND** it SHALL continue to maintain relay subscriptions as long as background messaging remains enabled.
-
-#### Scenario: Background delivery groups message and reaction activity per conversation
-- **GIVEN** background messaging is enabled and the native foreground service is active
-- **AND** the service has already raised a notification for conversation activity with Contact A
-- **WHEN** additional message or reaction gift-wrap events for Contact A are delivered while the app UI is not visible
-- **THEN** the native service SHALL update a single grouped notification entry for Contact A (rather than creating a new notification per event)
-- **AND** the grouped notification SHALL represent combined message and reaction activity.
-
-#### Scenario: Background delivery respects notification settings and permissions
-- **GIVEN** the user is running nospeak in the Android app, and the native background messaging service is active
-- **WHEN** message notifications are disabled in Settings → General for the current device, or Android has denied local notification permission
-- **THEN** the native background messaging service SHALL continue to maintain relay subscriptions as long as background messaging remains enabled
-- **AND** it SHALL NOT surface OS notifications for new messages or reactions while notifications are disabled or permission is denied.
+- **AND** the web runtime has previously resolved and cached the sender's Nostr kind `0` metadata on this Android installation
+- **WHEN** the native background messaging service raises an Android OS notification for conversation activity from that sender
+- **THEN** it SHOULD use the cached **username** derived from kind `0.name` as the notification title
+- **AND** it SHOULD display the cached avatar derived from kind `0.picture` as the notification large icon on a best-effort basis
+- **AND** it SHALL fall back to existing generic notification titling when no cached username is available
+- **AND** it SHALL NOT subscribe to kind `0` metadata events from relays as part of notification emission.
 
 ### Requirement: Energy-Efficient Background Messaging on Android
 The messaging implementation for Android background messaging SHALL minimize energy usage by limiting background work to maintaining relay subscriptions, processing incoming messages, and firing notifications, and SHALL apply conservative reconnection and backoff behavior when connections are lost.
