@@ -3,6 +3,8 @@
     import { getUrlPreviewApiUrl } from '$lib/core/UrlPreviewApi';
     import { IntersectionObserverManager } from '$lib/utils/observers';
     import AudioWaveformPlayer from './AudioWaveformPlayer.svelte';
+    import YouTubeEmbed from './YouTubeEmbed.svelte';
+    import { extractYouTubeVideoId, isYouTubeUrl } from '$lib/core/YouTube';
     import { decryptAesGcmToBytes } from '$lib/core/FileEncryption';
     import { profileRepo } from '$lib/db/ProfileRepository';
     import { profileResolver } from '$lib/core/ProfileResolver';
@@ -175,7 +177,7 @@
     function getFirstNonMediaUrl(text: string): string | null {
         const matches = text.match(urlRegex) ?? [];
         for (const candidate of matches) {
-            if (!isImage(candidate) && !isVideo(candidate) && !isAudio(candidate)) {
+            if (!isImage(candidate) && !isVideo(candidate) && !isAudio(candidate) && !isYouTubeUrl(candidate)) {
                 return candidate;
             }
         }
@@ -202,6 +204,25 @@
     }
     
     let parts = $derived(content.split(urlRegex));
+
+    const youTubeEmbed = $derived((() => {
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (!part.match(/^https?:\/\//)) {
+                continue;
+            }
+
+            const videoId = extractYouTubeVideoId(part);
+            if (videoId) {
+                return {
+                    partIndex: i,
+                    videoId
+                };
+            }
+        }
+
+        return null;
+    })());
     
     // Check if the content is a single emoji
     // Emoji regex to match a single emoji character (including composite ones)
@@ -221,6 +242,7 @@
  
      let container: HTMLElement | null = null;
      let isVisible = $state(false);
+     const youTubeEmbedsEnabled = $derived(typeof window !== 'undefined' && getUrlPreviewsEnabled() && isVisible);
      let lastPreviewUrl: string | null = null;
      let fetchTimeout: number | null = null;
 
@@ -521,9 +543,12 @@
              {/if}
          </div>
      {:else}
-         {#each parts as part}
-             {#if part.match(/^https?:\/\//)}
-                 {#if isImage(part)}
+         {#each parts as part, i}
+              {#if part.match(/^https?:\/\//)}
+                  {#if youTubeEmbed && youTubeEmbedsEnabled && i === youTubeEmbed.partIndex}
+                      <YouTubeEmbed videoId={youTubeEmbed.videoId} />
+                  {:else if isImage(part)}
+
                       {#if onImageClick}
                           <button
                               type="button"

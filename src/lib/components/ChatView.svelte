@@ -1488,6 +1488,11 @@
          (captionForThis && unreadSnapshotMessageSet.has(captionForThis.eventId)) ||
          activeHighlightMessageSet.has(msg.eventId)
        )}
+
+       {@const hasYouTubeLink = /https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(msg.message)}
+       {@const bubbleWidthClass = hasYouTubeLink
+         ? 'w-full max-w-full md:w-[560px] md:max-w-full'
+         : (useFullWidthBubbles ? 'max-w-full' : 'max-w-[70%]')}
  
        {#if !caption}
       <div
@@ -1511,7 +1516,7 @@
         <div
           role="button"
           tabindex="0"
-          class={`${useFullWidthBubbles ? 'max-w-full' : 'max-w-[70%]'} p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative ${isAndroidShell ? 'select-none' : ''}
+          class={`${bubbleWidthClass} p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative ${isAndroidShell ? 'select-none' : ''}
                           ${
                             msg.direction === "sent"
                               ? "bg-blue-50/10 dark:bg-blue-900/40 text-gray-900 dark:text-slate-100 border border-blue-500/10 dark:border-blue-400/10 rounded-2xl rounded-br-none hover:shadow-md"
