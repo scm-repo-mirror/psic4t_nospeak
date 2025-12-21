@@ -82,6 +82,7 @@
   let isSavingMediaServers = $state(false);
   let mediaServerSaveStatus = $state<string | null>(null);
   let blossomUploadsEnabled = $state(false);
+  let mediaServersLoaded = $state(false);
 
   function handlePictureUpload(file: File, type: "image" | "video" | "audio", url?: string) {
     if (url) {
@@ -186,6 +187,8 @@
 
 
   async function loadMediaServerSettings() {
+    mediaServersLoaded = false;
+
     let configured: string[] = [];
 
     if ($currentUser?.npub) {
@@ -198,6 +201,8 @@
     mediaServers = configured
       .map((url) => ({ url }))
       .sort((a, b) => a.url.localeCompare(b.url));
+
+    mediaServersLoaded = true;
   }
 
   async function saveMediaServerSettings() {
@@ -372,7 +377,7 @@
   });
 
   $effect(() => {
-    if (mediaServers.length === 0 && blossomUploadsEnabled) {
+    if (mediaServersLoaded && mediaServers.length === 0 && blossomUploadsEnabled) {
       blossomUploadsEnabled = false;
     }
   });
