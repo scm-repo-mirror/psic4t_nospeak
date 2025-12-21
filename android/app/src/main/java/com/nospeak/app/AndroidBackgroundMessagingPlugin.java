@@ -1,10 +1,16 @@
 package com.nospeak.app;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
 
 import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSArray;
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -98,7 +104,109 @@ public class AndroidBackgroundMessagingPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void stop(PluginCall call) { 
+    public void getBatteryOptimizationStatus(PluginCall call) {
+        JSObject result = new JSObject();
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            result.put("isIgnoringBatteryOptimizations", true);
+            call.resolve(result);
+            return;
+        }
+
+        PowerManager powerManager = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+        boolean ignoring = powerManager != null && powerManager.isIgnoringBatteryOptimizations(getContext().getPackageName());
+        result.put("isIgnoringBatteryOptimizations", ignoring);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestIgnoreBatteryOptimizations(PluginCall call) {
+        JSObject result = new JSObject();
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            result.put("started", false);
+            result.put("reason", "unsupported");
+            call.resolve(result);
+            return;
+        }
+
+        PowerManager powerManager = (PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+        boolean ignoring = powerManager != null && powerManager.isIgnoringBatteryOptimizations(getContext().getPackageName());
+        if (ignoring) {
+            result.put("started", false);
+            result.put("reason", "already_ignoring");
+            call.resolve(result);
+            return;
+        }
+
+        if (getActivity() == null) {
+            result.put("started", false);
+            result.put("reason", "no_activity");
+            call.resolve(result);
+            return;
+        }
+
+        String packageName = getContext().getPackageName();
+        Intent intent = new Intent(
+            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            Uri.parse("package:" + packageName)
+        );
+
+        if (intent.resolveActivity(getContext().getPackageManager()) == null) {
+            result.put("started", false);
+            result.put("reason", "unavailable");
+            call.resolve(result);
+            return;
+        }
+
+        try {
+            getActivity().runOnUiThread(() -> getActivity().startActivity(intent));
+            result.put("started", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            result.put("started", false);
+            result.put("reason", "failed");
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void openAppBatterySettings(PluginCall call) {
+        JSObject result = new JSObject();
+
+        if (getActivity() == null) {
+            result.put("started", false);
+            result.put("reason", "no_activity");
+            call.resolve(result);
+            return;
+        }
+
+        String packageName = getContext().getPackageName();
+        Intent intent = new Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null)
+        );
+
+        if (intent.resolveActivity(getContext().getPackageManager()) == null) {
+            result.put("started", false);
+            result.put("reason", "unavailable");
+            call.resolve(result);
+            return;
+        }
+
+        try {
+            getActivity().runOnUiThread(() -> getActivity().startActivity(intent));
+            result.put("started", true);
+            call.resolve(result);
+        } catch (Exception e) {
+            result.put("started", false);
+            result.put("reason", "failed");
+            call.resolve(result);
+        }
+    }
+
+    @PluginMethod
+    public void stop(PluginCall call) {
         AndroidBackgroundMessagingPrefs.setEnabled(getContext(), false);
 
         Intent intent = new Intent(getContext(), NativeBackgroundMessagingService.class);

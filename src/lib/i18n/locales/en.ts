@@ -215,7 +215,8 @@ const en = {
         backgroundMessaging: {
             label: 'Background Messaging',
             description:
-                'Keep nospeak connected to your messaging relays and receive message/reaction notifications while the app is in the background. Android will show a persistent notification when this is enabled. Works with both local-key (nsec) and Amber logins. Notification previews may be limited by your Android lockscreen privacy settings.'
+                'Keep nospeak connected to your messaging relays and receive message/reaction notifications while the app is in the background. Android will show a persistent notification when this is enabled. Works with both local-key (nsec) and Amber logins. Notification previews may be limited by your Android lockscreen privacy settings.',
+            openBatterySettings: 'Open battery settings'
         },
         urlPreviews: {
             label: 'URL Previews',

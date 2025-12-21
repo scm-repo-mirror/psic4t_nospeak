@@ -217,7 +217,8 @@ const de = {
         backgroundMessaging: {
             label: 'Background Messaging',
             description:
-                'Halte nospeak mit deinen Messaging-Relays verbunden und erhalte Nachrichten-/Reaktionsbenachrichtigungen, während die App im Hintergrund ist. Android zeigt hierfür eine dauerhafte Benachrichtigung an. Funktioniert sowohl mit lokalem Schlüssel (nsec) als auch mit Amber-Login. Vorschauen können durch deine Android-Sperrbildschirm-Einstellungen eingeschränkt sein.'
+                'Halte nospeak mit deinen Messaging-Relays verbunden und erhalte Nachrichten-/Reaktionsbenachrichtigungen, während die App im Hintergrund ist. Android zeigt hierfür eine dauerhafte Benachrichtigung an. Funktioniert sowohl mit lokalem Schlüssel (nsec) als auch mit Amber-Login. Vorschauen können durch deine Android-Sperrbildschirm-Einstellungen eingeschränkt sein.',
+            openBatterySettings: 'Batterieeinstellungen öffnen'
         },
         urlPreviews: {
             label: 'URL-Vorschauen',

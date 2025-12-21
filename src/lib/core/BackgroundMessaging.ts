@@ -81,9 +81,94 @@ interface AndroidBackgroundMessagingPlugin {
     }): Promise<void>;
     update(options: { summary: string }): Promise<void>;
     stop(): Promise<void>;
+
+    getBatteryOptimizationStatus(): Promise<{ isIgnoringBatteryOptimizations: boolean }>;
+    requestIgnoreBatteryOptimizations(): Promise<{ started: boolean; reason?: string }>;
+    openAppBatterySettings(): Promise<{ started: boolean; reason?: string }>;
 }
 
 const AndroidBackgroundMessaging = registerPlugin<AndroidBackgroundMessagingPlugin>('AndroidBackgroundMessaging');
+
+const BATTERY_OPTIMIZATION_PROMPTED_KEY = 'nospeak_battery_optimizations_prompted';
+
+function setBatteryOptimizationPromptedForCurrentEnableAttempt(): void {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(BATTERY_OPTIMIZATION_PROMPTED_KEY, '1');
+    } catch (e) {
+        console.warn('Failed to persist battery optimization prompt sentinel:', e);
+    }
+}
+
+function clearBatteryOptimizationPromptedForCurrentEnableAttempt(): void {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+    }
+
+    try {
+        window.localStorage.removeItem(BATTERY_OPTIMIZATION_PROMPTED_KEY);
+    } catch (e) {
+        console.warn('Failed to clear battery optimization prompt sentinel:', e);
+    }
+}
+
+function hasPromptedBatteryOptimizationsForCurrentEnableAttempt(): boolean {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return false;
+    }
+
+    try {
+        return window.localStorage.getItem(BATTERY_OPTIMIZATION_PROMPTED_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export async function maybeRequestAndroidIgnoreBatteryOptimizationsForBackgroundMessaging(): Promise<void> {
+    if (Capacitor.getPlatform() !== 'android' || !isAndroidNative()) {
+        return;
+    }
+
+    if (hasPromptedBatteryOptimizationsForCurrentEnableAttempt()) {
+        return;
+    }
+
+    let status: { isIgnoringBatteryOptimizations: boolean } | null = null;
+
+    try {
+        status = await AndroidBackgroundMessaging.getBatteryOptimizationStatus();
+    } catch (e) {
+        console.warn('Failed to query Android battery optimization status:', e);
+        return;
+    }
+
+    if (!status || status.isIgnoringBatteryOptimizations) {
+        return;
+    }
+
+    setBatteryOptimizationPromptedForCurrentEnableAttempt();
+
+    try {
+        await AndroidBackgroundMessaging.requestIgnoreBatteryOptimizations();
+    } catch (e) {
+        console.warn('Failed to request Android ignore battery optimizations:', e);
+    }
+}
+
+export async function openAndroidAppBatterySettings(): Promise<void> {
+    if (Capacitor.getPlatform() !== 'android' || !isAndroidNative()) {
+        return;
+    }
+
+    try {
+        await AndroidBackgroundMessaging.openAppBatterySettings();
+    } catch (e) {
+        console.warn('Failed to open Android app battery settings:', e);
+    }
+}
 
 async function startNativeForegroundService(summary: string, readRelays: string[]): Promise<void> {
      if (Capacitor.getPlatform() !== 'android') {
@@ -223,7 +308,8 @@ export async function enableAndroidBackgroundMessaging(): Promise<void> {
      try {
          await startNativeForegroundService(summary, readRelays);
 
- 
+         await maybeRequestAndroidIgnoreBatteryOptimizationsForBackgroundMessaging();
+
          // Keep the notification in sync with connected relays
          ensureRelayHealthSubscription();
      } catch (e) {
@@ -233,12 +319,14 @@ export async function enableAndroidBackgroundMessaging(): Promise<void> {
 
 
 
-export async function disableAndroidBackgroundMessaging(): Promise<void> {
-    if (!isAndroidNative()) {
-        return;
-    }
+ export async function disableAndroidBackgroundMessaging(): Promise<void> {
+     if (!isAndroidNative()) {
+         return;
+     }
 
-    // Restore default reconnection behavior
+     clearBatteryOptimizationPromptedForCurrentEnableAttempt();
+
+     // Restore default reconnection behavior
     connectionManager.setBackgroundModeEnabled(false);
  
     await stopNativeForegroundService();

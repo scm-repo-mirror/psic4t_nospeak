@@ -12,7 +12,7 @@
   import type { ThemeMode } from "$lib/stores/theme";
   import MediaUploadButton from "./MediaUploadButton.svelte";
   import { isAndroidNative, isMobileWeb, nativeDialogService } from "$lib/core/NativeDialogs";
-  import { applyAndroidBackgroundMessaging } from "$lib/core/BackgroundMessaging";
+  import { applyAndroidBackgroundMessaging, openAndroidAppBatterySettings } from "$lib/core/BackgroundMessaging";
   import { fade } from "svelte/transition";
   import { glassModal } from "$lib/utils/transitions";
   import { t } from "$lib/i18n";
@@ -487,6 +487,18 @@
       console.error("Failed to sync Android background messaging from toggle:", e);
       // Revert on error?
       backgroundMessagingEnabled = !backgroundMessagingEnabled;
+    }
+  }
+
+  async function openBatterySettings() {
+    if (!isAndroidApp) {
+      return;
+    }
+
+    try {
+      await openAndroidAppBatterySettings();
+    } catch (e) {
+      console.error("Failed to open Android battery settings:", e);
     }
   }
 
@@ -1078,6 +1090,16 @@
                     <p class="text-sm text-gray-500 dark:text-slate-400">
                       {$t("settings.backgroundMessaging.description")}
                     </p>
+
+                    <div class="mt-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onclick={openBatterySettings}
+                      >
+                        {$t("settings.backgroundMessaging.openBatterySettings")}
+                      </Button>
+                    </div>
                   </div>
                   <Toggle
                     id="background-messaging-toggle"
