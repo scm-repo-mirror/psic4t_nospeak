@@ -7,6 +7,8 @@ const setAndroidLocalSecretKeyHexMock = vi.fn().mockResolvedValue(undefined);
 const getAndroidLocalSecretKeyHexMock = vi.fn().mockResolvedValue(null);
 const clearAndroidLocalSecretKeyMock = vi.fn().mockResolvedValue(undefined);
 
+const requestNotificationPermissionMock = vi.fn().mockResolvedValue(true);
+
 vi.mock('./NativeDialogs', () => ({
     isAndroidNative: () => isAndroidNativeMock
 }));
@@ -17,11 +19,18 @@ vi.mock('./AndroidLocalSecretKey', () => ({
     clearAndroidLocalSecretKey: clearAndroidLocalSecretKeyMock
 }));
 
+vi.mock('./NotificationService', () => ({
+    notificationService: {
+        requestPermission: requestNotificationPermissionMock
+    }
+}));
+
 beforeEach(() => {
     isAndroidNativeMock = false;
     setAndroidLocalSecretKeyHexMock.mockClear();
     getAndroidLocalSecretKeyHexMock.mockClear();
     clearAndroidLocalSecretKeyMock.mockClear();
+    requestNotificationPermissionMock.mockClear();
 });
 
 vi.mock('$app/navigation', () => ({
@@ -233,6 +242,7 @@ vi.mock('nostr-tools/nip46', () => ({
         localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: true }));
         localStorage.setItem('nospeak-theme', 'mocha');
         localStorage.setItem('nospeak-theme-mode', 'dark');
+        localStorage.setItem('nospeak_notifications_permission_prompted', '1');
         localStorage.setItem('nospeak:custom', 'value');
         localStorage.setItem('nospeak-custom-dash', 'value');
 
@@ -255,7 +265,8 @@ vi.mock('nostr-tools/nip46', () => ({
         expect(localStorage.getItem('nospeak-theme-mode')).toBeNull();
         expect(localStorage.getItem('nospeak:custom')).toBeNull();
         expect(localStorage.getItem('nospeak-custom-dash')).toBeNull();
- 
+
+        expect(localStorage.getItem('nospeak_notifications_permission_prompted')).toBe('1');
         expect(localStorage.getItem('unrelated-key')).toBe('keep');
     });
 });
@@ -323,9 +334,92 @@ describe('AuthService ordered login history flow integration', () => {
          expect(runFlowSpy).toHaveBeenCalledWith('npub1test', 'Login');
      });
  
- });
- 
- describe('AuthService restore integrates background messaging preference sync', () => {
+  });
+
+  describe('AuthService notification permission prompting', () => {
+      let authService: AuthService;
+
+      beforeEach(async () => {
+          vi.clearAllMocks();
+
+          const storageData: Record<string, string> = {};
+          const storageImpl: any = {
+              get length() {
+                  return Object.keys(storageData).length;
+              },
+              key(index: number) {
+                  const keys = Object.keys(storageData);
+                  return keys[index] ?? null;
+              },
+              getItem(key: string) {
+                  return Object.prototype.hasOwnProperty.call(storageData, key) ? storageData[key] : null;
+              },
+              setItem(key: string, value: string) {
+                  storageData[key] = String(value);
+              },
+              removeItem(key: string) {
+                  delete storageData[key];
+              },
+              clear() {
+                  Object.keys(storageData).forEach((key) => delete storageData[key]);
+              }
+          };
+
+          Object.defineProperty(globalThis, 'localStorage', {
+              value: storageImpl,
+              configurable: true
+          });
+
+          if (typeof window !== 'undefined') {
+              Object.defineProperty(window, 'localStorage', {
+                  value: storageImpl,
+                  configurable: true
+              });
+          }
+
+          const module = await import('./AuthService');
+          vi
+              .spyOn(module.AuthService.prototype as any, 'runLoginHistoryFlow')
+              .mockResolvedValue(undefined);
+          authService = new module.AuthService();
+
+          const { nip19 } = await import('nostr-tools');
+          (nip19.npubEncode as any).mockReturnValue('npub1test');
+      });
+
+      it('prompts for notification permission once on login by default', async () => {
+          await authService.login('nsec1test');
+
+          expect(requestNotificationPermissionMock).toHaveBeenCalledTimes(1);
+          expect(localStorage.getItem('nospeak_notifications_permission_prompted')).toBe('1');
+      });
+
+      it('does not prompt on login when notifications are disabled in settings', async () => {
+          localStorage.setItem('nospeak-settings', JSON.stringify({ notificationsEnabled: false }));
+
+          await authService.login('nsec1test');
+
+          expect(requestNotificationPermissionMock).not.toHaveBeenCalled();
+          expect(localStorage.getItem('nospeak_notifications_permission_prompted')).toBeNull();
+      });
+
+      it('does not prompt on login when already prompted', async () => {
+          localStorage.setItem('nospeak_notifications_permission_prompted', '1');
+
+          await authService.login('nsec1test');
+
+          expect(requestNotificationPermissionMock).not.toHaveBeenCalled();
+      });
+
+      it('prompts for notification permission once on Amber login by default', async () => {
+          await authService.loginWithAmber();
+
+          expect(requestNotificationPermissionMock).toHaveBeenCalledTimes(1);
+          expect(localStorage.getItem('nospeak_notifications_permission_prompted')).toBe('1');
+      });
+  });
+  
+  describe('AuthService restore integrates background messaging preference sync', () => {
      let authService: AuthService;
  
      beforeEach(async () => {

@@ -98,7 +98,7 @@ export interface NotificationSettings {
 
 export class NotificationService {
     private settings: NotificationSettings = {
-        notificationsEnabled: false
+        notificationsEnabled: true
     };
     private readonly isAndroidNativeEnv: boolean;
     private androidChannelInitialized: boolean = false;

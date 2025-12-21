@@ -206,11 +206,16 @@ const en = {
             languageDescription: 'Choose your preferred app language.'
         },
         notifications: {
-            label: 'Message Notifications',
+            label: 'Notifications',
             supportedDescription:
                 'Get notified when you receive new messages on this device',
             unsupportedDescription:
                 'Notifications not supported on this device'
+        },
+        backgroundMessaging: {
+            label: 'Background Messaging',
+            description:
+                'Keep nospeak connected to your messaging relays and receive message/reaction notifications while the app is in the background. Android will show a persistent notification when this is enabled. Works with both local-key (nsec) and Amber logins. Notification previews may be limited by your Android lockscreen privacy settings.'
         },
         urlPreviews: {
             label: 'URL Previews',

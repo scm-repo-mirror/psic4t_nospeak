@@ -136,6 +136,10 @@ public final class AndroidBackgroundMessagingPrefs {
             return null;
         }
 
+        if (!config.notificationsEnabled) {
+            return null;
+        }
+
         // Only require a pubkey when there are relays to connect to.
         if ((config.readRelays != null && config.readRelays.length > 0) && (config.pubkeyHex == null || config.pubkeyHex.isEmpty())) {
             return null;

@@ -33,7 +33,11 @@ function loadSettings(): NospeakSettings {
 
 export function isBackgroundMessagingPreferenceEnabled(): boolean {
     const settings = loadSettings();
-    return settings.backgroundMessagingEnabled === true;
+
+    const notificationsEnabled = settings.notificationsEnabled !== false;
+    const backgroundMessagingEnabled = settings.backgroundMessagingEnabled !== false;
+
+    return notificationsEnabled && backgroundMessagingEnabled;
 }
 
 function buildRelaySummary(relays: string[]): string {
@@ -135,7 +139,7 @@ async function startNativeForegroundService(summary: string, readRelays: string[
      }
  
       const settings = loadSettings();
-      const notificationsEnabled = settings.notificationsEnabled === true;
+      const notificationsEnabled = settings.notificationsEnabled !== false;
 
       await AndroidBackgroundMessaging.start({
           mode,

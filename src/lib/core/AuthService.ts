@@ -15,6 +15,7 @@ import { messageRepo } from '$lib/db/MessageRepository';
 import { beginLoginSyncFlow, completeLoginSyncFlow, setLoginSyncActiveStep } from '$lib/stores/sync';
 import { showEmptyProfileModal } from '$lib/stores/modals';
 import { isAndroidNative } from './NativeDialogs';
+import { notificationService } from './NotificationService';
 import { clearAndroidLocalSecretKey, getAndroidLocalSecretKeyHex, setAndroidLocalSecretKeyHex } from './AndroidLocalSecretKey';
 
 // Helper for hex conversion
@@ -37,6 +38,9 @@ const NIP46_URI_KEY = 'nospeak:nip46_uri';
 const NIP46_BUNKER_PUBKEY_KEY = 'nospeak:nip46_bunker_pubkey';
 const NIP46_BUNKER_RELAYS_KEY = 'nospeak:nip46_bunker_relays';
 
+const SETTINGS_KEY = 'nospeak-settings';
+const NOTIFICATION_PERMISSION_PROMPTED_KEY = 'nospeak_notifications_permission_prompted';
+
 export class AuthService {
     public generateKeypair(): { npub: string; nsec: string } {
         const secret = generateSecretKey();
@@ -47,8 +51,48 @@ export class AuthService {
         return { npub, nsec };
     }
 
+    private async promptNotificationPermissionOnce(): Promise<void> {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return;
+        }
+
+        if (window.localStorage.getItem(NOTIFICATION_PERMISSION_PROMPTED_KEY)) {
+            return;
+        }
+
+        let notificationsEnabled = true;
+
+        try {
+            const raw = window.localStorage.getItem(SETTINGS_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw) as { notificationsEnabled?: boolean };
+                notificationsEnabled = parsed.notificationsEnabled !== false;
+            }
+        } catch (e) {
+            console.warn('Failed to read notification preference for permission prompt:', e);
+        }
+
+        if (!notificationsEnabled) {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(NOTIFICATION_PERMISSION_PROMPTED_KEY, '1');
+        } catch (e) {
+            console.warn('Failed to persist notification prompt sentinel:', e);
+        }
+
+        try {
+            await notificationService.requestPermission();
+        } catch (e) {
+            console.warn('Notification permission request failed:', e);
+        }
+    }
+
     public async login(nsec: string) {
         try {
+            await this.promptNotificationPermissionOnce();
+
             const s = new LocalSigner(nsec);
             const pubkey = await s.getPublicKey();
             const npub = nip19.npubEncode(pubkey);
@@ -89,6 +133,8 @@ export class AuthService {
 
     public async loginWithAmber(): Promise<void> {
         try {
+            await this.promptNotificationPermissionOnce();
+
             const s = new Nip55Signer();
             const pubkeyHex = await s.getPublicKey();
             const npub = nip19.npubEncode(pubkeyHex);
@@ -109,6 +155,8 @@ export class AuthService {
 
     public async loginWithExtension() {
         try {
+            await this.promptNotificationPermissionOnce();
+
             const s = new Nip07Signer();
             const pubkey = await s.getPublicKey();
             const npub = nip19.npubEncode(pubkey);

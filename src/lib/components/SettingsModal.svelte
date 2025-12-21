@@ -36,9 +36,9 @@
   const isAndroidApp = isAndroidNative();
   const isMobile = isAndroidApp || isMobileWeb();
 
-  let notificationsEnabled = $state(false);
+  let notificationsEnabled = $state(true);
   let urlPreviewsEnabled = $state(true);
-  let backgroundMessagingEnabled = $state(false);
+  let backgroundMessagingEnabled = $state(isAndroidApp);
   let isSupported = $state(false);
   let isLoaded = $state(false);
 
@@ -407,17 +407,17 @@
           backgroundMessagingEnabled?: boolean;
           uploadBackend?: "local" | "blossom";
         };
-        notificationsEnabled = settings.notificationsEnabled || false;
+        notificationsEnabled = settings.notificationsEnabled !== false;
         urlPreviewsEnabled =
           typeof settings.urlPreviewsEnabled === "boolean"
             ? settings.urlPreviewsEnabled
             : true;
-        backgroundMessagingEnabled = settings.backgroundMessagingEnabled === true;
+        backgroundMessagingEnabled = isAndroidApp ? settings.backgroundMessagingEnabled !== false : false;
         blossomUploadsEnabled = settings.uploadBackend === "blossom";
       } else {
-        notificationsEnabled = false;
+        notificationsEnabled = true;
         urlPreviewsEnabled = true;
-        backgroundMessagingEnabled = false;
+        backgroundMessagingEnabled = isAndroidApp;
         blossomUploadsEnabled = false;
       }
 
@@ -439,6 +439,22 @@
         uploadBackend: blossomUploadsEnabled ? "blossom" : "local"
       };
       localStorage.setItem("nospeak-settings", JSON.stringify(settings));
+    }
+  });
+
+  $effect(() => {
+    if (!isLoaded || !isOpen || !isAndroidApp) {
+      return;
+    }
+
+    if (!notificationsEnabled && backgroundMessagingEnabled) {
+      backgroundMessagingEnabled = false;
+      applyAndroidBackgroundMessaging(false).catch((e) => {
+        console.error(
+          "Failed to stop Android background messaging after disabling notifications:",
+          e
+        );
+      });
     }
   });
 
@@ -1050,21 +1066,17 @@
                 {/if}
               </div>
 
-              {#if isAndroidApp}
+              {#if isAndroidApp && notificationsEnabled}
                 <div class="flex items-start justify-between gap-4">
                   <div class="flex-1 min-w-0">
                     <label
                       for="background-messaging-toggle"
                       class="typ-section dark:text-white"
                     >
-                      Background Messaging
+                      {$t("settings.backgroundMessaging.label")}
                     </label>
                     <p class="text-sm text-gray-500 dark:text-slate-400">
-                      Keep nospeak connected to your read relays and receive new message
-                      notifications while the app is in the background. Android will show a
-                      persistent notification when this is enabled. When using Amber, nospeak
-                      cannot decrypt your messages in native code, so background notifications
-                      only indicate that encrypted messages have arrived.
+                      {$t("settings.backgroundMessaging.description")}
                     </p>
                   </div>
                   <Toggle
