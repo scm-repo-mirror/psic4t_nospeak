@@ -7,7 +7,7 @@
     const isAndroidNativeEnv = $derived(isAndroidNative());
     let { url: imageViewerUrl, originalUrl: imageViewerOriginalUrl, fitToScreen: imageViewerFitToScreen } = $derived($imageViewerState);
 
-    const overlayIconButtonClass = "!text-[rgb(var(--color-base-rgb))] dark:!text-[rgb(var(--color-text-rgb)/0.92)] !bg-[rgb(var(--color-lavender-rgb)/0.24)] hover:!bg-[rgb(var(--color-lavender-rgb)/0.30)] active:!bg-[rgb(var(--color-lavender-rgb)/0.36)]";
+    const overlayIconButtonClass = "!text-[rgb(var(--color-base-rgb))] dark:!text-[rgb(var(--color-text-rgb)/0.92)] !bg-[rgb(var(--color-lavender-rgb)/0.24)] hover:!bg-[rgb(var(--color-lavender-rgb)/0.30)] active:!bg-[rgb(var(--color-lavender-rgb)/0.36)] pointer-events-auto";
 
     let scale = $state(1);
     let translateX = $state(0);
@@ -282,7 +282,7 @@
         role="dialog"
         aria-modal="true"
     >
-        <div class={`flex items-center justify-end gap-2 p-3 text-white ${isAndroidNativeEnv ? 'pt-12' : ''}`}>
+        <div class={`absolute top-0 left-0 right-0 z-10 flex items-center justify-end gap-2 p-3 text-white pointer-events-none ${isAndroidNativeEnv ? 'pt-12' : ''}`}>
             {#if !isAndroidNativeEnv}
                 <Button
                     size="icon"
