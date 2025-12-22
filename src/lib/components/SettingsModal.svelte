@@ -1303,6 +1303,7 @@
                   <div class="flex gap-2">
                     <MediaUploadButton
                       onFileSelect={handlePictureUpload}
+                      variant="default"
                       allowedTypes={["image"]}
                     />
 
@@ -1325,6 +1326,7 @@
                   <div class="flex gap-2">
                     <MediaUploadButton
                       onFileSelect={handleBannerUpload}
+                      variant="default"
                       allowedTypes={["image"]}
                     />
 

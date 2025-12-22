@@ -9,11 +9,16 @@
 
 
 
-    let { onFileSelect, inline = false, allowedTypes = ['image', 'video'] } = $props<{
+    type Variant = 'chat' | 'default';
+
+    let { onFileSelect, inline, variant: variantProp = 'default', allowedTypes = ['image', 'video'] } = $props<{
         onFileSelect: (file: File, type: 'image' | 'video' | 'audio') => void;
         inline?: boolean;
+        variant?: Variant;
         allowedTypes?: ('image' | 'video' | 'audio')[];
     }>();
+
+    const variant: Variant = $derived(inline === true ? 'chat' : (inline === false ? 'default' : variantProp));
 
     let showDropdown = $state(false);
     let dropdownElement = $state<HTMLElement | undefined>();
@@ -242,9 +247,9 @@
         bind:this={buttonElement}
         type="button"
         onclick={toggleDropdown}
-        class={inline
+        class={variant === 'chat'
             ? "flex-shrink-0 h-8 w-8 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden active:scale-90 transition-transform duration-100 ease-out"
-            : "flex-shrink-0 h-10 w-10 hover:opacity-80 cursor-pointer flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden active:scale-90 transition-all duration-100 ease-out"}
+            : "flex-shrink-0 h-11 w-11 p-0 flex items-center justify-center rounded-full bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)] text-[rgb(var(--color-text-rgb)/0.92)] shadow-sm hover:bg-[rgb(var(--color-lavender-rgb)/0.26)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.30)] hover:shadow active:bg-[rgb(var(--color-lavender-rgb)/0.32)] dark:active:bg-[rgb(var(--color-lavender-rgb)/0.36)] disabled:opacity-50 disabled:pointer-events-none relative overflow-hidden transition-all duration-200 ease-out"}
         title={$t('chat.mediaMenu.uploadMediaTooltip')}
     >
         <svg
