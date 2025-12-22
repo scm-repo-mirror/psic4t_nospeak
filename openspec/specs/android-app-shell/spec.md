@@ -215,30 +215,45 @@ When running inside the Android Capacitor app shell, the messaging experience SH
 - **AND** the messaging input, existing messages, and other media upload options (Image, Video) SHALL remain available and functional.
 
 ### Requirement: Android Background Messaging Connection Reliability
-The Android Capacitor app shell background messaging implementation SHALL maintain durable WebSocket connections to the user's configured read relays while the native foreground service is running by using explicit heartbeat behavior and conservative reconnection logic. The foreground service SHALL configure its WebSocket client with a periodic ping interval to keep NAT mappings alive and detect dead connections, SHALL track relay connections per URL, and SHALL schedule reconnection attempts with bounded exponential backoff when a relay connection closes or fails while background messaging remains enabled. Reconnection attempts SHALL stop when background messaging is disabled, the user signs out, or the foreground service is destroyed.
+The Android Capacitor app shell background messaging implementation SHALL maintain durable WebSocket connections to the user's configured read relays while the native foreground service is running by using explicit heartbeat behavior and conservative reconnection logic.
 
-#### Scenario: Background connections survive common idle periods
+The foreground service SHALL configure its WebSocket client with a periodic ping interval to keep NAT mappings alive and detect dead connections, SHALL track relay connections per URL, and SHALL schedule reconnection attempts with bounded exponential backoff when a relay connection closes or fails while background messaging remains enabled. Reconnection attempts SHALL stop when background messaging is disabled, the user signs out, or the foreground service is destroyed.
+
+The foreground service SHALL use an adaptive heartbeat profile to reduce wakeups while the device is locked:
+- In the **active profile**, the service SHALL use a WebSocket ping interval of **120 seconds**.
+- In the **locked profile**, the service SHALL use a WebSocket ping interval of **300 seconds**.
+
+The locked profile SHALL be entered only after a **60 second grace period** following a screen-off event, and SHALL NOT be used while the device is charging.
+
+#### Scenario: Screen-off grace period prevents immediate profile change
 - **GIVEN** the user is running nospeak inside the Android Capacitor app shell
-- **AND** the user has enabled background messaging and the native foreground service is active
-- **AND** WebSocket connections have been established to at least one configured read relay
-- **WHEN** the device remains idle for tens of minutes with normal network conditions (for example, the device is locked but Wi-Fi or mobile data remains available)
-- **THEN** the foreground service SHALL continue to maintain at least one active WebSocket connection to a read relay using its configured heartbeat behavior
-- **AND** new gift-wrapped events for the user that are delivered by that relay during this period SHALL remain eligible to trigger generic encrypted-message notifications according to existing messaging and android-app-shell requirements.
+- **AND** background messaging is enabled and the native foreground service is active
+- **WHEN** the device transitions to screen-off state
+- **THEN** the service SHALL remain in the active profile for at least 60 seconds
+- **AND** it SHALL NOT restart relay connections solely to switch ping intervals during this grace period.
 
-#### Scenario: Background connections recover after network change
-- **GIVEN** the user is running nospeak inside the Android Capacitor app shell with background messaging enabled
-- **AND** the native foreground service has active WebSocket connections to one or more read relays
-- **WHEN** a network transition or transient error causes one or more relay WebSocket connections to close or fail (for example, switching from Wi-Fi to mobile data)
-- **THEN** the foreground service SHALL detect the closure or failure
-- **AND** it SHALL schedule reconnection attempts for the affected relays using a conservative exponential backoff strategy with an upper bound on retry interval
-- **AND** once network connectivity is restored, at least one read relay connection SHALL be re-established while background messaging remains enabled, so that subsequent gift-wrapped events for the user can again trigger generic encrypted-message notifications.
+#### Scenario: Locked profile uses longer ping interval when not charging
+- **GIVEN** the user is running nospeak inside the Android Capacitor app shell
+- **AND** background messaging is enabled and the native foreground service is active
+- **AND** the device has been screen-off for more than 60 seconds
+- **AND** the device is not charging
+- **WHEN** background messaging connections are maintained during this locked period
+- **THEN** the service SHALL use the locked profile ping interval of 300 seconds.
 
-#### Scenario: Reconnection stops when background messaging is disabled or user signs out
-- **GIVEN** the native foreground service has previously established WebSocket connections and may have scheduled reconnection attempts
-- **WHEN** the user signs out of nospeak, disables Android background messaging in Settings → General, or the app otherwise determines that background messaging is no longer allowed
-- **THEN** the app SHALL stop the native background messaging foreground service
-- **AND** the service SHALL close any active WebSocket connections and cancel any pending reconnection timers
-- **AND** it SHALL NOT continue attempting to reconnect to relays once background messaging is disabled or the user is signed out.
+#### Scenario: Charging forces active profile heartbeat behavior
+- **GIVEN** the user is running nospeak inside the Android Capacitor app shell
+- **AND** background messaging is enabled and the native foreground service is active
+- **AND** the device is in a locked state
+- **WHEN** the device begins charging
+- **THEN** the service SHALL switch to the active profile
+- **AND** it SHALL use the active profile ping interval of 120 seconds.
+
+#### Scenario: Unlock switches back to active profile
+- **GIVEN** the user is running nospeak inside the Android Capacitor app shell
+- **AND** background messaging is enabled and the native foreground service is active
+- **AND** the device is in a locked state
+- **WHEN** the user unlocks the device and the OS indicates the user is present
+- **THEN** the service SHALL use the active profile ping interval of 120 seconds.
 
 ### Requirement: Android Background Messaging Notification Health State
 The Android Capacitor app shell foreground notification for background messaging SHALL reflect the current health of background relay connections instead of always claiming that nospeak is connected. While the native foreground service is running, the notification text SHALL indicate when at least one read relay connection is active, MAY indicate when the service is attempting to reconnect to relays after connection loss, and SHALL avoid implying an active connection when no relays are currently connected and no reconnection attempts are scheduled. When background messaging is enabled but there are zero configured read relays, the notification text SHALL indicate that no relays are configured (for example, "No read relays configured") rather than implying a disconnection from configured relays.

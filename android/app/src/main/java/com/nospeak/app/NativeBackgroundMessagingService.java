@@ -4,12 +4,16 @@ import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.KeyguardManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -21,7 +25,10 @@ import android.graphics.Shader;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
+import android.os.PowerManager;
+import android.service.notification.StatusBarNotification;
 import android.util.Base64;
 import android.util.Log;
 import android.os.Handler;
@@ -105,8 +112,11 @@ public class NativeBackgroundMessagingService extends Service {
     private static final String DEDUPE_PREFS_KEY_IDS = "seenEventIdsJson";
     private static final int MAX_PERSISTED_EVENT_IDS = 500;
 
-    private static final long EOSE_FALLBACK_DELAY_MS = 8000L;
     private static final long MAX_NOTIFICATION_BACKLOG_SECONDS = 15L * 60L;
+
+    private static final int ACTIVE_PING_SECONDS = 120;
+    private static final int LOCKED_PING_SECONDS = 300;
+    private static final long LOCK_GRACE_MS = 60_000L;
 
     private String currentSummary = "Connected to read relays";
 
@@ -116,8 +126,7 @@ public class NativeBackgroundMessagingService extends Service {
     private final Set<String> seenEventIds = new HashSet<>();
     private final ArrayDeque<String> seenEventIdQueue = new ArrayDeque<>();
 
-    private final Set<WebSocket> historyCompleted = new HashSet<>();
-    private final Map<WebSocket, Runnable> eoseFallbackCallbacks = new HashMap<>();
+
 
     private final Map<String, Integer> conversationActivityCounts = new HashMap<>();
     private final Map<String, String> conversationLastPreview = new HashMap<>();
@@ -138,23 +147,216 @@ public class NativeBackgroundMessagingService extends Service {
     private byte[] localSecretKey;
 
     private int configuredRelaysCount = 0;
+    private String[] configuredRelays = new String[0];
 
+    private int currentPingSeconds = ACTIVE_PING_SECONDS;
+    private boolean lockedProfileActive = false;
+
+    private long screenOffAtMs = 0L;
+    private boolean isCharging = false;
+
+    private BroadcastReceiver deviceStateReceiver;
+    private Runnable lockGraceRunnable;
+ 
     private final Map<String, WebSocket> activeSockets = new HashMap<>();
     private final Map<String, Integer> retryAttempts = new HashMap<>();
     private Handler handler;
     private boolean serviceRunning = false;
- 
+
+    private OkHttpClient buildOkHttpClient(int pingSeconds) {
+        return new OkHttpClient.Builder()
+                .pingInterval(pingSeconds, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.MILLISECONDS)
+                .build();
+    }
+
+    private boolean isDebugBuild() {
+        return (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+    }
+
+    private boolean isDeviceLockedNow() {
+        KeyguardManager keyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        if (keyguardManager == null) {
+            return screenOffAtMs > 0L;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return keyguardManager.isDeviceLocked();
+        }
+
+        return keyguardManager.isKeyguardLocked();
+    }
+
+    private void refreshChargingState() {
+        Intent batteryStatus = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if (batteryStatus == null) {
+            return;
+        }
+
+        int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+        boolean charging = status == BatteryManager.BATTERY_STATUS_CHARGING
+                || status == BatteryManager.BATTERY_STATUS_FULL;
+
+        int plugged = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
+        if (plugged != 0) {
+            charging = true;
+        }
+
+        isCharging = charging;
+    }
+
+    private void cancelLockGraceTimer() {
+        if (handler == null || lockGraceRunnable == null) {
+            return;
+        }
+
+        handler.removeCallbacks(lockGraceRunnable);
+    }
+
+    private void scheduleLockGraceTimer() {
+        if (handler == null || lockGraceRunnable == null) {
+            return;
+        }
+
+        cancelLockGraceTimer();
+        handler.postDelayed(lockGraceRunnable, LOCK_GRACE_MS);
+    }
+
+    private boolean shouldUseLockedProfile() {
+        if (isCharging) {
+            return false;
+        }
+
+        if (!isDeviceLockedNow()) {
+            return false;
+        }
+
+        if (screenOffAtMs <= 0L) {
+            return false;
+        }
+
+        long lockedAgeMs = System.currentTimeMillis() - screenOffAtMs;
+        return lockedAgeMs >= LOCK_GRACE_MS;
+    }
+
+    private void evaluateAndApplyEnergyProfile(String reason) {
+        if (!serviceRunning) {
+            return;
+        }
+
+        int desiredPingSeconds = shouldUseLockedProfile() ? LOCKED_PING_SECONDS : ACTIVE_PING_SECONDS;
+        boolean desiredLockedProfileActive = desiredPingSeconds == LOCKED_PING_SECONDS;
+
+        if (desiredPingSeconds == currentPingSeconds && desiredLockedProfileActive == lockedProfileActive) {
+            return;
+        }
+
+        int previousPingSeconds = currentPingSeconds;
+        boolean previousLockedProfileActive = lockedProfileActive;
+
+        currentPingSeconds = desiredPingSeconds;
+        lockedProfileActive = desiredLockedProfileActive;
+        client = buildOkHttpClient(desiredPingSeconds);
+
+        if (isDebugBuild()) {
+            long screenOffAgeMs = screenOffAtMs > 0L ? (System.currentTimeMillis() - screenOffAtMs) : 0L;
+            String from = previousLockedProfileActive ? "locked" : "active";
+            String to = desiredLockedProfileActive ? "locked" : "active";
+            Log.d(
+                    LOG_TAG,
+                    "Energy profile switch (reason=" + reason + ") "
+                            + from + "→" + to
+                            + " ping=" + previousPingSeconds + "→" + desiredPingSeconds
+                            + " charging=" + isCharging
+                            + " screenOffAgeMs=" + screenOffAgeMs
+            );
+        }
+
+        if (currentPubkeyHex != null && configuredRelays != null && configuredRelays.length > 0) {
+            startRelayConnections(configuredRelays, currentPubkeyHex);
+        } else {
+            updateServiceNotificationForHealth();
+        }
+
+        if (previousLockedProfileActive && !lockedProfileActive) {
+            refreshActiveConversationNotifications();
+        }
+    }
+  
     @Override
     public void onCreate() {
         super.onCreate();
-        client = new OkHttpClient.Builder()
-                .pingInterval(30, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.MILLISECONDS)
-                .build();
+
+        currentPingSeconds = ACTIVE_PING_SECONDS;
+        lockedProfileActive = false;
+        client = buildOkHttpClient(currentPingSeconds);
+
         handler = new Handler(Looper.getMainLooper());
         serviceRunning = true;
+
         createNotificationChannel();
         loadPersistedSeenEventIds();
+
+        refreshChargingState();
+
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        boolean interactive = powerManager != null && powerManager.isInteractive();
+        if (!interactive) {
+            screenOffAtMs = System.currentTimeMillis();
+        }
+
+        lockGraceRunnable = new Runnable() {
+            @Override
+            public void run() {
+                evaluateAndApplyEnergyProfile("lock_grace_elapsed");
+            }
+        };
+
+        deviceStateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent == null) {
+                    return;
+                }
+
+                String action = intent.getAction();
+                if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                    screenOffAtMs = System.currentTimeMillis();
+                    scheduleLockGraceTimer();
+                    evaluateAndApplyEnergyProfile("screen_off");
+                    return;
+                }
+
+                if (Intent.ACTION_USER_PRESENT.equals(action)) {
+                    screenOffAtMs = 0L;
+                    cancelLockGraceTimer();
+                    evaluateAndApplyEnergyProfile("user_present");
+                    return;
+                }
+
+                if (Intent.ACTION_POWER_CONNECTED.equals(action)) {
+                    isCharging = true;
+                    evaluateAndApplyEnergyProfile("power_connected");
+                    return;
+                }
+
+                if (Intent.ACTION_POWER_DISCONNECTED.equals(action)) {
+                    isCharging = false;
+                    evaluateAndApplyEnergyProfile("power_disconnected");
+                }
+            }
+        };
+
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(Intent.ACTION_SCREEN_OFF);
+        intentFilter.addAction(Intent.ACTION_USER_PRESENT);
+        intentFilter.addAction(Intent.ACTION_POWER_CONNECTED);
+        intentFilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
+        registerReceiver(deviceStateReceiver, intentFilter);
+
+        if (screenOffAtMs > 0L) {
+            scheduleLockGraceTimer();
+        }
     }
 
 
@@ -193,7 +395,8 @@ public class NativeBackgroundMessagingService extends Service {
             currentPubkeyHex = intent.getStringExtra(EXTRA_PUBKEY_HEX);
             notificationsEnabled = intent.getBooleanExtra(EXTRA_NOTIFICATIONS_ENABLED, false);
             String[] relays = intent.getStringArrayExtra(EXTRA_READ_RELAYS);
-            configuredRelaysCount = relays != null ? relays.length : 0;
+            configuredRelays = relays != null ? relays : new String[0];
+            configuredRelaysCount = configuredRelays.length;
 
             long persistedBaselineSeconds = AndroidBackgroundMessagingPrefs.loadNotificationBaselineSeconds(getApplicationContext());
             long nowSeconds = System.currentTimeMillis() / 1000L;
@@ -220,12 +423,14 @@ public class NativeBackgroundMessagingService extends Service {
                 localSecretKey = null;
             }
 
-            if (currentPubkeyHex != null && relays != null && relays.length > 0) {
-                startRelayConnections(relays, currentPubkeyHex);
+            if (currentPubkeyHex != null && configuredRelays.length > 0) {
+                startRelayConnections(configuredRelays, currentPubkeyHex);
             } else {
                 // No valid relays; still keep notification accurate.
                 updateServiceNotificationForHealth();
             }
+
+            evaluateAndApplyEnergyProfile("start");
 
             return START_STICKY;
         }
@@ -244,8 +449,21 @@ public class NativeBackgroundMessagingService extends Service {
     @Override
     public void onDestroy() {
         serviceRunning = false;
+
+        cancelLockGraceTimer();
+        lockGraceRunnable = null;
+
+        if (deviceStateReceiver != null) {
+            try {
+                unregisterReceiver(deviceStateReceiver);
+            } catch (IllegalArgumentException ignored) {
+                // ignore
+            }
+            deviceStateReceiver = null;
+        }
+
         super.onDestroy();
- 
+  
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
         }
@@ -259,8 +477,6 @@ public class NativeBackgroundMessagingService extends Service {
         sockets.clear();
         seenEventIds.clear();
         seenEventIdQueue.clear();
-        historyCompleted.clear();
-        eoseFallbackCallbacks.clear();
         conversationActivityCounts.clear();
         conversationLastPreview.clear();
         conversationLastTimestampMs.clear();
@@ -330,21 +546,6 @@ public class NativeBackgroundMessagingService extends Service {
         }
         sockets.clear();
         retryAttempts.clear();
-        historyCompleted.clear();
-
-        if (handler != null) {
-            synchronized (eoseFallbackCallbacks) {
-                for (Runnable runnable : eoseFallbackCallbacks.values()) {
-                    handler.removeCallbacks(runnable);
-                }
-                eoseFallbackCallbacks.clear();
-            }
-        } else {
-            eoseFallbackCallbacks.clear();
-        }
-
-        conversationActivityCounts.clear();
-        conversationLastPreview.clear();
  
         if (relays == null) {
             updateServiceNotificationForHealth();
@@ -397,7 +598,10 @@ public class NativeBackgroundMessagingService extends Service {
                     // Ignore malformed JSON construction
                 }
 
-                scheduleEoseFallback(webSocket);
+                if (isDebugBuild()) {
+                    Log.d(LOG_TAG, "Relay connected: " + relayUrl);
+                }
+
                 updateServiceNotificationForHealth();
             }
  
@@ -413,22 +617,24 @@ public class NativeBackgroundMessagingService extends Service {
  
             @Override
             public void onClosed(WebSocket webSocket, int code, String reason) {
-                onSocketClosedOrFailed(relayUrl, webSocket);
+                onSocketClosedOrFailed(relayUrl, webSocket, "closed code=" + code + " reason=" + reason);
             }
  
             @Override
             public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-                onSocketClosedOrFailed(relayUrl, webSocket);
+                String detail = t != null ? ("failure " + t.getClass().getSimpleName() + ": " + t.getMessage()) : "failure";
+                onSocketClosedOrFailed(relayUrl, webSocket, detail);
             }
         });
  
         sockets.add(socket);
-        synchronized (activeSockets) {
-            activeSockets.put(relayUrl, socket);
-        }
     }
  
     private void onSocketClosedOrFailed(final String relayUrl, WebSocket socket) {
+        onSocketClosedOrFailed(relayUrl, socket, null);
+    }
+
+    private void onSocketClosedOrFailed(final String relayUrl, WebSocket socket, @Nullable String detail) {
         synchronized (activeSockets) {
             WebSocket current = activeSockets.get(relayUrl);
             if (current == socket) {
@@ -436,8 +642,11 @@ public class NativeBackgroundMessagingService extends Service {
             }
         }
 
-        cancelEoseFallback(socket);
-
+        if (isDebugBuild()) {
+            String suffix = detail != null && !detail.trim().isEmpty() ? (" (" + detail + ")") : "";
+            Log.d(LOG_TAG, "Relay disconnected: " + relayUrl + suffix);
+        }
+ 
         if (!serviceRunning || handler == null) {
             updateServiceNotificationForHealth();
             return;
@@ -472,13 +681,9 @@ public class NativeBackgroundMessagingService extends Service {
             String type = arr.optString(0, "");
 
             if ("EOSE".equals(type)) {
-                synchronized (historyCompleted) {
-                    historyCompleted.add(socket);
-                }
-                cancelEoseFallback(socket);
                 return;
             }
-
+ 
             if (!"EVENT".equals(type) || arr.length() < 3) return;
 
             JSONObject event = arr.optJSONObject(2);
@@ -490,28 +695,21 @@ public class NativeBackgroundMessagingService extends Service {
             String id = event.optString("id", null);
             if (id == null) return;
 
-            if (!markEventIdSeen(id)) {
-                return;
+            synchronized (seenEventIds) {
+                if (seenEventIds.contains(id)) {
+                    return;
+                }
             }
+ 
+            handleLiveGiftWrapEvent(event, id);
 
-            boolean isHistoryCompleteForSocket;
-            synchronized (historyCompleted) {
-                isHistoryCompleteForSocket = historyCompleted.contains(socket);
-            }
-
-            // Before EOSE (or fallback timeout), treat events as history and do not notify.
-            if (!isHistoryCompleteForSocket) {
-                return;
-            }
-
-            handleLiveGiftWrapEvent(event);
 
         } catch (JSONException e) {
             // Ignore malformed messages
         }
     }
 
-    private void handleLiveGiftWrapEvent(JSONObject giftWrapEvent) {
+    private void handleLiveGiftWrapEvent(JSONObject giftWrapEvent, String eventId) {
         if (!shouldEmitMessageNotification()) {
             return;
         }
@@ -522,13 +720,25 @@ public class NativeBackgroundMessagingService extends Service {
 
         DecryptedRumor rumor = tryDecryptGiftWrapToRumor(giftWrapEvent, currentPubkeyHex);
         if (rumor == null) {
+            if (isDebugBuild()) {
+                Log.d(LOG_TAG, "Skip gift wrap " + eventId + ": decrypt_failed");
+            }
             // Testing-stage behavior: suppress generic "new encrypted message" notifications.
             return;
         }
-
+ 
         long nowSeconds = System.currentTimeMillis() / 1000L;
         long rumorCreatedAtSeconds = rumor.createdAtSeconds > 0L ? rumor.createdAtSeconds : nowSeconds;
         if (rumorCreatedAtSeconds < notificationCutoffSeconds) {
+            if (isDebugBuild()) {
+                Log.d(
+                        LOG_TAG,
+                        "Skip gift wrap " + eventId + ": before_cutoff createdAt="
+                                + rumorCreatedAtSeconds
+                                + " cutoff="
+                                + notificationCutoffSeconds
+                );
+            }
             return;
         }
 
@@ -553,6 +763,10 @@ public class NativeBackgroundMessagingService extends Service {
             return;
         }
 
+        if (!markEventIdSeen(eventId)) {
+            return;
+        }
+ 
         showConversationActivityNotification(partnerPubkeyHex, preview);
 
         if (rumorCreatedAtSeconds > notificationCutoffSeconds) {
@@ -607,7 +821,14 @@ public class NativeBackgroundMessagingService extends Service {
 
         String conversationId = buildConversationId(partnerPubkeyHex);
         String avatarKey = pictureUrl != null ? computeAvatarKey(pictureUrl.trim()) : null;
-        boolean shortcutAvailable = ensureConversationShortcut(partnerPubkeyHex, title, senderPerson, avatar, avatarKey);
+        boolean shortcutAvailable = false;
+        if (!lockedProfileActive) {
+            shortcutAvailable = ensureConversationShortcut(partnerPubkeyHex, title, senderPerson, avatar, avatarKey);
+        }
+
+        if (!lockedProfileActive && avatar == null && pictureUrl != null && !pictureUrl.trim().isEmpty()) {
+            fetchConversationAvatar(partnerPubkeyHex, pictureUrl.trim());
+        }
 
         NotificationCompat.Builder builder = buildConversationNotificationBuilder(
                 title,
@@ -619,11 +840,10 @@ public class NativeBackgroundMessagingService extends Service {
                 shortcutAvailable ? conversationId : null
         );
 
+        // Refreshes should never re-alert (vibrate/sound).
+        builder.setOnlyAlertOnce(true);
+  
         manager.notify(notificationId, builder.build());
-
-        if (avatar == null && pictureUrl != null && !pictureUrl.trim().isEmpty()) {
-            fetchConversationAvatar(partnerPubkeyHex, pictureUrl.trim());
-        }
     }
 
     private static String buildConversationId(String partnerPubkeyHex) {
@@ -664,10 +884,10 @@ public class NativeBackgroundMessagingService extends Service {
 
         boolean shouldPublish = !wasPublished;
 
-        if (avatarKey != null && !avatarKey.isEmpty()) {
+        if (avatar != null && avatarKey != null && !avatarKey.isEmpty()) {
             synchronized (conversationShortcutAvatarKeys) {
                 String existingKey = conversationShortcutAvatarKeys.get(partnerPubkeyHex);
-                if (!avatarKey.equals(existingKey)) {
+                if (existingKey == null || !avatarKey.equals(existingKey)) {
                     conversationShortcutAvatarKeys.put(partnerPubkeyHex, avatarKey);
                     shouldPublish = true;
                 }
@@ -812,6 +1032,24 @@ public class NativeBackgroundMessagingService extends Service {
         return System.currentTimeMillis();
     }
 
+    private void refreshActiveConversationNotifications() {
+        if (!shouldEmitMessageNotification()) {
+            return;
+        }
+
+        String[] pubkeys;
+        synchronized (conversationActivityCounts) {
+            pubkeys = conversationActivityCounts.keySet().toArray(new String[0]);
+        }
+
+        for (String pubkeyHex : pubkeys) {
+            if (pubkeyHex == null || pubkeyHex.trim().isEmpty()) {
+                continue;
+            }
+            refreshConversationActivityNotification(pubkeyHex);
+        }
+    }
+
     private void refreshConversationActivityNotification(String partnerPubkeyHex) {
         if (!shouldEmitMessageNotification()) {
             return;
@@ -824,6 +1062,20 @@ public class NativeBackgroundMessagingService extends Service {
 
         int notificationId = Math.abs(partnerPubkeyHex.hashCode());
         int requestCode = notificationId + 2000;
+
+        boolean isNotificationActive = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            isNotificationActive = false;
+            StatusBarNotification[] active = manager.getActiveNotifications();
+            if (active != null) {
+                for (StatusBarNotification sbn : active) {
+                    if (sbn != null && sbn.getId() == notificationId) {
+                        isNotificationActive = true;
+                        break;
+                    }
+                }
+            }
+        }
 
         PendingIntent pendingIntent = buildChatPendingIntent(partnerPubkeyHex, requestCode);
         String body = buildCurrentActivityBody(partnerPubkeyHex);
@@ -856,7 +1108,18 @@ public class NativeBackgroundMessagingService extends Service {
 
         String conversationId = buildConversationId(partnerPubkeyHex);
         String avatarKey = pictureUrl != null ? computeAvatarKey(pictureUrl.trim()) : null;
-        boolean shortcutAvailable = ensureConversationShortcut(partnerPubkeyHex, title, senderPerson, avatar, avatarKey);
+        boolean shortcutAvailable = false;
+        if (!lockedProfileActive) {
+            shortcutAvailable = ensureConversationShortcut(partnerPubkeyHex, title, senderPerson, avatar, avatarKey);
+        }
+ 
+        if (!lockedProfileActive && avatar == null && pictureUrl != null && !pictureUrl.trim().isEmpty()) {
+            fetchConversationAvatar(partnerPubkeyHex, pictureUrl.trim());
+        }
+
+        if (!isNotificationActive) {
+            return;
+        }
 
         NotificationCompat.Builder builder = buildConversationNotificationBuilder(
                 title,
@@ -868,6 +1131,9 @@ public class NativeBackgroundMessagingService extends Service {
                 shortcutAvailable ? conversationId : null
         );
 
+        // Refreshes should never re-alert (vibrate/sound).
+        builder.setOnlyAlertOnce(true);
+ 
         manager.notify(notificationId, builder.build());
     }
 
@@ -1229,46 +1495,7 @@ public class NativeBackgroundMessagingService extends Service {
         prefs.edit().putString(DEDUPE_PREFS_KEY_IDS, ids.toString()).apply();
     }
 
-    private void scheduleEoseFallback(final WebSocket socket) {
-        if (handler == null) {
-            return;
-        }
 
-        cancelEoseFallback(socket);
-
-        Runnable runnable = new Runnable() {
-            @Override
-            public void run() {
-                synchronized (historyCompleted) {
-                    historyCompleted.add(socket);
-                }
-                synchronized (eoseFallbackCallbacks) {
-                    eoseFallbackCallbacks.remove(socket);
-                }
-            }
-        };
-
-        synchronized (eoseFallbackCallbacks) {
-            eoseFallbackCallbacks.put(socket, runnable);
-        }
-
-        handler.postDelayed(runnable, EOSE_FALLBACK_DELAY_MS);
-    }
-
-    private void cancelEoseFallback(WebSocket socket) {
-        if (handler == null) {
-            return;
-        }
-
-        Runnable runnable;
-        synchronized (eoseFallbackCallbacks) {
-            runnable = eoseFallbackCallbacks.remove(socket);
-        }
-
-        if (runnable != null) {
-            handler.removeCallbacks(runnable);
-        }
-    }
 
     private DecryptedRumor tryDecryptGiftWrapToRumor(JSONObject giftWrapEvent, String currentUserPubkeyHex) {
         if (giftWrapEvent == null) {
