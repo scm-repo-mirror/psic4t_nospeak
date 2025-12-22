@@ -8,7 +8,7 @@ nospeak currently supports media uploads via a built-in `user_media` storage pat
 - Use Blossom servers for all media uploads (chat attachments and profile media).
 - Remove the Settings → Media Servers "Use Blossom servers" toggle.
 - When a user attempts to upload with no configured Blossom servers:
-  - Automatically configure two default Blossom servers: `https://blossom.primal.net` and `https://24242.io`.
+  - Automatically configure two default Blossom servers: `https://blossom.data.haus` and `https://blossom.primal.net`.
   - Show an in-app info modal explaining the servers were added.
   - Proceed with the upload.
 - When message content references the deprecated internal URL prefix `https://nospeak.chat/api/user_media`, render a placeholder instead of attempting to load media.

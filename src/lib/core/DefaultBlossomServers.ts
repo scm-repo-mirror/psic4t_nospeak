@@ -6,8 +6,8 @@ import { currentUser } from '$lib/stores/auth';
 import { mediaServerSettingsService } from './MediaServerSettingsService';
 
 export const DEFAULT_BLOSSOM_SERVERS = [
-    'https://blossom.primal.net',
-    'https://24242.io'
+    'https://blossom.data.haus',
+    'https://blossom.primal.net'
 ] as const;
 
 export async function ensureDefaultBlossomServersForCurrentUser(): Promise<{

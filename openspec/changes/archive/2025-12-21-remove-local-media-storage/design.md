@@ -15,7 +15,7 @@ nospeak previously supported media uploads via a built-in server route that pers
   - Rationale: The toggle creates a second "mode" that is now redundant and can lead to inconsistent behaviour.
 - Decision: Auto-configure a default Blossom server list on first upload attempt.
   - Rationale: Users should not be blocked from uploading due to missing configuration.
-  - Defaults: `https://blossom.primal.net`, `https://24242.io`.
+  - Defaults: `https://blossom.data.haus`, `https://blossom.primal.net`.
 - Decision: Use an in-app modal (same style as QR modals) to inform the user defaults were set.
   - Rationale: Desktop `alert()` dialogs look unpolished; a consistent glass modal fits the product UI.
 - Decision: Replace rendering of `https://nospeak.chat/api/user_media/...` URLs with a placeholder.

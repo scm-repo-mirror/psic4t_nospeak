@@ -32,7 +32,7 @@ The system SHALL allow users to upload images, videos, and MP3 audio files as en
 
 Uploads SHALL be performed using Blossom servers:
 - If the user has one or more configured Blossom servers, the client SHALL upload the encrypted blob to Blossom servers using BUD-03 server ordering and Blossom authorization events (kind `24242`) as defined by BUD-01/BUD-02.
-- If the user has zero configured Blossom servers and attempts an upload, the client SHALL automatically configure the default Blossom server list `https://blossom.primal.net` and `https://24242.io`, SHALL display an in-app informational modal indicating these servers were set, and SHALL then upload using Blossom as normal.
+- If the user has zero configured Blossom servers and attempts an upload, the client SHALL automatically configure the default Blossom server list `https://blossom.data.haus` and `https://blossom.primal.net`, SHALL display an in-app informational modal indicating these servers were set, and SHALL then upload using Blossom as normal.
 
 When Blossom uploads are used:
 - The client MUST attempt to upload the blob to at least the first configured Blossom server.
