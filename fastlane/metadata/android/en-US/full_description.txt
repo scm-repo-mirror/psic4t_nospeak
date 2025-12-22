@@ -1,0 +1,10 @@
+nospeak is a decentralized Nostr chat client for secure, private messaging. It is easy to
+use but has state of the art end-to-end encryption without metadata leakage. 
+
+# Features
+
+- **Decentralized Chat**: Uses Nostr relays without central servers
+- **Private Messaging**: End-to-end encrypted conversations
+- **Encrypted Media Upload**: Share images and videos in chat
+- **Responsive Design**: Works seamlessly on desktop and mobile
+- **Rich Text**: Support for markdown formatting and emojis
