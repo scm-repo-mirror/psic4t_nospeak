@@ -598,24 +598,24 @@
          {/each}
 
          {#if preview}
-             <div class="mt-2 mb-1">
-                 <a
-                     href={preview.url}
-                     target="_blank"
-                     rel="noopener noreferrer"
-                     class="block focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/70 overflow-hidden rounded-xl bg-white/20 dark:bg-slate-800/50 md:bg-white/10 md:dark:bg-slate-800/30 md:backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-800/50 transition-colors"
-                 >
-                     <div class="flex flex-col sm:flex-row gap-0 sm:gap-0 h-auto sm:h-28">
-                         <div class="shrink-0 w-full sm:w-28 h-32 sm:h-full bg-gray-100/50 dark:bg-slate-800/50 flex items-center justify-center overflow-hidden">
-                             {#if preview.image}
-                                 <img src={preview.image} alt="" class="w-full h-full object-cover" loading="lazy" onload={() => onMediaLoad?.()} />
-                             {:else}
-                                 <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-                                 </svg>
-                             {/if}
-                         </div>
-                         <div class="min-w-0 p-3 flex flex-col justify-center">
+            <div class="mt-2 mb-1 overflow-hidden">
+                <a
+                    href={preview.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="block w-full max-w-full focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500/70 overflow-hidden rounded-xl bg-white/20 dark:bg-slate-800/50 md:bg-white/10 md:dark:bg-slate-800/30 md:backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 hover:bg-white/20 dark:hover:bg-slate-800/50 transition-colors"
+                >
+                    <div class="flex flex-col sm:flex-row gap-0 sm:gap-0 h-auto sm:h-28">
+                        <div class="w-full sm:w-28 sm:shrink-0 h-32 sm:h-full bg-gray-100/50 dark:bg-slate-800/50 flex items-center justify-center overflow-hidden">
+                            {#if preview.image}
+                                <img src={preview.image} alt="" class="w-full h-full object-cover" loading="lazy" onload={() => onMediaLoad?.()} />
+                            {:else}
+                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                </svg>
+                            {/if}
+                        </div>
+                        <div class="min-w-0 p-3 flex flex-col justify-center overflow-hidden">
                              {#if preview.title}
                                  <h1 class="m-0 typ-section truncate text-gray-900 dark:text-white leading-tight mb-1">
                                      {preview.title}

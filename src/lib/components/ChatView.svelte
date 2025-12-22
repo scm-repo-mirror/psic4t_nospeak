@@ -1247,7 +1247,7 @@
   <div
     bind:this={chatContainer}
     tabindex="-1"
-    class="flex-1 overflow-y-auto px-4 pb-28 pt-20 space-y-4 custom-scrollbar focus:outline-none focus:ring-0"
+    class="flex-1 overflow-x-hidden overflow-y-auto px-4 pb-28 pt-20 space-y-4 custom-scrollbar focus:outline-none focus:ring-0"
     onscroll={handleScroll}
     onpointerdown={activateMessageWindow}
   >
