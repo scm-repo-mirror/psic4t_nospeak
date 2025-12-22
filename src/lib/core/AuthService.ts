@@ -2,7 +2,8 @@ import { signer, currentUser } from '$lib/stores/auth';
 import { LocalSigner } from '$lib/core/signer/LocalSigner';
 import { Nip07Signer } from '$lib/core/signer/Nip07Signer';
 import { Nip55Signer } from '$lib/core/signer/Nip55Signer';
-import { DEFAULT_DISCOVERY_RELAYS, discoverUserRelays } from '$lib/core/connection/Discovery';
+import { discoverUserRelays } from '$lib/core/connection/Discovery';
+import { getDiscoveryRelays } from '$lib/core/runtimeConfig';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import { goto } from '$app/navigation';
 import { connectionManager } from './connection/instance';
@@ -194,7 +195,7 @@ export class AuthService {
                 // 1. Connect to discovery relays
                 setLoginSyncActiveStep('connect-discovery-relays');
                 connectionManager.clearAllRelays();
-                for (const url of DEFAULT_DISCOVERY_RELAYS) {
+                for (const url of getDiscoveryRelays()) {
                     connectionManager.addTemporaryRelay(url);
                 }
                 await new Promise(resolve => setTimeout(resolve, 1000));

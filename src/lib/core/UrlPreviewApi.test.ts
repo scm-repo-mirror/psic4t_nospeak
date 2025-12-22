@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+
+import { DEFAULT_RUNTIME_CONFIG } from '$lib/core/runtimeConfig/defaults';
+
 import { getUrlPreviewApiUrl } from './UrlPreviewApi';
 
 describe('getUrlPreviewApiUrl', () => {
@@ -38,6 +41,6 @@ describe('getUrlPreviewApiUrl', () => {
         const url = 'https://example.com/article';
         const apiUrl = getUrlPreviewApiUrl(url);
 
-        expect(apiUrl.startsWith('https://nospeak.chat/api/url-preview?url=')).toBe(true);
+        expect(apiUrl.startsWith(`${DEFAULT_RUNTIME_CONFIG.webAppBaseUrl}/api/url-preview?url=`)).toBe(true);
     });
 });

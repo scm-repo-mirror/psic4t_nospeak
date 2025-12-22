@@ -1,14 +1,8 @@
+import { profileRepo } from '$lib/db/ProfileRepository';
+import { getDiscoveryRelays } from '$lib/core/runtimeConfig';
+
 import { connectionManager } from './instance';
 import { profileResolver } from '../ProfileResolver';
-import { profileRepo } from '$lib/db/ProfileRepository';
-
-export const DEFAULT_DISCOVERY_RELAYS = [
-    'wss://nostr.data.haus',
-    'wss://relay.damus.io',
-    'wss://nos.lol',
-    'wss://relay.primal.net',
-    'wss://purplepag.es'
-];
 
 export async function discoverUserRelays(npub: string, isCurrentUser: boolean = false) {
     console.log(`Starting relay discovery for ${npub} (isCurrentUser: ${isCurrentUser})`);
@@ -19,7 +13,7 @@ export async function discoverUserRelays(npub: string, isCurrentUser: boolean = 
     }
 
     // 1. Connect to discovery relays (Temporary)
-    for (const url of DEFAULT_DISCOVERY_RELAYS) {
+    for (const url of getDiscoveryRelays()) {
         connectionManager.addTemporaryRelay(url);
     }
 

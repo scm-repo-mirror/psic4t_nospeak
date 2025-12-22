@@ -4,6 +4,8 @@ import { writable } from 'svelte/store';
 const getProfileIgnoreTTLSpy = vi.fn();
 const updateSettingsSpy = vi.fn();
 
+const defaultBlossomServers = ['https://blossom.data.haus', 'https://blossom.primal.net'];
+
 vi.mock('$lib/stores/auth', async () => {
     return {
         currentUser: writable({ npub: 'npub-test' })
@@ -23,6 +25,12 @@ vi.mock('./MediaServerSettingsService', async () => {
         mediaServerSettingsService: {
             updateSettings: updateSettingsSpy
         }
+    };
+});
+
+vi.mock('$lib/core/runtimeConfig', async () => {
+    return {
+        getDefaultBlossomServers: () => [...defaultBlossomServers]
     };
 });
 
@@ -54,13 +62,13 @@ describe('ensureDefaultBlossomServersForCurrentUser', () => {
 
         getProfileIgnoreTTLSpy
             .mockResolvedValueOnce({ mediaServers: [] })
-            .mockResolvedValueOnce({ mediaServers: [...module.DEFAULT_BLOSSOM_SERVERS] });
+            .mockResolvedValueOnce({ mediaServers: [...defaultBlossomServers] });
 
         const result = await module.ensureDefaultBlossomServersForCurrentUser();
 
-        expect(updateSettingsSpy).toHaveBeenCalledWith([...module.DEFAULT_BLOSSOM_SERVERS]);
+        expect(updateSettingsSpy).toHaveBeenCalledWith([...defaultBlossomServers]);
         expect(result).toEqual({
-            servers: [...module.DEFAULT_BLOSSOM_SERVERS],
+            servers: [...defaultBlossomServers],
             didSetDefaults: true
         });
     });

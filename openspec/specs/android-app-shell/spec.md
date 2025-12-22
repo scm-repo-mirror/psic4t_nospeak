@@ -569,7 +569,7 @@ The Android Capacitor app shell SHALL ensure that Android background messaging i
 When running inside the Android Capacitor app shell, the messaging experience SHALL upload selected media attachments using Blossom servers.
 
 - If the user has one or more configured Blossom servers, the Android client SHALL upload to Blossom using `PUT /upload` and Blossom authorization (kind `24242`) as defined by the `messaging` Media Upload Support requirement.
-- If the user has zero configured Blossom servers and initiates an upload, the Android client SHALL automatically configure the default Blossom server list `https://blossom.data.haus` and `https://blossom.primal.net`, SHALL display an in-app informational modal indicating these servers were set, and SHALL then upload using Blossom as normal.
+- If the user has zero configured Blossom servers and initiates an upload, the Android client SHALL automatically configure the default Blossom server list (deployment-configurable; defaults: `https://blossom.data.haus`, `https://blossom.primal.net`), SHALL display an in-app informational modal indicating these servers were set, and SHALL then upload using Blossom as normal.
 
 #### Scenario: Android app uploads media via Blossom servers
 - **GIVEN** the user has at least one configured Blossom server URL
@@ -580,7 +580,7 @@ When running inside the Android Capacitor app shell, the messaging experience SH
 #### Scenario: Android app auto-configures Blossom servers when missing
 - **GIVEN** the user has zero configured Blossom servers
 - **WHEN** the user initiates a media upload
-- **THEN** the client SHALL automatically set the Blossom servers to `https://blossom.data.haus` and `https://blossom.primal.net`
+- **THEN** the client SHALL automatically set the Blossom servers to the default list (deployment-configurable; defaults: `https://blossom.data.haus`, `https://blossom.primal.net`)
 - **AND** the client SHALL display an informational modal indicating these servers were set automatically
 - **AND** the upload SHALL proceed using Blossom servers.
 

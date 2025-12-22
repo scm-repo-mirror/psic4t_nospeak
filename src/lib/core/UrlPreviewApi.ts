@@ -1,21 +1,13 @@
-const DEFAULT_SERVER_BASE_URL = 'https://nospeak.chat';
+import { getWebAppBaseUrl } from '$lib/core/runtimeConfig';
+import { isAndroidCapacitorShell } from '$lib/utils/platform';
 
 function getServerBaseUrl(): string | null {
     if (typeof window === 'undefined') {
         return null;
     }
 
-    const envBase = import.meta.env.PUBLIC_WEB_APP_BASE_URL as string | undefined;
-    const trimmedEnvBase = envBase ? envBase.trim() : '';
-
-    if (trimmedEnvBase) {
-        return trimmedEnvBase.replace(/\/$/, '');
-    }
-
-    return DEFAULT_SERVER_BASE_URL;
+    return getWebAppBaseUrl().replace(/\/$/, '');
 }
-
-import { isAndroidCapacitorShell } from '$lib/utils/platform';
 
 export function getUrlPreviewApiUrl(targetUrl: string): string {
     const encodedTarget = encodeURIComponent(targetUrl);

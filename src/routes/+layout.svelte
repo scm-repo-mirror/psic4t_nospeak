@@ -2,6 +2,7 @@
   import "../app.css";
   import { isOnline, showRelayStatusModal } from "$lib/stores/connection";
   import { authService } from "$lib/core/AuthService";
+  import { initRuntimeConfig } from "$lib/core/runtimeConfig";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
    import { page } from "$app/state";
@@ -85,7 +86,9 @@
 
   onMount(async () => {
     initLanguage();
-
+ 
+    await initRuntimeConfig();
+ 
     configureAndroidStatusBar().catch((error) => {
       console.warn('Android status bar configuration failed', error);
     });

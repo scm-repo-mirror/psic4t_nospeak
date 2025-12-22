@@ -32,7 +32,7 @@ The system SHALL allow users to upload images, videos, and MP3 audio files as en
 
 Uploads SHALL be performed using Blossom servers:
 - If the user has one or more configured Blossom servers, the client SHALL upload the encrypted blob to Blossom servers using BUD-03 server ordering and Blossom authorization events (kind `24242`) as defined by BUD-01/BUD-02.
-- If the user has zero configured Blossom servers and attempts an upload, the client SHALL automatically configure the default Blossom server list `https://blossom.data.haus` and `https://blossom.primal.net`, SHALL display an in-app informational modal indicating these servers were set, and SHALL then upload using Blossom as normal.
+- If the user has zero configured Blossom servers and attempts an upload, the client SHALL automatically configure the default Blossom server list (deployment-configurable; defaults: `https://blossom.data.haus`, `https://blossom.primal.net`), SHALL display an in-app informational modal indicating these servers were set, and SHALL then upload using Blossom as normal.
 
 When Blossom uploads are used:
 - The client MUST attempt to upload the blob to at least the first configured Blossom server.
@@ -259,6 +259,8 @@ The Manage Contacts modal SHALL display each contact using their profile picture
 ### Requirement: Manage Contacts Search via NIP-50 Relay
 The Manage Contacts modal SHALL support searching for users by name or phrase using a dedicated NIP-50 search relay, while preserving the existing direct-add behavior for `npub` inputs.
 
+The NIP-50 search relay URL SHALL be deployment-configurable at runtime (default: `wss://relay.nostr.band`) and MUST use `wss://`.
+
 #### Scenario: Direct npub entry bypasses search
 - **GIVEN** the user opens the Manage Contacts modal
 - **AND** the user enters a value that starts with `npub` into the contact input field
@@ -271,7 +273,7 @@ The Manage Contacts modal SHALL support searching for users by name or phrase us
 - **AND** the user enters a non-empty value that does not start with `npub` into the contact input field
 - **AND** the entered value is at least three characters long after trimming whitespace
 - **WHEN** the user stops typing for a short period
-- **THEN** the system SHALL send a NIP-50 `search` query to `wss://relay.nostr.band` restricted to kind `0` metadata events with a maximum of 20 results
+- **THEN** the system SHALL send a NIP-50 `search` query to the configured NIP-50 search relay (default: `wss://relay.nostr.band`) restricted to kind `0` metadata events with a maximum of 20 results
 - **AND** the system SHALL display matching users in a dropdown under the contact input field
 
 #### Scenario: Search results display
@@ -583,7 +585,7 @@ The unauthenticated login screen SHALL provide a locally generated Nostr keypair
 - **AND** the underlying auth implementation MAY persist the `nsec` to local storage according to existing local login semantics, but the keypair generator modal itself SHALL NOT add any additional persistence beyond invoking the login action.
 
 ### Requirement: Post-login Empty Profile Setup Modal
-After a successful login and completion of the ordered login history flow, the messaging experience SHALL display a blocking setup modal whenever the current user's profile has no configured messaging relays and no username-like metadata. The modal SHALL explain that at least one messaging relay and a basic profile identifier are required for a usable experience, SHALL pre-populate a small default set of messaging relays for the user (`wss://nostr.data.haus`, `wss://nos.lol`, `wss://relay.damus.io`) that can be edited later in Settings, and SHALL require the user to provide a simple name that is saved into their profile metadata and published to the network. The modal MAY offer a secondary dismiss action while still reappearing on future logins as long as the profile remains empty.
+After a successful login and completion of the ordered login history flow, the messaging experience SHALL display a blocking setup modal whenever the current user's profile has no configured messaging relays and no username-like metadata. The modal SHALL explain that at least one messaging relay and a basic profile identifier are required for a usable experience, SHALL pre-populate a small default set of messaging relays for the user (deployment-configurable; defaults: `wss://nostr.data.haus`, `wss://nos.lol`, `wss://relay.damus.io`) that can be edited later in Settings, and SHALL require the user to provide a simple name that is saved into their profile metadata and published to the network. The modal MAY offer a secondary dismiss action while still reappearing on future logins as long as the profile remains empty.
 
 #### Scenario: Empty profile triggers messaging-relay setup modal on login
 - **GIVEN** the user successfully logs into nospeak and the ordered login history/sync flow has completed
@@ -591,9 +593,9 @@ After a successful login and completion of the ordered login history flow, the m
 - **AND** the profile metadata does not contain a `name`, `display_name`, or `nip05` value
 - **WHEN** the main messaging UI becomes active
 - **THEN** a blocking modal overlay SHALL be shown informing the user that messaging relays and profile information need to be configured for this key
-- **AND** the modal SHALL explain that nospeak will configure the default messaging relays `wss://nostr.data.haus`, `wss://nos.lol`, and `wss://relay.damus.io` on their behalf, with the ability to change them later in Settings → Messaging Relays
+- **AND** the modal SHALL explain that nospeak will configure the default messaging relays (deployment-configurable; defaults: `wss://nostr.data.haus`, `wss://nos.lol`, `wss://relay.damus.io`) on their behalf, with the ability to change them later in Settings → Messaging Relays
 - **AND** the modal SHALL require the user to enter a non-empty name before continuing
-- **AND** upon confirmation, the client SHALL persist the default relays as the user's messaging relays, update the profile metadata with the provided name, and publish both a NIP-17 messaging relay list (kind 10050 with `relay` tags) and profile metadata (kind 0) to all known relays including the blaster relay
+- **AND** upon confirmation, the client SHALL persist the default relays as the user's messaging relays, update the profile metadata with the provided name, and publish both a NIP-17 messaging relay list (kind 10050 with `relay` tags) and profile metadata (kind 0) to all known relays including the blaster relay (deployment-configurable; default: `wss://sendit.nosflare.com`)
 - **AND** the modal SHALL be shown again on subsequent logins while the profile continues to have no messaging relays and no username-like metadata (for example, if the user dismisses the modal or later removes all relays and name from their profile).
 
 ### Requirement: In-App Image Viewer for Messages
@@ -1034,7 +1036,7 @@ When running inside the Android Capacitor app shell with background messaging en
 - **THEN** the native service SHALL NOT raise an Android OS notification for that reaction.
 
 ### Requirement: Sender Avatar Fallback for Messaging Notifications
-When a message or reaction notification is shown for a specific sender, the system SHALL prefer showing the sender’s profile picture when available. When the sender has no profile picture, the system SHALL instead use a deterministic robohash avatar derived from the sender’s `npub` using the same seed logic as the in-app avatar fallback. If the avatar cannot be resolved due to platform limitations or fetch failures, the system SHALL fall back to the branded nospeak icon while still showing the notification.
+When a message or reaction notification is shown for a specific sender, the system SHALL prefer showing the sender’s profile picture when available. When the sender has no profile picture, the system SHALL instead use a deterministic robohash avatar derived from the sender’s `npub` using the same seed logic as the in-app avatar fallback. The robohash base URL SHALL default to `https://robohash.org/` and MAY be overridden by deployment runtime configuration; the base URL MUST use `https://`. If the avatar cannot be resolved due to platform limitations or fetch failures, the system SHALL fall back to the branded nospeak icon while still showing the notification.
 
 #### Scenario: Web notification uses sender profile picture when available
 - **GIVEN** the user has granted notification permission and notifications are enabled in Settings

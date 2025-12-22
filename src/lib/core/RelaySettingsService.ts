@@ -1,8 +1,10 @@
 import { get } from 'svelte/store';
 import { signer, currentUser } from '$lib/stores/auth';
-import { connectionManager } from './connection/instance';
-import { DEFAULT_DISCOVERY_RELAYS } from './connection/Discovery';
 import { Relay } from 'nostr-tools';
+
+import { getBlasterRelayUrl, getDiscoveryRelays } from '$lib/core/runtimeConfig';
+
+import { connectionManager } from './connection/instance';
 import { ConnectionType } from './connection/ConnectionManager';
 import { profileRepo } from '$lib/db/ProfileRepository';
 
@@ -67,8 +69,8 @@ export class RelaySettingsService {
             
             // Publish to all relays: discovery + blaster + connected + configured
             const allRelays = new Set<string>([
-                ...DEFAULT_DISCOVERY_RELAYS,
-                'wss://sendit.nosflare.com',
+                ...getDiscoveryRelays(),
+                getBlasterRelayUrl(),
                 ...connectionManager.getAllRelayHealth().map((h) => h.url),
                 ...messagingRelays
             ]);

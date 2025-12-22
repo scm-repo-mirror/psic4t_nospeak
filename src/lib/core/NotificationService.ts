@@ -1,12 +1,13 @@
-import { profileRepo } from '$lib/db/ProfileRepository';
-import { isAndroidNative } from './NativeDialogs';
-// @ts-ignore Capacitor local notifications plugin provided at runtime
 import { LocalNotifications } from '@capacitor/local-notifications';
+
+import { getRobohashBaseUrl } from '$lib/core/runtimeConfig';
+import { profileRepo } from '$lib/db/ProfileRepository';
+
+import { isAndroidNative } from './NativeDialogs';
 
 const DEFAULT_NOTIFICATION_ICON = '/nospeak.svg';
 const ANDROID_MESSAGE_CHANNEL_ID = 'messages';
 
-const ROBOHASH_URL_PREFIX = 'https://robohash.org/';
 const ROBOHASH_URL_SUFFIX = '.png?set=set1&bgset=bg2';
 const ANDROID_NOTIFICATION_ICON_TIMEOUT_MS = 1000;
 
@@ -24,7 +25,7 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function getRobohashAvatarUrl(npub: string): string {
-    return `${ROBOHASH_URL_PREFIX}${npub.slice(-10)}${ROBOHASH_URL_SUFFIX}`;
+    return `${getRobohashBaseUrl()}${npub.slice(-10)}${ROBOHASH_URL_SUFFIX}`;
 }
 
 function getNotificationAvatarUrl(npub: string, picture: string | undefined): string {

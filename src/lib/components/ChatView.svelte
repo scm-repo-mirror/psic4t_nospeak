@@ -3,7 +3,8 @@
   import { messageRepo } from "$lib/db/MessageRepository";
   import { profileRepo } from "$lib/db/ProfileRepository";
   import { messagingService } from "$lib/core/Messaging";
-  import { DEFAULT_BLOSSOM_SERVERS, ensureDefaultBlossomServersForCurrentUser } from "$lib/core/DefaultBlossomServers";
+  import { ensureDefaultBlossomServersForCurrentUser } from "$lib/core/DefaultBlossomServers";
+  import { runtimeConfig } from "$lib/core/runtimeConfig";
   import Avatar from "./Avatar.svelte";
   import MessageContent from "./MessageContent.svelte";
   import ContextMenu from "./ContextMenu.svelte";
@@ -916,8 +917,8 @@
         if (ensured.didSetDefaults) {
           pendingMediaServersHint = translate('modals.mediaServersAutoConfigured.message', {
             values: {
-              server1: DEFAULT_BLOSSOM_SERVERS[0],
-              server2: DEFAULT_BLOSSOM_SERVERS[1]
+              server1: $runtimeConfig.defaultBlossomServers[0] ?? '',
+              server2: $runtimeConfig.defaultBlossomServers[1] ?? $runtimeConfig.defaultBlossomServers[0] ?? ''
             }
           });
         }

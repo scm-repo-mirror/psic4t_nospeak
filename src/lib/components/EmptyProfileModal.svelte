@@ -1,6 +1,7 @@
 <script lang="ts">
     import { showEmptyProfileModal } from '$lib/stores/modals';
     import { relaySettingsService } from '$lib/core/RelaySettingsService';
+    import { getDefaultMessagingRelays } from '$lib/core/runtimeConfig';
      import { profileService } from '$lib/core/ProfileService';
      import { connectionManager } from '$lib/core/connection/instance';
      import { fade } from 'svelte/transition';
@@ -11,12 +12,6 @@
  
      let { isOpen = false } = $props<{ isOpen: boolean }>();
 
-
-    const DEFAULT_EMPTY_PROFILE_RELAYS = [
-        'wss://nostr.data.haus',
-        'wss://nos.lol',
-        'wss://relay.damus.io'
-    ];
 
     let username = $state('');
     let isSaving = $state(false);
@@ -49,7 +44,7 @@
 
         try {
             await relaySettingsService.updateSettings(
-                DEFAULT_EMPTY_PROFILE_RELAYS
+                getDefaultMessagingRelays()
             );
  
             const name = username.trim();

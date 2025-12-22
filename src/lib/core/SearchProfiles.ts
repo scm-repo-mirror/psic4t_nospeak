@@ -1,6 +1,8 @@
 import { Relay } from 'nostr-tools';
 import { nip19 } from 'nostr-tools';
 
+import { getSearchRelayUrl } from '$lib/core/runtimeConfig';
+
 export interface UserSearchResult {
     npub: string;
     name: string;
@@ -9,7 +11,6 @@ export interface UserSearchResult {
     about?: string;
 }
 
-const SEARCH_RELAY_URL = 'wss://relay.nostr.band';
 
 export async function searchProfiles(query: string, limit: number = 20): Promise<UserSearchResult[]> {
     if (!query.trim()) {
@@ -27,7 +28,7 @@ export async function searchProfiles(query: string, limit: number = 20): Promise
     const seenPubkeys = new Set<string>();
 
     try {
-        relay = await Relay.connect(SEARCH_RELAY_URL);
+        relay = await Relay.connect(getSearchRelayUrl());
 
         const filters = [{
             kinds: [0],

@@ -4,7 +4,8 @@
   import { mediaServerSettingsService } from "$lib/core/MediaServerSettingsService";
   import { normalizeBlossomServerUrl } from "$lib/core/BlossomServers";
   import { uploadToBlossomServers, sha256HexFromBlob } from "$lib/core/BlossomUpload";
-  import { DEFAULT_BLOSSOM_SERVERS, ensureDefaultBlossomServersForCurrentUser } from "$lib/core/DefaultBlossomServers";
+  import { ensureDefaultBlossomServersForCurrentUser } from "$lib/core/DefaultBlossomServers";
+  import { runtimeConfig } from "$lib/core/runtimeConfig";
   import { profileService } from "$lib/core/ProfileService";
   import { authService } from "$lib/core/AuthService";
   import { currentUser } from "$lib/stores/auth";
@@ -192,9 +193,9 @@
         const ensured = await ensureDefaultBlossomServersForCurrentUser();
         if (ensured.didSetDefaults) {
           pendingProfileMediaServersHint = get(t)('modals.mediaServersAutoConfigured.message', {
-            values: {
-              server1: DEFAULT_BLOSSOM_SERVERS[0],
-              server2: DEFAULT_BLOSSOM_SERVERS[1]
+              values: {
+              server1: $runtimeConfig.defaultBlossomServers[0] ?? '',
+              server2: $runtimeConfig.defaultBlossomServers[1] ?? $runtimeConfig.defaultBlossomServers[0] ?? ''
             }
           }) as string;
         }

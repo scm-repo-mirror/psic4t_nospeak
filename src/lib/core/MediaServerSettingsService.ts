@@ -4,7 +4,8 @@ import { Relay } from 'nostr-tools';
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { currentUser, signer } from '$lib/stores/auth';
 
-import { DEFAULT_DISCOVERY_RELAYS } from './connection/Discovery';
+import { getBlasterRelayUrl, getDiscoveryRelays } from '$lib/core/runtimeConfig';
+
 import { connectionManager } from './connection/instance';
 import { normalizeBlossomServerUrl } from './BlossomServers';
 
@@ -65,8 +66,8 @@ export class MediaServerSettingsService {
         const messagingRelays = profile?.messagingRelays ?? [];
 
         const allRelays = new Set<string>([
-            ...DEFAULT_DISCOVERY_RELAYS,
-            'wss://sendit.nosflare.com',
+            ...getDiscoveryRelays(),
+            getBlasterRelayUrl(),
             ...connectionManager.getAllRelayHealth().map((h) => h.url),
             ...messagingRelays
         ]);

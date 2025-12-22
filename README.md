@@ -72,11 +72,42 @@ src/
 
 ### Environment Variables
 
-Create `.env` file for local development:
+Create `.env` file for local development (restart the server to apply changes):
 
 ```env
-# Optional: Custom relay configuration
-NOSTR_RELAYS=wss://relay1.nostr.org,wss://relay2.nostr.org
+# Runtime-configurable defaults (served to clients via GET /api/runtime-config)
+# Relays MUST use wss:// and servers MUST use https://
+NOSPEAK_DISCOVERY_RELAYS=wss://nostr.data.haus,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net,wss://purplepag.es
+NOSPEAK_DEFAULT_MESSAGING_RELAYS=wss://nostr.data.haus,wss://nos.lol,wss://relay.damus.io
+NOSPEAK_SEARCH_RELAY=wss://relay.nostr.band
+NOSPEAK_BLASTER_RELAY=wss://sendit.nosflare.com
+NOSPEAK_DEFAULT_BLOSSOM_SERVERS=https://blossom.data.haus,https://blossom.primal.net
+NOSPEAK_WEB_APP_BASE_URL=https://nospeak.chat
+NOSPEAK_ROBOHASH_BASE_URL=https://robohash.org
+```
+
+### Docker Compose runtime configuration
+
+The Node server reads these values from `process.env` at startup and serves the effective config to the web client via `GET /api/runtime-config` (same-origin). Update the environment values and recreate the container to apply changes.
+
+```yaml
+services:
+  nospeak:
+    image: nospeak:latest
+    environment:
+      NOSPEAK_DISCOVERY_RELAYS: "wss://nostr.data.haus,wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net,wss://purplepag.es"
+      NOSPEAK_DEFAULT_MESSAGING_RELAYS: "wss://nostr.data.haus,wss://nos.lol,wss://relay.damus.io"
+      NOSPEAK_SEARCH_RELAY: "wss://relay.nostr.band"
+      NOSPEAK_BLASTER_RELAY: "wss://sendit.nosflare.com"
+      NOSPEAK_DEFAULT_BLOSSOM_SERVERS: "https://blossom.data.haus,https://blossom.primal.net"
+      NOSPEAK_WEB_APP_BASE_URL: "https://nospeak.chat"
+      NOSPEAK_ROBOHASH_BASE_URL: "https://robohash.org"
+```
+
+Apply changes:
+
+```bash
+docker compose up -d --force-recreate
 ```
 
 ### Relay Configuration

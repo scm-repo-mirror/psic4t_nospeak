@@ -2,13 +2,9 @@ import { get } from 'svelte/store';
 
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { currentUser } from '$lib/stores/auth';
+import { getDefaultBlossomServers } from '$lib/core/runtimeConfig';
 
 import { mediaServerSettingsService } from './MediaServerSettingsService';
-
-export const DEFAULT_BLOSSOM_SERVERS = [
-    'https://blossom.data.haus',
-    'https://blossom.primal.net'
-] as const;
 
 export async function ensureDefaultBlossomServersForCurrentUser(): Promise<{
     servers: string[];
@@ -21,16 +17,17 @@ export async function ensureDefaultBlossomServersForCurrentUser(): Promise<{
 
     const profile = await profileRepo.getProfileIgnoreTTL(user.npub);
     const servers = profile?.mediaServers ?? [];
+    const defaultServers = getDefaultBlossomServers();
 
     if (servers.length > 0) {
         return { servers, didSetDefaults: false };
     }
 
-    await mediaServerSettingsService.updateSettings([...DEFAULT_BLOSSOM_SERVERS]);
+    await mediaServerSettingsService.updateSettings([...defaultServers]);
 
     const refreshed = await profileRepo.getProfileIgnoreTTL(user.npub);
     return {
-        servers: refreshed?.mediaServers ?? [...DEFAULT_BLOSSOM_SERVERS],
+        servers: refreshed?.mediaServers ?? [...defaultServers],
         didSetDefaults: true
     };
 }

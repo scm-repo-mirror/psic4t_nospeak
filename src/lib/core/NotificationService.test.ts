@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_RUNTIME_CONFIG } from '$lib/core/runtimeConfig/defaults';
+
 const isAndroidNativeMock = vi.fn();
 const scheduleMock = vi.fn().mockResolvedValue(undefined);
 const createChannelMock = vi.fn().mockResolvedValue(undefined);
@@ -193,7 +195,7 @@ describe('NotificationService (web notifications)', () => {
         await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
 
         expect(FakeNotification.calls.length).toBe(1);
-        expect(FakeNotification.calls[0].options.icon).toBe('https://robohash.org/npub1alice.png?set=set1&bgset=bg2');
+        expect(FakeNotification.calls[0].options.icon).toBe(`${DEFAULT_RUNTIME_CONFIG.robohashBaseUrl}npub1alice.png?set=set1&bgset=bg2`);
         expect(FakeNotification.calls[0].options.badge).toBe('/nospeak.svg');
     });
 
@@ -276,6 +278,6 @@ describe('NotificationService (web notifications)', () => {
 
         expect(FakeNotification.calls.length).toBe(1);
         expect(FakeNotification.calls[0].title).toContain('Eve');
-        expect(FakeNotification.calls[0].options.icon).toBe('https://robohash.org/npub1eve.png?set=set1&bgset=bg2');
+        expect(FakeNotification.calls[0].options.icon).toBe(`${DEFAULT_RUNTIME_CONFIG.robohashBaseUrl}npub1eve.png?set=set1&bgset=bg2`);
     });
 });

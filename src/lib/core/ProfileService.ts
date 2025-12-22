@@ -1,8 +1,10 @@
 import { get } from 'svelte/store';
 import { signer, currentUser } from '$lib/stores/auth';
-import { connectionManager } from './connection/instance';
-import { DEFAULT_DISCOVERY_RELAYS } from './connection/Discovery';
 import { Relay } from 'nostr-tools';
+
+import { getBlasterRelayUrl, getDiscoveryRelays } from '$lib/core/runtimeConfig';
+
+import { connectionManager } from './connection/instance';
 import { profileRepo } from '$lib/db/ProfileRepository';
 import { verifyNip05 } from './Nip05Verifier';
 
@@ -82,8 +84,8 @@ export class ProfileService {
         const messagingRelays = existingProfile?.messagingRelays || [];
  
         const allRelays = new Set([
-            ...DEFAULT_DISCOVERY_RELAYS,
-            'wss://sendit.nosflare.com', // Blaster relay
+            ...getDiscoveryRelays(),
+            getBlasterRelayUrl(), // Blaster relay
             ...connectionManager.getAllRelayHealth().map(h => h.url),
             ...messagingRelays
         ]);
