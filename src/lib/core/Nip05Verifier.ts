@@ -100,6 +100,43 @@ export async function verifyNip05(nip05: string, pubkeyHex: string): Promise<Nip
     return result;
 }
 
+export async function resolveNip05ToNpub(nip05: string): Promise<string> {
+    const trimmed = (nip05 || '').trim();
+
+    const atIndex = trimmed.indexOf('@');
+    if (atIndex <= 0 || atIndex === trimmed.length - 1) {
+        throw new Error('invalid-format');
+    }
+
+    const localPart = trimmed.slice(0, atIndex);
+    const domain = trimmed.slice(atIndex + 1);
+
+    if (!localPart || !domain) {
+        throw new Error('invalid-format');
+    }
+
+    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(localPart)}`;
+
+    const resp = await fetch(url);
+    if (!resp.ok) {
+        throw new Error(`http-${resp.status}`);
+    }
+
+    const json = await resp.json();
+    const names = (json as any).names;
+
+    if (!names || typeof names !== 'object') {
+        throw new Error('invalid-response');
+    }
+
+    const mapped = (names as Record<string, string>)[localPart.toLowerCase()];
+    if (!mapped) {
+        throw new Error('not-found');
+    }
+
+    return mapped;
+}
+
 export async function verifyNip05ForNpub(nip05: string, npub: string): Promise<Nip05VerificationResult> {
     const now = Date.now();
 

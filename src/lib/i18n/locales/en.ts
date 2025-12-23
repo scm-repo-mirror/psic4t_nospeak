@@ -56,18 +56,23 @@ const en = {
          }
      },
 
-        modals: {
-         manageContacts: {
-             title: 'Manage Contacts',
-             searchPlaceholder: 'npub or search term',
-             addContactAria: 'Add contact',
-             searchContactsAria: 'Search contacts',
-             searching: 'Searching...',
-             searchFailed: 'Search failed',
-             noResults: 'No results',
-             noContacts: 'No contacts added',
-             removeContactAria: 'Remove contact'
-         },
+         modals: {
+          manageContacts: {
+              title: 'Manage Contacts',
+              searchPlaceholder: 'npub, NIP-05, or search term',
+              addContactAria: 'Add contact',
+              searchContactsAria: 'Search contacts',
+              searching: 'Searching...',
+              searchFailed: 'Search failed',
+              noResults: 'No results',
+              noContacts: 'No contacts added',
+              removeContactAria: 'Remove contact',
+              resolvingNip05: 'Looking up NIP-05...',
+              nip05LookupFailed: 'Failed to look up NIP-05',
+              nip05NotFound: 'NIP-05 not found',
+              nip05InvalidFormat: 'Invalid NIP-05 format (use name@domain.com)',
+              alreadyAdded: 'Already added'
+          },
          profile: {
               unknownName: 'Unknown',
               about: 'About',
