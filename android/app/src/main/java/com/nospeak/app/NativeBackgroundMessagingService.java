@@ -272,11 +272,7 @@ public class NativeBackgroundMessagingService extends Service {
             );
         }
 
-        if (currentPubkeyHex != null && configuredRelays != null && configuredRelays.length > 0) {
-            startRelayConnections(configuredRelays, currentPubkeyHex);
-        } else {
-            updateServiceNotificationForHealth();
-        }
+        updateServiceNotificationForHealth();
 
         if (previousLockedProfileActive && !lockedProfileActive) {
             refreshActiveConversationNotifications();
