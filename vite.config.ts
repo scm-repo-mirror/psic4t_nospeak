@@ -20,6 +20,8 @@ export default defineConfig({
 			srcDir: 'src',
 			filename: 'service-worker.ts',
 			registerType: 'autoUpdate',
+			scope: '/',
+			base: '/',
 			includeAssets: ['robots.txt', 'favicons/*.png', 'favicons/*.ico', 'nospeak.svg'],
 			manifest: {
 				name: 'nospeak-web',
@@ -28,6 +30,7 @@ export default defineConfig({
 				theme_color: '#000000',
 				background_color: '#ffffff',
 				display: 'standalone',
+				start_url: '/',
 				icons: [
 					{
 						src: '/nospeak.svg',
