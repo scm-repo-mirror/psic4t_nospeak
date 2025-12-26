@@ -101,6 +101,12 @@ export async function searchProfiles(query: string, limit: number = 20): Promise
     } finally {
         try {
             if (relay) {
+                try {
+                    (relay as any)._connected = false;
+                    (relay as any).connectionPromise = undefined;
+                } catch {
+                    // ignore
+                }
                 relay.close();
             }
         } catch {

@@ -55,6 +55,180 @@ describe('ConnectionManager', () => {
         expect(restoredBackoff).toBe(normalBackoff);
     });
 
+    it('does not schedule ws.send after intentional relay close', async () => {
+        const relayUrl = 'wss://closing-race.example.com';
+
+        const ws: any = {
+            readyState: 1,
+            send: vi.fn(),
+            close: vi.fn(() => {
+                ws.readyState = 2;
+            }),
+        };
+
+        const relay: any = {
+            url: relayUrl,
+            ws,
+            _WebSocket: { OPEN: 1 },
+            _connected: true,
+            connectionPromise: Promise.resolve(),
+            get connected() {
+                return this._connected;
+            },
+            openSubs: new Map<string, any>(),
+            closeAllSubscriptions(reason: string) {
+                for (const [, sub] of this.openSubs) {
+                    sub.close(reason);
+                }
+                this.openSubs.clear();
+            },
+            close() {
+                this.closeAllSubscriptions('relay connection closed by us');
+                this.ws.close();
+                this._connected = false;
+            },
+        };
+
+        const subscription: any = {
+            closed: false,
+            relay,
+            close: vi.fn(() => {
+                if (subscription.closed) {
+                    return;
+                }
+                if (relay.connected) {
+                    Promise.resolve().then(() => ws.send('["CLOSE","sub:1"]'));
+                }
+                subscription.closed = true;
+            }),
+        };
+
+        relay.openSubs.set('sub:1', subscription);
+
+        const cmAny = cm as any;
+        cmAny.relays.set(relayUrl, {
+            url: relayUrl,
+            relay,
+            isConnected: true,
+            lastConnected: 0,
+            lastAttempt: 0,
+            successCount: 0,
+            failureCount: 0,
+            consecutiveFails: 0,
+            type: ConnectionType.Persistent,
+            authStatus: 'not_required',
+            lastAuthAt: 0,
+            lastAuthError: null,
+        });
+
+        cm.removeRelay(relayUrl);
+
+        // Flush microtasks that would send after ws.close.
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(ws.send).not.toHaveBeenCalled();
+    });
+
+    it('does not send on CLOSING websocket during relay close', () => {
+        const relayUrl = 'wss://closing.example.com';
+
+        const subscriptionClose = vi.fn(() => {
+            if (relay.connected) {
+                throw new Error('would send CLOSE on non-open websocket');
+            }
+        });
+
+        const relay: any = {
+            url: relayUrl,
+            ws: { readyState: 2 },
+            _WebSocket: { OPEN: 1 },
+            _connected: true,
+            get connected() {
+                return this._connected;
+            },
+            openSubs: new Map<string, any>(),
+            closeAllSubscriptions(reason: string) {
+                for (const [, sub] of this.openSubs) {
+                    sub.close(reason);
+                }
+                this.openSubs.clear();
+            },
+            close() {
+                this.closeAllSubscriptions('relay connection closed by us');
+                this._connected = false;
+            },
+        };
+
+        relay.openSubs.set('sub:1', { close: subscriptionClose });
+
+        const cmAny = cm as any;
+        cmAny.relays.set(relayUrl, {
+            url: relayUrl,
+            relay,
+            isConnected: true,
+            lastConnected: 0,
+            lastAttempt: 0,
+            successCount: 0,
+            failureCount: 0,
+            consecutiveFails: 0,
+            type: ConnectionType.Persistent,
+            authStatus: 'not_required',
+            lastAuthAt: 0,
+            lastAuthError: null,
+        });
+
+        expect(() => cm.removeRelay(relayUrl)).not.toThrow();
+        expect(subscriptionClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not send on CLOSING websocket during unsubscribe', () => {
+        const relayUrl = 'wss://closing-unsub.example.com';
+
+        let subscription: any;
+
+        const relay: any = {
+            url: relayUrl,
+            ws: { readyState: 2 },
+            _WebSocket: { OPEN: 1 },
+            _connected: true,
+            get connected() {
+                return this._connected;
+            },
+            close: vi.fn(),
+            subscribe: vi.fn(() => subscription),
+        };
+
+        subscription = {
+            relay,
+            close: vi.fn(() => {
+                if (relay.connected) {
+                    throw new Error('would send CLOSE on non-open websocket');
+                }
+            }),
+        };
+
+        const cmAny = cm as any;
+        cmAny.relays.set(relayUrl, {
+            url: relayUrl,
+            relay,
+            isConnected: true,
+            lastConnected: 0,
+            lastAttempt: 0,
+            successCount: 0,
+            failureCount: 0,
+            consecutiveFails: 0,
+            type: ConnectionType.Persistent,
+            authStatus: 'not_required',
+            lastAuthAt: 0,
+            lastAuthError: null,
+        });
+
+        const unsubscribe = cm.subscribe([{ kinds: [1] }], vi.fn());
+        expect(() => unsubscribe()).not.toThrow();
+        expect(subscription.close).toHaveBeenCalledTimes(1);
+    });
+
     it('re-subscribes once after auth-required close', async () => {
         const relayUrl = 'wss://relay.example.com';
 

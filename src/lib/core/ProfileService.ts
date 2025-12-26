@@ -142,6 +142,12 @@ export class ProfileService {
                 console.log(`Published profile to ${relayUrl}`);
 
                 if (shouldClose) {
+                    try {
+                        (relay as any)._connected = false;
+                        (relay as any).connectionPromise = undefined;
+                    } catch {
+                        // ignore
+                    }
                     relay.close();
                 }
             } catch (e) {

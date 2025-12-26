@@ -75,6 +75,79 @@ export class ConnectionManager {
         this.debug = debug;
     }
 
+    private isRelayWebSocketOpen(relay: Relay): boolean {
+        const relayAny = relay as any;
+        const ws = relayAny?.ws;
+        if (!ws || typeof ws.readyState !== 'number') {
+            return true;
+        }
+
+        const openState = relayAny?._WebSocket?.OPEN ?? 1;
+        return ws.readyState === openState;
+    }
+
+    private preventSendsOnClosingWebSocket(relay: Relay) {
+        if (this.isRelayWebSocketOpen(relay)) {
+            return;
+        }
+
+        // On page reload/unload we can have `ws.readyState !== OPEN` while `connected` is
+        // still true, causing noisy Chrome errors.
+        try {
+            (relay as any)._connected = false;
+        } catch {
+            // Ignore if relay implementation differs.
+        }
+    }
+
+    private preventSendsOnIntentionalClose(relay: Relay) {
+        // nostr-tools `Relay.close()` triggers `closeAllSubscriptions()` first.
+        // Those subscription closes attempt to send `CLOSE` if `relay.connected` is true.
+        // Additionally, nostr-tools schedules the websocket send in a microtask, so even if
+        // the websocket starts as OPEN it can become CLOSING before the send happens.
+        // For intentional shutdown, we prefer to skip CLOSE frames and just drop the socket.
+        try {
+            (relay as any)._connected = false;
+        } catch {
+            // Ignore if relay implementation differs.
+        }
+
+        try {
+            (relay as any).connectionPromise = undefined;
+        } catch {
+            // Ignore if relay implementation differs.
+        }
+    }
+
+    private safeCloseRelay(relay: Relay) {
+        this.preventSendsOnIntentionalClose(relay);
+
+        try {
+            relay.close();
+        } catch (e) {
+            if (this.debug) {
+                console.warn(`Relay close failed for ${relay.url}`, e);
+            }
+        }
+    }
+
+    private safeCloseSubscription(sub: any) {
+        if (!sub || typeof sub.close !== 'function') {
+            return;
+        }
+
+        const relay = sub.relay as Relay | undefined;
+        if (relay) {
+            this.preventSendsOnClosingWebSocket(relay);
+        }
+
+        try {
+            sub.close();
+        } catch {
+            // Ignore errors on close
+        }
+    }
+
     public setAuthSigner(authSigner: ((event: EventTemplate) => Promise<NostrEvent>) | null) {
         this.authSigner = authSigner;
     }
@@ -211,10 +284,7 @@ export class ConnectionManager {
 
         for (const health of this.relays.values()) {
             if (health.relay) {
-                try {
-                    health.relay.close();
-                } catch {
-                }
+                this.safeCloseRelay(health.relay);
             }
         }
         
@@ -300,10 +370,7 @@ export class ConnectionManager {
         const health = this.relays.get(url);
         if (health) {
             if (health.relay) {
-                try {
-                    health.relay.close();
-                } catch {
-                }
+                this.safeCloseRelay(health.relay);
             }
             this.clearSubscriptionsForRelay(url);
             this.relays.delete(url);
@@ -322,7 +389,7 @@ export class ConnectionManager {
                 try {
                     const s = sub.subMap.get(url);
                     if (s && typeof s.close === 'function') {
-                        s.close();
+                        this.safeCloseSubscription(s);
                     }
                 } catch (e) {
                     // Ignore errors on close
@@ -589,10 +656,7 @@ export class ConnectionManager {
         } catch (e) {
             health.isConnected = false;
             if (health.relay) {
-                try {
-                    health.relay.close();
-                } catch {
-                }
+                this.safeCloseRelay(health.relay);
                 health.relay = null;
             }
             throw e;
@@ -630,10 +694,7 @@ export class ConnectionManager {
 
             const cleanup = () => {
                 for (const { sub } of subs) {
-                    try {
-                        sub.close();
-                    } catch {
-                    }
+                    this.safeCloseSubscription(sub);
                 }
                 clearTimeout(timer);
             };
@@ -684,10 +745,7 @@ export class ConnectionManager {
         return () => {
             this.subscriptions.delete(subEntry);
             for (const s of subEntry.subMap.values()) {
-                try {
-                    s.close();
-                } catch {
-                }
+                this.safeCloseSubscription(s);
             }
             subEntry.subMap.clear();
         };
