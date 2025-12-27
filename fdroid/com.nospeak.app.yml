@@ -1,36 +1,42 @@
 Categories:
   - Messaging
+  - Internet
+
 License: GPL-3.0-or-later
+
 WebSite: https://nospeak.chat
 SourceCode: https://github.com/psic4t/nospeak
 IssueTracker: https://github.com/psic4t/nospeak/issues
 AuthorName: psic4t
+
 RepoType: git
 Repo: https://github.com/psic4t/nospeak.git
-UpdateCheckMode: Tags
+
 AutoUpdateMode: Version
+UpdateCheckMode: Tags
 CurrentVersion: 0.9.16.1
 CurrentVersionCode: 90161
+
 Builds:
   - versionName: 0.9.16.1
     versionCode: 90161
     commit: v0.9.16.1
     subdir: android
     sudo:
-      - apt-get update
-      - apt-get install -y nodejs npm
+      - apt-get update || apt-get update
+      - apt-get install -y nodejs npm openjdk-17-jdk-headless
+    init:
+      - npm ci
+    scandelete:
+      - node_modules/nostr-wasm
+      - node_modules/source-map/lib/mappings.wasm
+      - node_modules/@capacitor/cli/assets
+      - node_modules/esbuild
+      - node_modules/@esbuild
+      - node_modules/svelte-i18n/node_modules/esbuild
+      - node_modules/svelte-i18n/node_modules/@esbuild
     prebuild:
-      - (cd .. && npm ci)
-      - (cd .. && npm run build:android)
-      - rm -rf ../node_modules
-      - |
-        # Workaround for missing capacitor-cordova-android-plugins
-        if [ ! -f "capacitor-cordova-android-plugins/cordova.variables.gradle" ]; then
-          mkdir -p capacitor-cordova-android-plugins/src/main
-          echo "ext.cordovaConfig = [:]" > capacitor-cordova-android-plugins/cordova.variables.gradle
-          echo "buildscript { repositories { google(); mavenCentral() } dependencies { classpath 'com.android.tools.build:gradle:8.13.1' } } apply plugin: 'com.android.library' android { namespace \"capacitor.android.plugins\" compileSdk 34 defaultConfig { minSdkVersion 22 targetSdkVersion 34 } }" > capacitor-cordova-android-plugins/build.gradle
-          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="capacitor.android.plugins"/>' > capacitor-cordova-android-plugins/src/main/AndroidManifest.xml
-        fi
+      - cd .. && npm run build:android
+      - echo "sdk.dir=$$SDK$$" > local.properties
     gradle:
-      - fdroid
-    output: app/build/outputs/apk/fdroid/release/*.apk
+      - yes

@@ -47,16 +47,6 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    flavorDimensions "distribution"
-
-    productFlavors {
-        prod {
-            dimension "distribution"
-        }
-        fdroid {
-            dimension "distribution"
-        }
-    }
 
     signingConfigs {
         create("release") {
