@@ -1,21 +1,14 @@
 Categories:
-  - Messaging
   - Internet
-
+  - Messaging
 License: GPL-3.0-or-later
-
+AuthorName: psic4t
 WebSite: https://nospeak.chat
 SourceCode: https://github.com/psic4t/nospeak
 IssueTracker: https://github.com/psic4t/nospeak/issues
-AuthorName: psic4t
 
 RepoType: git
 Repo: https://github.com/psic4t/nospeak.git
-
-AutoUpdateMode: Version
-UpdateCheckMode: Tags
-CurrentVersion: 0.9.16.1
-CurrentVersionCode: 9016
 
 Builds:
   - versionName: v0.9.16.1
@@ -24,9 +17,29 @@ Builds:
     subdir: android
     sudo:
       - apt-get update || apt-get update
-      - apt-get install -y nodejs npm openjdk-17-jdk-headless
-    init:
-      - npm ci
+      - apt-get install -y ca-certificates curl gnupg
+      - mkdir -p /etc/apt/keyrings
+      - curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg
+        --dearmor -o /etc/apt/keyrings/nodesource.gpg
+      - echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x
+        nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+      - curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public |
+        gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
+      - echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb
+        bookworm main" | tee /etc/apt/sources.list.d/adoptium.list
+      - apt-get update
+      - apt-get install -y nodejs temurin-21-jdk
+      - update-alternatives --set java /usr/lib/jvm/temurin-21-jdk-amd64/bin/java
+      - update-alternatives --set javac /usr/lib/jvm/temurin-21-jdk-amd64/bin/javac
+      - ln -sfn /usr/lib/jvm/temurin-21-jdk-amd64 /usr/lib/jvm/default-jvm
+      - echo "JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64" >> /etc/environment
+    init: npm ci
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    prebuild:
+      - cd .. && npm run build:android
+      - echo "sdk.dir=$$SDK$$" > local.properties
     scandelete:
       - node_modules/nostr-wasm
       - node_modules/source-map/lib/mappings.wasm
@@ -35,9 +48,8 @@ Builds:
       - node_modules/@esbuild
       - node_modules/svelte-i18n/node_modules/esbuild
       - node_modules/svelte-i18n/node_modules/@esbuild
-    prebuild:
-      - cd .. && npm run build:android
-      - echo "sdk.dir=$$SDK$$" > local.properties
-    gradle:
-      - yes
-    output: app/build/outputs/apk/release/app-release-unsigned.apk
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: 0.9.16.1
+CurrentVersionCode: 9016
