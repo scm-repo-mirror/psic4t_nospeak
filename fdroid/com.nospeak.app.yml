@@ -12,31 +12,17 @@ Repo: https://github.com/psic4t/nospeak.git
 
 Builds:
   - versionName: v0.9.16.1
-    versionCode: 9016
+    versionCode: 90161
     commit: v0.9.16.1
-    subdir: android
+    subdir: android/app
     sudo:
-      - apt-get update || apt-get update
-      - apt-get install -y ca-certificates curl gnupg
-      - mkdir -p /etc/apt/keyrings
-      - curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg
-        --dearmor -o /etc/apt/keyrings/nodesource.gpg
-      - echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x
-        nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-      - curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public |
-        gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
-      - echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb
-        bookworm main" | tee /etc/apt/sources.list.d/adoptium.list
+      - echo "deb https://deb.debian.org/debian trixie main" > /etc/apt/sources.list.d/trixie.list
       - apt-get update
-      - apt-get install -y nodejs temurin-21-jdk
-      - update-alternatives --set java /usr/lib/jvm/temurin-21-jdk-amd64/bin/java
-      - update-alternatives --set javac /usr/lib/jvm/temurin-21-jdk-amd64/bin/javac
-      - ln -sfn /usr/lib/jvm/temurin-21-jdk-amd64 /usr/lib/jvm/default-jvm
-      - echo "JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64" >> /etc/environment
+      - apt-get install -y -t trixie openjdk-21-jdk-headless npm
+      - update-alternatives --auto java
     init: npm ci
     gradle:
       - yes
-    output: app/build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
       - cd .. && npm run build:android
       - echo "sdk.dir=$$SDK$$" > local.properties
@@ -49,7 +35,8 @@ Builds:
       - node_modules/svelte-i18n/node_modules/esbuild
       - node_modules/svelte-i18n/node_modules/@esbuild
 
-AutoUpdateMode: None
-UpdateCheckMode: None
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v?(0\.9\.(16\.\d+\|(1[7-9]\|[2-9]\d)(\..*)?)\|[1-9]\d*\.\d+\.\d+.*)
+UpdateCheckData: package.json\|"versionCode":\s*(\d+)\|package.json\|"version":\s*"([\d.]+)"
 CurrentVersion: 0.9.16.1
 CurrentVersionCode: 9016

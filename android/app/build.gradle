@@ -24,11 +24,7 @@ if (packageJsonFile.exists()) {
 def sanitizedSemver = packageVersion.split(/[\-\+]/)[0]
 def semverParts = sanitizedSemver.tokenize('.')
 
-def semverMajor = semverParts.size() > 0 ? (semverParts[0] as int) : 0
-def semverMinor = semverParts.size() > 1 ? (semverParts[1] as int) : 0
-def semverPatch = semverParts.size() > 2 ? (semverParts[2] as int) : 0
-
-def nospeakVersionCode = (semverMajor * 1000000) + (semverMinor * 1000) + semverPatch
+def nospeakVersionCode = packageJson?.versionCode ?: 1
 def nospeakVersionName = "v${packageVersion}"
 
 android {
