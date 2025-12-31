@@ -1136,6 +1136,20 @@
     openContextMenu(e, message);
   }
 
+  function handleDotClick(e: MouseEvent, message: Message) {
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.bottom + 4;
+    contextMenu = {
+      isOpen: true,
+      x,
+      y,
+      message,
+    };
+  }
+
   async function reactToMessage(emoji: '👍' | '👎' | '❤️' | '😂') {
     if (!contextMenu.message || !partnerNpub) return;
 
@@ -1507,12 +1521,23 @@
              isOwn={msg.direction === "sent"}
            />
 
-          <div
-            class={`typ-meta mt-1 text-right ${msg.direction === "sent" ? "text-blue-100" : "text-gray-400"} cursor-help`}
-            title={new Date(msg.sentAt).toLocaleString()}
-          >
-            {getRelativeTime(msg.sentAt)}
-          </div>
+           <div class={`typ-meta mt-1 flex items-center justify-end gap-2 ${msg.direction === "sent" ? "text-blue-100" : "text-gray-400"}`}>
+             <span class="cursor-help" title={new Date(msg.sentAt).toLocaleString()}>
+               {getRelativeTime(msg.sentAt)}
+             </span>
+              <button
+                type="button"
+                class="hidden md:inline-flex py-1 pr-0 pl-px rounded-l hover:bg-gray-100/50 dark:hover:bg-slate-700/50 transition-colors"
+                onclick={(e) => handleDotClick(e, msg)}
+                aria-label="Message options"
+              >
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                 <circle cx="12" cy="5" r="2"/>
+                 <circle cx="12" cy="12" r="2"/>
+                 <circle cx="12" cy="19" r="2"/>
+               </svg>
+             </button>
+           </div>
           {#if msg.direction === "sent" && i === getLastSentIndex(displayMessages) && partnerNpub}
             {#if $lastRelaySendStatus && $lastRelaySendStatus.recipientNpub === partnerNpub}
               <div class="typ-meta mt-0.5 text-right text-blue-100">
