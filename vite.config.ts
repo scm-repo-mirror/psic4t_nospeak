@@ -24,7 +24,7 @@ export default defineConfig({
 			base: '/',
 			includeAssets: ['robots.txt', 'favicons/*.png', 'favicons/*.ico', 'nospeak.svg'],
 			manifest: {
-				name: 'nospeak-web',
+				name: 'nospeak',
 				short_name: 'nospeak',
 				description: 'A Nostr-based messaging application',
 				theme_color: '#000000',
