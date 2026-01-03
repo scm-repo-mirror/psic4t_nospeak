@@ -51,6 +51,11 @@ vi.mock('$lib/db/ProfileRepository', () => ({
 }));
 vi.mock('./NotificationService');
 vi.mock('$lib/stores/auth');
+vi.mock('$lib/stores/sync', () => ({
+    startSync: vi.fn(),
+    updateSyncProgress: vi.fn(),
+    endSync: vi.fn(),
+}));
 vi.mock('svelte/store');
 vi.mock('./ProfileResolver');
 
@@ -100,8 +105,11 @@ describe('MessagingService - Auto-add Contacts', () => {
         vi.mocked(get).mockReturnValue(mockSigner);
         vi.mocked(contactRepo.getContacts).mockResolvedValue([]);
         vi.mocked(contactRepo.addContact).mockResolvedValue();
+        vi.mocked(messageRepo.countMessages).mockResolvedValue(1);
         vi.mocked(messageRepo.hasMessage).mockResolvedValue(false);
+        vi.mocked(messageRepo.hasMessages).mockResolvedValue(new Set());
         vi.mocked(messageRepo.saveMessage).mockResolvedValue();
+        vi.mocked(messageRepo.saveMessages).mockResolvedValue();
 
         // Mock profileResolver
         const { profileResolver } = await import('./ProfileResolver');
@@ -147,6 +155,84 @@ describe('MessagingService - Auto-add Contacts', () => {
             const result = await messagingService.fetchHistory();
 
             expect(result).toEqual({ totalFetched: 0, processed: 0 });
+        });
+
+        it('stops first-time sync paging once cutoff is reached', async () => {
+            const nowSeconds = 2_000_000_000;
+            const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(nowSeconds * 1000);
+
+            vi.mocked(messageRepo.countMessages).mockResolvedValue(0);
+
+            vi.mocked(get).mockImplementation((store: any) => {
+                if (store === signer) return mockSigner;
+                if (store === (currentUser as any)) return { npub: 'npub1me' };
+                return null;
+            });
+
+            vi.mocked(messageRepo.hasMessages).mockImplementation(async (eventIds: string[]) => new Set(eventIds));
+
+            const makeEvents = (prefix: string, start: number) =>
+                Array.from({ length: 50 }, (_, index) => ({
+                    id: `${prefix}-${index}`,
+                    pubkey: 'sender',
+                    content: 'cipher',
+                    created_at: start - index,
+                    tags: [],
+                })) as any[];
+
+            const minUntil = nowSeconds - (30 * 86400);
+
+            // Batch 1: entirely above cutoff.
+            const batch1 = makeEvents('b1', nowSeconds);
+            // Batch 2: crosses below cutoff so next until would be < minUntil.
+            const batch2 = makeEvents('b2', minUntil + 25);
+            batch2[49].created_at = minUntil - 24;
+
+            let callCount = 0;
+            vi.mocked(connectionManager.fetchEvents).mockImplementation(async () => {
+                callCount += 1;
+                if (callCount === 1) return batch1;
+                if (callCount === 2) return batch2;
+                return [];
+            });
+
+            vi.spyOn(messagingService as any, 'processGiftWrapToMessage').mockResolvedValue(null);
+
+            await messagingService.fetchHistory();
+
+            expect(connectionManager.fetchEvents).toHaveBeenCalledTimes(2);
+            dateSpy.mockRestore();
+        });
+
+        it('returning-user sync still fetches only one batch', async () => {
+            const nowSeconds = 2_000_000_000;
+            const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(nowSeconds * 1000);
+
+            vi.mocked(messageRepo.countMessages).mockResolvedValue(123);
+
+            vi.mocked(get).mockImplementation((store: any) => {
+                if (store === signer) return mockSigner;
+                if (store === (currentUser as any)) return { npub: 'npub1me' };
+                return null;
+            });
+
+            const batch = Array.from({ length: 50 }, (_, index) => ({
+                id: `evt-${index}`,
+                pubkey: 'sender',
+                content: 'cipher',
+                created_at: nowSeconds - index,
+                tags: [],
+            })) as any[];
+
+            vi.mocked(messageRepo.hasMessages).mockImplementation(async (eventIds: string[]) => new Set(eventIds));
+            vi.mocked(connectionManager.fetchEvents).mockResolvedValue(batch);
+
+            vi.spyOn(messagingService as any, 'processGiftWrapToMessage').mockResolvedValue(null);
+
+            await messagingService.fetchHistory();
+
+            expect(connectionManager.fetchEvents).toHaveBeenCalledTimes(1);
+            dateSpy.mockRestore();
         });
 
         it('should have debouncing mechanism properties', () => {
@@ -262,6 +348,9 @@ describe('MessagingService - Auto-add Contacts', () => {
                 limit: 50,
                 abortOnDuplicates: false,
             }));
+
+            const callArg = spy.mock.calls[0][0] as any;
+            expect(callArg.minUntil).toBeUndefined();
         });
 
         it('should set isFetchingHistory flag while running', async () => {

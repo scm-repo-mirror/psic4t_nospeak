@@ -22,6 +22,12 @@ import { uploadToBlossomServers } from './BlossomUpload';
     private isFetchingHistory: boolean = false;
     private lastHistoryFetch: number = 0;
     private readonly HISTORY_FETCH_DEBOUNCE = 5000; // 5 seconds
+
+    // First-time login history sync is intentionally capped.
+    // Note: gift-wrap (NIP-59) `created_at` timestamps can be randomized by clients,
+    // so the cutoff is approximate and should be treated as a best-effort window.
+    private readonly FIRST_SYNC_BACKFILL_DAYS = 30;
+
     private liveSeenEventIds: Set<string> = new Set();
  
     private activeSubscriptionUnsub: (() => void) | null = null;
@@ -444,12 +450,14 @@ import { uploadToBlossomServers } from './BlossomUpload';
       await this.waitForRelayConnection(relays);
 
       // 2. Fetch messages based on sync type
-      // First-time sync: unlimited batches, fetch everything
+      // First-time sync: fetch ~last 30 days (approx; see FIRST_SYNC_BACKFILL_DAYS)
       // Returning user: 1 batch of 50 messages to fill gaps
+      const nowSeconds = Math.floor(Date.now() / 1000);
       const result = await this.fetchMessages({
-        until: Math.floor(Date.now() / 1000),
+        until: nowSeconds,
         limit: 50,
-        maxBatches: isFirstSync ? 10000 : 1, // Effectively unlimited for first sync
+        maxBatches: isFirstSync ? 10000 : 1,
+        minUntil: isFirstSync ? nowSeconds - (this.FIRST_SYNC_BACKFILL_DAYS * 86400) : undefined,
         abortOnDuplicates: !isFirstSync, // Only abort on duplicates for returning users
         markUnread: !isFirstSync
       });
@@ -497,7 +505,7 @@ import { uploadToBlossomServers } from './BlossomUpload';
     }
   }
 
-  private async fetchMessages(options: { until: number, limit: number, abortOnDuplicates: boolean, maxBatches?: number, markUnread?: boolean }) {
+  private async fetchMessages(options: { until: number, limit: number, abortOnDuplicates: boolean, maxBatches?: number, markUnread?: boolean, minUntil?: number }) {
     const s = get(signer);
     const user = get(currentUser);
     if (!s || !user) return { totalFetched: 0, processed: 0 };
@@ -584,6 +592,11 @@ import { uploadToBlossomServers } from './BlossomUpload';
           event.created_at < oldest.created_at ? event : oldest
         );
         until = oldestEvent.created_at - 1;
+
+        if (typeof options.minUntil === 'number' && until < options.minUntil) {
+          if (this.debug) console.log(`Cutoff reached (minUntil: ${options.minUntil}). Stopping history fetch.`);
+          hasMore = false;
+        }
 
         // If we got less than batch size, we might be at the end
         if (events.length < options.limit) {
