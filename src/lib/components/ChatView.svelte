@@ -39,11 +39,12 @@
      partnerNpub,
      onLoadMore,
      isFetchingHistory = false,
-     canRequestNetworkHistory = false,
-     onRequestNetworkHistory,
-     networkHistoryStatus = 'idle',
-     initialSharedMedia = null,
-     initialSharedText = null
+      canRequestNetworkHistory = false,
+      onRequestNetworkHistory,
+      networkHistoryStatus = 'idle',
+      networkHistorySummary = null,
+      initialSharedMedia = null,
+      initialSharedText = null
    } = $props<{
      messages: Message[];
      partnerNpub?: string;
@@ -51,9 +52,10 @@
      isFetchingHistory?: boolean;
      canRequestNetworkHistory?: boolean;
      onRequestNetworkHistory?: () => void;
-     networkHistoryStatus?: 'idle' | 'loading' | 'no-more' | 'error';
-     initialSharedMedia?: { file: File; mediaType: 'image' | 'video' | 'audio' } | null;
-     initialSharedText?: string | null;
+      networkHistoryStatus?: 'idle' | 'loading' | 'no-more' | 'error';
+      networkHistorySummary?: { eventsFetched: number; messagesSaved: number; messagesForChat: number } | null;
+      initialSharedMedia?: { file: File; mediaType: 'image' | 'video' | 'audio' } | null;
+      initialSharedText?: string | null;
    }>();
  
     let inputText = $state("");
@@ -1385,16 +1387,22 @@
         </div>
       {/if}
     {:else}
-      {#if canRequestNetworkHistory && displayMessages.length > 0}
-          <div class="flex justify-center p-2">
-            <button
-             class="typ-meta px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-700/90 transition-all shadow-sm"
-             type="button"
-             onclick={() => onRequestNetworkHistory && onRequestNetworkHistory()}
-           >
-             {$t('chat.history.fetchOlder')}
-           </button>
-         </div>
+       {#if canRequestNetworkHistory && displayMessages.length > 0}
+           <div class="flex flex-col items-center p-2 gap-2">
+             <button
+              class="typ-meta px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-700/90 transition-all shadow-sm"
+              type="button"
+              onclick={() => onRequestNetworkHistory && onRequestNetworkHistory()}
+            >
+              {$t('chat.history.fetchOlder')}
+            </button>
+
+            {#if networkHistorySummary}
+              <div class="px-3 py-1 rounded-full typ-meta bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 text-gray-600 dark:text-slate-200 shadow-sm backdrop-blur-sm">
+                {get(t)('chat.history.summary', { values: { events: networkHistorySummary.eventsFetched, saved: networkHistorySummary.messagesSaved, chat: networkHistorySummary.messagesForChat } })}
+              </div>
+            {/if}
+          </div>
 
       {:else if networkHistoryStatus === 'no-more' && displayMessages.length > 0}
           <div class="flex justify-center p-2">

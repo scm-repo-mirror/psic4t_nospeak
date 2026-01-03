@@ -154,7 +154,7 @@ describe('MessagingService - Auto-add Contacts', () => {
 
             const result = await messagingService.fetchHistory();
 
-            expect(result).toEqual({ totalFetched: 0, processed: 0 });
+            expect(result).toEqual({ totalFetched: 0, processed: 0, messagesSaved: 0 });
         });
 
         it('stops first-time sync paging once cutoff is reached', async () => {
@@ -339,25 +339,28 @@ describe('MessagingService - Auto-add Contacts', () => {
     describe('fetchOlderMessages', () => {
         it('should call fetchMessages with correct parameters', async () => {
             // We spy on the private method fetchMessages by casting to any
-            const spy = vi.spyOn(messagingService as any, 'fetchMessages').mockResolvedValue({ totalFetched: 10, processed: 10 });
+            const spy = vi.spyOn(messagingService as any, 'fetchMessages').mockResolvedValue({ totalFetched: 10, processed: 10, messagesSaved: 0 });
 
             await messagingService.fetchOlderMessages(1234567890);
 
             expect(spy).toHaveBeenCalledWith(expect.objectContaining({
                 until: 1234567890,
-                limit: 50,
+                limit: 100,
+                maxBatches: 1,
                 abortOnDuplicates: false,
+                timeoutMs: 5000,
             }));
 
             const callArg = spy.mock.calls[0][0] as any;
             expect(callArg.minUntil).toBeUndefined();
+            expect(callArg.targetChatNpub).toBeUndefined();
         });
 
         it('should set isFetchingHistory flag while running', async () => {
             // Mock fetchMessages to take some time
             vi.spyOn(messagingService as any, 'fetchMessages').mockImplementation(async () => {
                 await new Promise(resolve => setTimeout(resolve, 10));
-                return { totalFetched: 0, processed: 0 };
+                return { totalFetched: 0, processed: 0, messagesSaved: 0 };
             });
 
             const fetchPromise = messagingService.fetchOlderMessages(1234567890);

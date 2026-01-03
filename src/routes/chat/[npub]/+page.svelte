@@ -37,6 +37,7 @@
     let oldestLoadedTimestamp = $state<number | null>(null);
     let cacheExhausted = $state(false);
     let networkHistoryStatus = $state<'idle' | 'loading' | 'no-more' | 'error'>('idle');
+    let networkHistorySummary = $state<{ eventsFetched: number; messagesSaved: number; messagesForChat: number } | null>(null);
     let lastPartner: string | null = null;
 
     const canRequestNetworkHistory = $derived(
@@ -89,16 +90,33 @@
         networkHistoryStatus = 'loading';
 
         try {
-            const result = await messagingService.fetchOlderMessages(Math.floor(oldest.sentAt / 1000));
+            const result = await messagingService.fetchOlderMessages(
+                Math.floor(oldest.sentAt / 1000),
+                { targetChatNpub: partner }
+            );
+
+            networkHistorySummary = {
+                eventsFetched: result.totalFetched,
+                messagesSaved: result.messagesSaved ?? 0,
+                messagesForChat: result.messagesSavedForChat ?? 0,
+            };
+
+            if ('reason' in result && result.reason === 'no-connected-relays') {
+                networkHistoryStatus = 'error';
+                return;
+            }
 
             if (result.totalFetched === 0) {
-                // No more messages available from relays
+                // No more messages available from relays (global)
                 networkHistoryStatus = 'no-more';
-            } else {
-                // New messages were fetched and saved; allow further cache paging
-                networkHistoryStatus = 'idle';
-                cacheExhausted = false;
+                return;
             }
+
+            // We fetched something from relays; only re-enable cache paging if we actually got
+            // new messages for this chat.
+            networkHistoryStatus = 'idle';
+            cacheExhausted = (result.messagesSavedForChat ?? 0) === 0;
+
         } catch (e) {
             console.error('Failed to fetch older messages from relays:', e);
             networkHistoryStatus = 'error';
@@ -117,6 +135,7 @@
             oldestLoadedTimestamp = null;
             cacheExhausted = false;
             networkHistoryStatus = 'idle';
+            networkHistorySummary = null;
             lastPartner = partner;
         }
 
@@ -201,10 +220,11 @@
          partnerNpub={currentPartner}
          onLoadMore={handleLoadMore}
          {isFetchingHistory}
-         {canRequestNetworkHistory}
-         onRequestNetworkHistory={handleRequestNetworkHistory}
-         networkHistoryStatus={networkHistoryStatus}
-         {initialSharedMedia}
+          {canRequestNetworkHistory}
+          onRequestNetworkHistory={handleRequestNetworkHistory}
+          networkHistoryStatus={networkHistoryStatus}
+          networkHistorySummary={networkHistorySummary}
+          {initialSharedMedia}
          {initialSharedText}
      />
 {/key}

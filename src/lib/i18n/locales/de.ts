@@ -178,6 +178,7 @@ const de = {
         },
         history: {
             fetchOlder: 'Ältere Nachrichten von Relays abrufen',
+            summary: '{events} Events geladen, {saved} neue Nachrichten gespeichert ({chat} in diesem Chat)',
             none: 'Keine weiteren Nachrichten von den Relays verfügbar',
             error: 'Ältere Nachrichten konnten nicht geladen werden. Bitte versuche es später erneut.'
         },

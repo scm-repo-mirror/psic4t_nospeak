@@ -419,13 +419,13 @@ import { uploadToBlossomServers } from './BlossomUpload';
   // Explicitly fetch history to fill gaps
   public async fetchHistory() {
     const s = get(signer);
-    if (!s) return { totalFetched: 0, processed: 0 };
+    if (!s) return { totalFetched: 0, processed: 0, messagesSaved: 0 };
 
     // Debounce: prevent multiple rapid calls
     const now = Date.now();
     if (this.isFetchingHistory || (now - this.lastHistoryFetch) < this.HISTORY_FETCH_DEBOUNCE) {
       if (this.debug) console.log('History fetch debounced, skipping');
-      return { totalFetched: 0, processed: 0 };
+      return { totalFetched: 0, processed: 0, messagesSaved: 0 };
     }
 
     this.isFetchingHistory = true;
@@ -471,13 +471,16 @@ import { uploadToBlossomServers } from './BlossomUpload';
   }
 
   // Fetch older messages for infinite scroll
-  public async fetchOlderMessages(until: number, limit: number = 50) {
+  public async fetchOlderMessages(
+    until: number,
+    options?: { limit?: number; targetChatNpub?: string; timeoutMs?: number }
+  ) {
     const s = get(signer);
-    if (!s) return { totalFetched: 0, processed: 0 };
+    if (!s) return { totalFetched: 0, processed: 0, messagesSaved: 0, messagesSavedForChat: 0 };
 
     if (this.isFetchingHistory) {
       if (this.debug) console.log('Already fetching history, skipping fetchOlderMessages');
-      return { totalFetched: 0, processed: 0 };
+      return { totalFetched: 0, processed: 0, messagesSaved: 0, messagesSavedForChat: 0 };
     }
 
     this.isFetchingHistory = true;
@@ -489,12 +492,28 @@ import { uploadToBlossomServers } from './BlossomUpload';
       const relays = await this.getMessagingRelays(nip19.npubEncode(myPubkey));
       await this.waitForRelayConnection(relays, 2000); // Shorter timeout for pagination
 
+      if (connectionManager.getConnectedRelays().length === 0) {
+        return {
+          totalFetched: 0,
+          processed: 0,
+          messagesSaved: 0,
+          messagesSavedForChat: 0,
+          reason: 'no-connected-relays'
+        };
+      }
+
+      const limit = options?.limit ?? 100;
+      const timeoutMs = options?.timeoutMs ?? 5000;
+      const targetChatNpub = options?.targetChatNpub;
+
       // Fetch a single batch of older messages
       const result = await this.fetchMessages({
         until,
         limit,
         maxBatches: 1,
-        abortOnDuplicates: false
+        abortOnDuplicates: false,
+        timeoutMs,
+        targetChatNpub
       });
 
       if (this.debug) console.log(`Older messages fetch completed. Total fetched: ${result.totalFetched}`);
@@ -505,15 +524,17 @@ import { uploadToBlossomServers } from './BlossomUpload';
     }
   }
 
-  private async fetchMessages(options: { until: number, limit: number, abortOnDuplicates: boolean, maxBatches?: number, markUnread?: boolean, minUntil?: number }) {
+  private async fetchMessages(options: { until: number, limit: number, abortOnDuplicates: boolean, maxBatches?: number, markUnread?: boolean, minUntil?: number, timeoutMs?: number, targetChatNpub?: string }) {
     const s = get(signer);
     const user = get(currentUser);
-    if (!s || !user) return { totalFetched: 0, processed: 0 };
+    if (!s || !user) return { totalFetched: 0, processed: 0, messagesSaved: 0 };
 
     const myPubkey = await s.getPublicKey();
     let until = options.until;
     let hasMore = true;
     let totalFetched = 0;
+    let messagesSaved = 0;
+    let messagesSavedForChat = typeof options.targetChatNpub === 'string' ? 0 : undefined;
     let batchCount = 0;
     const maxBatches = options.maxBatches ?? 1; // Default to 1 batch
 
@@ -528,7 +549,7 @@ import { uploadToBlossomServers } from './BlossomUpload';
 
       if (this.debug) console.log(`Fetching batch ${batchCount}... (until: ${until}, total: ${totalFetched})`);
 
-      const events = await connectionManager.fetchEvents(filters, 30000);
+      const events = await connectionManager.fetchEvents(filters, options.timeoutMs ?? 30000);
 
       if (events.length === 0) {
         hasMore = false;
@@ -569,6 +590,11 @@ import { uploadToBlossomServers } from './BlossomUpload';
             await messageRepo.saveMessages(messagesToSave);
             if (this.debug) console.log(`Saved ${messagesToSave.length} messages from batch`);
 
+            messagesSaved += messagesToSave.length;
+            if (typeof messagesSavedForChat === 'number') {
+              messagesSavedForChat += messagesToSave.filter(message => message.recipientNpub === options.targetChatNpub).length;
+            }
+
             // Auto-add contacts from fetched messages (both sent and received)
             // For received: recipientNpub is the sender
             // For sent: recipientNpub is the recipient
@@ -598,14 +624,19 @@ import { uploadToBlossomServers } from './BlossomUpload';
           hasMore = false;
         }
 
-        // If we got less than batch size, we might be at the end
-        if (events.length < options.limit) {
-          hasMore = false;
-        }
+        // Note: We intentionally do not stop on partial batches.
+        // With multiple relays, deduplication, and timeouts, `events.length < limit` does not
+        // reliably indicate end-of-history.
+        // We stop only when relays return zero events, we hit a cutoff, or we hit a checkpoint.
       }
     }
 
-    return { totalFetched, processed: totalFetched };
+    return {
+      totalFetched,
+      processed: totalFetched,
+      messagesSaved,
+      messagesSavedForChat
+    };
   }
 
   public async sendMessage(recipientNpub: string, text: string, parentRumorId?: string, createdAtSeconds?: number) {

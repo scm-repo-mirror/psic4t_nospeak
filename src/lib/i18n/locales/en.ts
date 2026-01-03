@@ -176,6 +176,7 @@ const en = {
         },
         history: {
             fetchOlder: 'Fetch older messages from relays',
+            summary: 'Fetched {events} events, saved {saved} new messages ({chat} in this chat)',
             none: 'No more messages available from relays',
             error: 'Failed to fetch older messages. Try again later.'
         },
