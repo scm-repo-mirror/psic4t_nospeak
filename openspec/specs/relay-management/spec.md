@@ -60,6 +60,47 @@ When a relay requires authentication:
 - **THEN** the system SHALL mark Relay B as `Auth: Failed`
 - **AND** SHALL set `lastAuthError` to `Missing signer`.
 
+### Requirement: Web/PWA Connection Keep-Alive and Recovery
+The relay connection manager for web and PWA environments SHALL maintain durable WebSocket connections to the user's configured messaging relays by using application-level keep-alive pings and visibility-based connection recovery. This ensures connections remain active during extended background periods when browser timer throttling and NAT timeouts would otherwise cause silent connection drops.
+
+The connection manager SHALL:
+- Send periodic application-level ping messages to all persistent relay connections using a lightweight Nostr subscription request (for example, a REQ with an impossible filter that immediately receives EOSE) to keep NAT mappings alive and detect dead connections.
+- Use a ping interval of **120 seconds** (2 minutes) to match Android active profile behavior.
+- Use a ping timeout of **5 seconds** to detect unresponsive connections.
+- Listen for browser visibility change events and immediately verify actual WebSocket state for all relays when the tab or PWA becomes visible.
+- Verify actual WebSocket `readyState` during health checks rather than relying solely on cached connection state.
+- Trigger reconnection attempts for any relay where the underlying WebSocket is no longer in OPEN state.
+
+#### Scenario: Ping keeps NAT mappings alive during background operation
+- **GIVEN** the user is running nospeak as a PWA or in a browser tab
+- **AND** at least one persistent relay connection is active
+- **WHEN** the application remains in the background or idle for several minutes
+- **THEN** the connection manager SHALL send application-level ping messages at 120-second intervals
+- **AND** relays that respond within the ping timeout SHALL remain marked as connected
+- **AND** relays that fail to respond within 5 seconds SHALL be marked as disconnected and scheduled for reconnection.
+
+#### Scenario: Visibility change triggers immediate connection verification
+- **GIVEN** the user is running nospeak as a PWA or in a browser tab
+- **AND** the tab or PWA has been in the background or hidden
+- **WHEN** the user returns to the app and the document becomes visible
+- **THEN** the connection manager SHALL immediately verify the actual WebSocket state of all relay connections
+- **AND** any relay whose WebSocket is no longer OPEN SHALL be marked as disconnected and scheduled for reconnection
+- **AND** the UI SHALL reflect the updated connection state.
+
+#### Scenario: Health check detects stale connection state
+- **GIVEN** the connection manager tracks a relay as connected based on cached state
+- **AND** the underlying WebSocket has silently closed (for example, due to NAT timeout or server-side idle disconnect)
+- **WHEN** the periodic health check runs
+- **THEN** the connection manager SHALL verify the actual WebSocket `readyState`
+- **AND** SHALL clear the stale connected state and trigger reconnection if the socket is CLOSED or CLOSING.
+
+#### Scenario: Ping timeout triggers reconnection
+- **GIVEN** a persistent relay connection is active
+- **AND** the connection manager sends an application-level ping
+- **WHEN** the relay does not respond with EOSE within 5 seconds
+- **THEN** the connection manager SHALL mark the relay as disconnected
+- **AND** SHALL close the existing socket and schedule a reconnection attempt using standard backoff behavior.
+
 ### Requirement: Relay Authentication Status Visibility
 The Relay Connections UI SHALL surface per-relay authentication status alongside basic connection health so users can diagnose why a relay is failing.
 

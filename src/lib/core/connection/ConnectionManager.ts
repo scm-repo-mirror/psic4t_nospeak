@@ -30,6 +30,8 @@ export interface RetryConfig {
     backoffMultiplier: number;
     healthCheckInterval: number; // ms
     connectionTimeout: number; // ms
+    pingInterval: number; // ms - interval between keep-alive pings
+    pingTimeout: number; // ms - timeout for ping response
 }
 
 export const DefaultRetryConfig: RetryConfig = {
@@ -38,7 +40,9 @@ export const DefaultRetryConfig: RetryConfig = {
     maxBackoff: 30000,
     backoffMultiplier: 2.0,
     healthCheckInterval: 30000,
-    connectionTimeout: 3000
+    connectionTimeout: 3000,
+    pingInterval: 120000, // 2 minutes (matches Android active profile)
+    pingTimeout: 5000 // 5 seconds
 };
 
 export class ConnectionManager {
@@ -51,6 +55,8 @@ export class ConnectionManager {
 
     private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
     private uiUpdateTimer: ReturnType<typeof setInterval> | null = null;
+    private pingTimer: ReturnType<typeof setInterval> | null = null;
+    private pendingPings: Map<string, { timeout: ReturnType<typeof setTimeout>; sub: any }> = new Map();
     private onRelayListUpdate: ((relays: RelayHealth[]) => void) | null = null;
     
     private subscriptions: Set<{
@@ -266,6 +272,14 @@ export class ConnectionManager {
             this.emitRelayUpdate();
         }, 500);
 
+        // Visibility change listener for PWA/background tab recovery
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', this.handleVisibilityChange);
+        }
+
+        // Start ping keep-alive loop to prevent NAT timeout
+        this.startPingLoop();
+
         if (typeof window !== 'undefined') {
             window.addEventListener('online', this.handleOnline);
             window.addEventListener('offline', this.handleOffline);
@@ -276,6 +290,14 @@ export class ConnectionManager {
         this.isShutdown = true;
         if (this.healthCheckTimer) clearInterval(this.healthCheckTimer);
         if (this.uiUpdateTimer) clearInterval(this.uiUpdateTimer);
+
+        // Stop ping loop and clear pending pings
+        this.stopPingLoop();
+
+        // Remove visibility listener
+        if (typeof document !== 'undefined') {
+            document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+        }
         
         if (typeof window !== 'undefined') {
             window.removeEventListener('online', this.handleOnline);
@@ -303,6 +325,120 @@ export class ConnectionManager {
     private handleOffline = () => {
         if (this.debug) console.log('Network offline');
     };
+
+    private handleVisibilityChange = () => {
+        if (typeof document === 'undefined') return;
+
+        if (document.visibilityState === 'visible') {
+            if (this.debug) console.log('Tab became visible, verifying relay connections...');
+            this.verifyAllConnections();
+        }
+    };
+
+    private verifyAllConnections() {
+        for (const [url, health] of this.relays.entries()) {
+            if (health.isConnected && health.relay) {
+                if (!this.isRelayWebSocketOpen(health.relay)) {
+                    if (this.debug) console.log(`Relay ${url} socket dead on visibility check, triggering reconnect`);
+                    health.isConnected = false;
+                    health.relay = null;
+                    this.clearSubscriptionsForRelay(url);
+                    this.emitRelayUpdate();
+
+                    if (health.type === ConnectionType.Persistent) {
+                        this.handleReconnection(url);
+                    }
+                }
+            }
+        }
+    }
+
+    private startPingLoop() {
+        if (this.pingTimer) return;
+
+        this.pingTimer = setInterval(() => {
+            this.pingAllRelays();
+        }, this.config.pingInterval);
+    }
+
+    private stopPingLoop() {
+        if (this.pingTimer) {
+            clearInterval(this.pingTimer);
+            this.pingTimer = null;
+        }
+
+        for (const [, pending] of this.pendingPings) {
+            clearTimeout(pending.timeout);
+            this.safeCloseSubscription(pending.sub);
+        }
+        this.pendingPings.clear();
+    }
+
+    private pingAllRelays() {
+        for (const [url, health] of this.relays.entries()) {
+            if (health.isConnected && health.relay && health.type === ConnectionType.Persistent) {
+                this.pingRelay(url, health.relay);
+            }
+        }
+    }
+
+    private pingRelay(url: string, relay: Relay) {
+        if (this.pendingPings.has(url)) return;
+
+        try {
+            const sub = relay.subscribe(
+                [{ kinds: [99999], limit: 1 }],
+                {
+                    onevent: () => {},
+                    oneose: () => {
+                        this.clearPendingPing(url);
+                        if (this.debug) console.log(`Ping success for ${url}`);
+                    },
+                    onclose: () => {
+                        this.clearPendingPing(url);
+                    }
+                }
+            );
+
+            const timeout = setTimeout(() => {
+                if (this.debug) console.log(`Ping timeout for ${url}, marking as disconnected`);
+                this.clearPendingPing(url);
+                this.handlePingFailure(url);
+            }, this.config.pingTimeout);
+
+            this.pendingPings.set(url, { timeout, sub });
+
+        } catch (e) {
+            if (this.debug) console.log(`Ping failed for ${url}:`, e);
+            this.handlePingFailure(url);
+        }
+    }
+
+    private clearPendingPing(url: string) {
+        const pending = this.pendingPings.get(url);
+        if (pending) {
+            clearTimeout(pending.timeout);
+            this.safeCloseSubscription(pending.sub);
+            this.pendingPings.delete(url);
+        }
+    }
+
+    private handlePingFailure(url: string) {
+        const health = this.relays.get(url);
+        if (!health) return;
+
+        health.isConnected = false;
+        if (health.relay) {
+            this.safeCloseRelay(health.relay);
+            health.relay = null;
+        }
+        this.clearSubscriptionsForRelay(url);
+        this.emitRelayUpdate();
+
+        if (health.type === ConnectionType.Persistent) {
+            this.markRelayFailure(url);
+        }
+    }
 
     public addPersistentRelay(url: string) {
         if (!this.relays.has(url)) {
@@ -665,6 +801,17 @@ export class ConnectionManager {
 
     private checkAllRelayHealth() {
         for (const [url, health] of this.relays.entries()) {
+            // Verify actual WebSocket state, not just cached boolean
+            if (health.isConnected && health.relay) {
+                if (!this.isRelayWebSocketOpen(health.relay)) {
+                    if (this.debug) console.log(`Health check: ${url} socket not open, clearing state`);
+                    health.isConnected = false;
+                    health.relay = null;
+                    this.clearSubscriptionsForRelay(url);
+                    this.emitRelayUpdate();
+                }
+            }
+
             if (!health.isConnected) {
                 if (health.consecutiveFails < 5 || health.consecutiveFails % 5 === 0) {
                     this.handleReconnection(url);
