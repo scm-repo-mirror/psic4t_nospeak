@@ -882,7 +882,10 @@ import { uploadToBlossomServers } from './BlossomUpload';
     mimeType: string,
     blossomServers: string[]
   ): Promise<string> {
-    const blob = new Blob([encrypted.ciphertext.buffer as ArrayBuffer], { type: mimeType });
+    // Use application/octet-stream for encrypted blobs so Blossom servers
+    // return a .bin URL, which is expected by other NIP-17 clients like Amethyst.
+    // The original mimeType is preserved in the file-type tag of the message.
+    const blob = new Blob([encrypted.ciphertext.buffer as ArrayBuffer], { type: 'application/octet-stream' });
 
     if (blossomServers.length === 0) {
       throw new Error('No Blossom servers configured');
@@ -891,7 +894,7 @@ import { uploadToBlossomServers } from './BlossomUpload';
     const result = await uploadToBlossomServers({
       servers: blossomServers,
       body: blob,
-      mimeType,
+      mimeType: 'application/octet-stream',
       sha256: encrypted.hashEncrypted
     });
 

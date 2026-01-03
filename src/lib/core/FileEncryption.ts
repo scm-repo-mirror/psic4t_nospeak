@@ -1,7 +1,7 @@
 export interface EncryptedFileResult {
     ciphertext: Uint8Array;
-    key: string; // base64url-encoded AES-GCM key
-    nonce: string; // base64url-encoded AES-GCM nonce
+    key: string; // hex-encoded AES-GCM key (256-bit)
+    nonce: string; // hex-encoded AES-GCM nonce (16-byte)
     size: number; // ciphertext byte length
     hashEncrypted: string; // hex-encoded SHA-256 of ciphertext
     hashPlain?: string; // optional hex-encoded SHA-256 of original file bytes
@@ -45,6 +45,25 @@ function toHex(bytes: Uint8Array): string {
         .join('');
 }
 
+function fromHex(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+function isHex(str: string): boolean {
+    return /^[0-9a-fA-F]+$/.test(str) && str.length % 2 === 0;
+}
+
+function decodeKeyOrNonce(input: string): Uint8Array {
+    if (isHex(input)) {
+        return fromHex(input);
+    }
+    return fromBase64Url(input);
+}
+
 async function sha256Hex(data: Uint8Array): Promise<string> {
     const subtle = getSubtle();
     const hashBuffer = await subtle.digest('SHA-256', data.buffer as ArrayBuffer);
@@ -64,7 +83,7 @@ export async function encryptFileWithAesGcm(file: File): Promise<EncryptedFileRe
 
     const rawKeyBuffer = await subtle.exportKey('raw', key) as ArrayBuffer;
     const rawKey = new Uint8Array(rawKeyBuffer);
-    const nonceBytes = new Uint8Array(12);
+    const nonceBytes = new Uint8Array(16);
     if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
         window.crypto.getRandomValues(nonceBytes);
     } else if (typeof crypto !== 'undefined' && (crypto as any).getRandomValues) {
@@ -88,8 +107,8 @@ export async function encryptFileWithAesGcm(file: File): Promise<EncryptedFileRe
 
     return {
         ciphertext: ciphertextBuffer,
-        key: toBase64Url(rawKey),
-        nonce: toBase64Url(nonceBytes),
+        key: toHex(rawKey),
+        nonce: toHex(nonceBytes),
         size: ciphertextBuffer.byteLength,
         hashEncrypted,
         hashPlain
@@ -98,18 +117,23 @@ export async function encryptFileWithAesGcm(file: File): Promise<EncryptedFileRe
 
 export async function decryptAesGcmToBytes(
     ciphertext: Uint8Array,
-    keyB64Url: string,
-    nonceB64Url: string
+    keyEncoded: string,
+    nonceEncoded: string
 ): Promise<Uint8Array> {
     const subtle = getSubtle();
 
-    const keyBytes = fromBase64Url(keyB64Url);
-    const nonceBytes = fromBase64Url(nonceB64Url);
+    const keyBytes = decodeKeyOrNonce(keyEncoded);
+    const nonceBytes = decodeKeyOrNonce(nonceEncoded);
+
+    // Validate key size (AES-128 = 16 bytes, AES-256 = 32 bytes)
+    if (keyBytes.length !== 16 && keyBytes.length !== 32) {
+        throw new Error(`Invalid AES key size: expected 16 or 32 bytes, got ${keyBytes.length} bytes`);
+    }
 
     const key = await subtle.importKey(
         'raw',
         keyBytes.buffer as ArrayBuffer,
-        { name: 'AES-GCM', length: 256 },
+        { name: 'AES-GCM', length: keyBytes.length * 8 },
         false,
         ['decrypt']
     );
