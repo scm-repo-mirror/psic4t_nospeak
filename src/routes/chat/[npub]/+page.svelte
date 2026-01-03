@@ -3,7 +3,7 @@
     import { messageRepo } from '$lib/db/MessageRepository';
     import { currentUser, signer } from '$lib/stores/auth';
     import { clearActiveConversation, setActiveConversation } from '$lib/stores/unreadMessages';
-    import { onMount } from 'svelte';
+    import { onMount, tick } from 'svelte';
     import type { Message } from '$lib/db/db';
     import { messagingService } from '$lib/core/Messaging';
      import { page } from '$app/state';
@@ -162,10 +162,14 @@
             }
         }
 
+        // Ensure Svelte flushes async state updates promptly (notably on desktop Chrome)
+        await tick();
+
         if (partner && partner !== 'ALL') {
             contactRepo.markAsRead(partner).catch(console.error);
         }
-    }
+     }
+
 
     // Effect to update messages when partner or signer changes
      $effect(() => {
