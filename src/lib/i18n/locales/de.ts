@@ -216,7 +216,10 @@ const de = {
         relayStatus: {
             sending: 'wird gesendet...',
             sentToRelays: 'an {successful}/{desired} Relays gesendet'
-        }
+        },
+        searchPlaceholder: 'Suche',
+        searchNoMatches: 'Keine Treffer',
+        searchAriaLabel: 'Chat durchsuchen'
     },
     settings: {
           title: 'Einstellungen',

@@ -214,7 +214,10 @@ const en = {
         relayStatus: {
             sending: 'sending...',
             sentToRelays: 'sent to {successful}/{desired} relays'
-        }
+        },
+        searchPlaceholder: 'Search',
+        searchNoMatches: 'No matches',
+        searchAriaLabel: 'Search chat'
     },
     settings: {
           title: 'Settings',

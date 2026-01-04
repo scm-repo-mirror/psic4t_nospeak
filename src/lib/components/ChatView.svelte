@@ -1325,9 +1325,9 @@
           <input
             bind:value={searchQuery}
             bind:this={searchInputElement}
-            placeholder="Search"
+            placeholder={$t('chat.searchPlaceholder')}
             class="w-full h-full px-4 border border-gray-200 dark:border-slate-700 rounded-full bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all placeholder:text-gray-400 dark:placeholder:text-slate-500"
-            aria-label="Search chat"
+            aria-label={$t('chat.searchAriaLabel')}
             onkeydown={handleSearchKeydown}
           />
         </div>
@@ -1344,9 +1344,9 @@
             <input
               bind:value={searchQuery}
               bind:this={searchInputElement}
-              placeholder="Search"
+              placeholder={$t('chat.searchPlaceholder')}
               class="w-full px-4 h-11 border border-gray-200 dark:border-slate-700 rounded-full bg-white/90 dark:bg-slate-800/90 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all placeholder:text-gray-400 dark:placeholder:text-slate-500"
-              aria-label="Search chat"
+              aria-label={$t('chat.searchAriaLabel')}
               onkeydown={handleSearchKeydown}
             />
           </div>
@@ -1382,7 +1382,7 @@
       {:else if displayMessages.length === 0}
         <div class="flex justify-center mt-10">
           <div class="px-4 py-2 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md backdrop-blur-xl typ-body text-gray-600 dark:text-slate-200">
-            No matches
+            {$t('chat.searchNoMatches')}
           </div>
         </div>
       {/if}
