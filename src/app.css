@@ -75,8 +75,15 @@
     background: rgba(255, 255, 255, 0.2);
 }
 
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-     background: rgba(255, 255, 255, 0.3);
+ .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+ }
+
+ .native-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+    transform: translateZ(0);
  }
  
  .android-safe-area-top {
