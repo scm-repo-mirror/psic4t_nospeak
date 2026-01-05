@@ -172,7 +172,7 @@
                 <h2 class="typ-title dark:text-white">{$t('modals.relayStatus.title')}</h2>
             </div>
             
-            <div class={`flex-1 overflow-y-auto mb-6 custom-scrollbar ${isAndroidApp ? 'px-0' : 'pr-1'}`}>
+            <div class={`flex-1 overflow-y-auto mb-6 custom-scrollbar native-scroll ${isAndroidApp ? 'px-0' : 'pr-1'}`}>
                 <div class={`space-y-3 ${isAndroidApp ? 'max-w-2xl mx-auto w-full' : ''}`}>
                 {#if $relayHealths.length === 0}
                     <div class="text-gray-500 text-center py-8 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">

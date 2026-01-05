@@ -1111,7 +1111,7 @@
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6">
+        <div class="flex-1 overflow-y-auto native-scroll p-6">
           {#if activeCategory === "General"}
             <div class="space-y-6">
               <div class="flex items-center justify-between">

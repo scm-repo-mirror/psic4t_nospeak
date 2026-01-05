@@ -155,7 +155,7 @@
                     </div>
                 </div>
             {:else if profile}
-                <div class="overflow-y-auto flex-1 custom-scrollbar">
+                <div class="overflow-y-auto flex-1 custom-scrollbar native-scroll">
                     <!-- Banner -->
                     <div class="w-full h-32 bg-gray-200 dark:bg-slate-700 relative">
                         {#if profile.metadata?.banner}

@@ -601,7 +601,7 @@
                      {/if}
 
                      {#if !isNpubMode && newNpub.trim().length >= 3 && (isSearching || searchResults.length > 0 || searchError)}
-                        <div class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto z-10 custom-scrollbar">
+                        <div class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl max-h-64 overflow-y-auto z-10 custom-scrollbar native-scroll">
                             {#if isSearching}
                                 <div class="px-4 py-3 typ-body text-gray-500 dark:text-slate-400">
                                     {$t('modals.manageContacts.searching')}
@@ -689,7 +689,7 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto space-y-2 mb-6 min-h-[200px] custom-scrollbar pr-1">
+            <div class="flex-1 overflow-y-auto space-y-2 mb-6 min-h-[200px] custom-scrollbar native-scroll pr-1">
                 {#if contacts.length === 0}
                     <div class="typ-body text-gray-500 text-center py-8 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
                         {$t('modals.manageContacts.noContacts')}
