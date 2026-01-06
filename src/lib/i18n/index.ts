@@ -1,12 +1,16 @@
 import { init, register, locale, getLocaleFromNavigator, t } from 'svelte-i18n';
 
-export type Language = 'en' | 'de';
+export type Language = 'en' | 'de' | 'es' | 'pt' | 'fr' | 'it';
 
-const SUPPORTED_LOCALES: Language[] = ['en', 'de'];
+const SUPPORTED_LOCALES: Language[] = ['en', 'de', 'es', 'pt', 'fr', 'it'];
 const DEFAULT_LOCALE: Language = 'en';
  
 register('en', () => import('./locales/en.ts'));
 register('de', () => import('./locales/de.ts'));
+register('es', () => import('./locales/es.ts'));
+register('pt', () => import('./locales/pt.ts'));
+register('fr', () => import('./locales/fr.ts'));
+register('it', () => import('./locales/it.ts'));
  
 export function initI18n(initial: Language = DEFAULT_LOCALE): void {
     init({
@@ -35,6 +39,22 @@ export function detectNavigatorLocale(): Language {
 
     if (lower.startsWith('de')) {
         return 'de';
+    }
+
+    if (lower.startsWith('es')) {
+        return 'es';
+    }
+
+    if (lower.startsWith('pt')) {
+        return 'pt';
+    }
+
+    if (lower.startsWith('fr')) {
+        return 'fr';
+    }
+
+    if (lower.startsWith('it')) {
+        return 'it';
     }
 
     return 'en';

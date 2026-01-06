@@ -1153,6 +1153,10 @@
                 >
                   <option value="en">English</option>
                   <option value="de">Deutsch</option>
+                  <option value="es">Español</option>
+                  <option value="pt">Português</option>
+                  <option value="fr">Français</option>
+                  <option value="it">Italiano</option>
                 </select>
               </div>
 
