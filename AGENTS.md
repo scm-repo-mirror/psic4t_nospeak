@@ -35,4 +35,4 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Components**: Follow Svelte 5 syntax. Place components in `src/lib/components`.
 - **State**: Use Svelte 5 runes or stores in `src/lib/stores`.
 - **Validation**: ALWAYS run `npm run check` and `npx vitest run` before finishing a task.
-- **Commits**: Use [Conventional Commits](https://www.conventionalcommits.org/).
+- **Commits**: Use [Conventional Commits](https://www.conventionalcommits.org/) with scope, e.g. `fix(android): description`.
