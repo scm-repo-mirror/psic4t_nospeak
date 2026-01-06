@@ -1277,7 +1277,7 @@
 
   {#if partnerNpub}
     <div
-      class="absolute top-0 left-0 right-0 z-20 p-2 h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out"
+      class="absolute top-0 left-0 right-0 z-20 p-2 pt-safe min-h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out"
     >
       <div class="flex items-center gap-3">
         <button 
@@ -1371,7 +1371,7 @@
   <div
     bind:this={chatContainer}
     tabindex="-1"
-    class="flex-1 overflow-x-hidden overflow-y-auto px-4 pb-safe-offset-28 pt-20 space-y-4 custom-scrollbar native-scroll focus:outline-none focus:ring-0"
+    class="flex-1 overflow-x-hidden overflow-y-auto px-4 pb-safe-offset-28 pt-[calc(5rem+env(safe-area-inset-top))] space-y-4 custom-scrollbar native-scroll focus:outline-none focus:ring-0"
     onscroll={handleScroll}
     onpointerdown={activateMessageWindow}
   >

@@ -185,7 +185,7 @@
   class="relative flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-700/70 overflow-hidden"
 >
   <div
-    class="absolute top-0 left-0 right-0 z-20 flex flex-col bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-700/70 shadow-sm transition-all duration-200"
+    class="absolute top-0 left-0 right-0 z-20 flex flex-col pt-safe bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-700/70 shadow-sm transition-all duration-200"
   >
     <div class="p-2 h-16 flex items-center justify-between relative">
       {#if $currentUser}
@@ -300,7 +300,7 @@
     </div>
   </div>
 
-  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[120px] pb-safe-offset-16">
+  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[calc(120px+env(safe-area-inset-top))] pb-safe-offset-16">
     {#if $contactsStore.length === 0}
       <div class="space-y-3 p-3 animate-pulse">
         {#each Array(5) as _}

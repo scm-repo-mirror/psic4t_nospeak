@@ -86,9 +86,13 @@
     transform: translateZ(0);
  }
  
- .android-safe-area-top {
-     padding-top: env(safe-area-inset-top);
- }
+.android-safe-area-top {
+    padding-top: env(safe-area-inset-top);
+}
+
+.pt-safe {
+    padding-top: env(safe-area-inset-top);
+}
  
  .android-safe-area-bottom {
      padding-bottom: env(safe-area-inset-bottom);

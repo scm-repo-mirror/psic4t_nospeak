@@ -15,16 +15,14 @@ export async function configureAndroidStatusBar(): Promise<void> {
     }
 }
 
-export async function syncAndroidStatusBarTheme(isDark: boolean, backgroundColor: string): Promise<void> {
+export async function syncAndroidStatusBarTheme(isDark: boolean): Promise<void> {
     if (typeof window === 'undefined') {
         return;
     }
 
     try {
         if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
-            await StatusBar.setBackgroundColor({
-                color: backgroundColor
-            });
+            // Status bar is transparent (overlay mode), only set icon style
             await StatusBar.setStyle({
                 style: isDark ? Style.Dark : Style.Light
             });

@@ -239,8 +239,7 @@ export function applyTheme(theme: Theme) {
 	}
 
 	if (typeof window !== 'undefined') {
-		const statusBarColor = isDark ? colors.crust : colors.base;
-		void syncAndroidStatusBarTheme(isDark, statusBarColor);
+		void syncAndroidStatusBarTheme(isDark);
 	}
 }
 

@@ -297,7 +297,6 @@
 {#if isInitialized}
   <div
     class="h-dvh app-shell flex justify-center overflow-hidden relative lg:p-4"
-    class:android-safe-area-top={isAndroidApp}
   >
 
     {#if page.url.pathname === '/'}
