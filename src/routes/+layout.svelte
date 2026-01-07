@@ -114,8 +114,7 @@
     });
 
     const restored = await authService.restore();
-     isInitialized = true;
- 
+
       let routedFromNotification = false;
  
       const handleNotificationRoute = async (payload: AndroidNotificationRoutePayload): Promise<void> => {
@@ -153,7 +152,7 @@
  
       // If restored and on login page, go to chat
       if (restored && location.pathname === "/" && !routedFromNotification) {
-        goto("/chat");
+        await goto("/chat");
       }
  
      // Handle Android inbound shares after auth restore
@@ -211,8 +210,10 @@
        void AndroidShareTarget.addListener('shareReceived', (payload) => {
          void handleSharePayload(payload);
        });
-     }
- 
+      }
+
+     isInitialized = true;
+
      if (restored && location.pathname !== "/") {
       // Wait 5 seconds then refresh all contact profiles and relay information
       setTimeout(async () => {
