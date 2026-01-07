@@ -1,9 +1,10 @@
 <script lang="ts">
      import { syncState } from '$lib/stores/sync';
      import { isAndroidNative } from "$lib/core/NativeDialogs";
-     import { t } from '$lib/i18n';
- 
-     let { progress = 0 } = $props<{ progress: number }>();
+    import { t } from '$lib/i18n';
+    import CircularProgress from '$lib/components/ui/CircularProgress.svelte';
+
+    let { progress = 0 } = $props<{ progress: number }>();
      const isAndroidApp = isAndroidNative();
 
 </script>
@@ -12,7 +13,7 @@
     <div class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-white/20 dark:border-white/10 outline-none">
         <div class="flex flex-col items-center gap-6 w-full">
             <div class="relative">
-                <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-500/30 border-t-blue-500"></div>
+                <CircularProgress size={64} />
             </div>
             
             <div class="text-center">

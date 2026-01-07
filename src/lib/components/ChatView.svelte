@@ -33,6 +33,7 @@
   import { getCurrentPosition } from '$lib/core/LocationService';
   import Button from '$lib/components/ui/Button.svelte';
   import Textarea from '$lib/components/ui/Textarea.svelte';
+  import CircularProgress from '$lib/components/ui/CircularProgress.svelte';
 
    let {
      messages = [],
@@ -1423,7 +1424,7 @@
    
       {#if isFetchingHistory}
         <div class="flex justify-center p-2">
-          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <CircularProgress size={24} strokeWidth={3} />
         </div>
       {/if}
    
