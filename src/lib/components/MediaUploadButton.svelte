@@ -138,7 +138,7 @@
         } else if (type === 'video') {
             input.accept = 'video/mp4,video/webm,video/quicktime';
         } else {
-            input.accept = 'audio/mpeg';
+            input.accept = 'audio/mpeg,audio/webm,audio/ogg';
         }
 
         input.onchange = async (e) => {

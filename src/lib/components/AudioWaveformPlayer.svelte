@@ -1,5 +1,13 @@
 <script lang="ts">
+    import WaveformBars from '$lib/components/WaveformBars.svelte';
+    import { buildFallbackPeaks, clamp01, computePeaksFromAudioBuffer } from '$lib/core/Waveform';
+
     let { url, isOwn = false } = $props<{ url: string; isOwn?: boolean }>();
+
+    const BAR_COUNT = 60;
+
+    const waveformCache = new Map<string, number[]>();
+    const waveformPromises = new Map<string, Promise<number[]>>();
 
     let audioElement: HTMLAudioElement | null = null;
     let duration = $state(0);
@@ -7,22 +15,74 @@
     let isPlaying = $state(false);
     let isLoading = $state(true);
 
-    const BAR_COUNT = 5;
-    const EQ_SPEED = 6;
+    let peaks = $state<number[]>([]);
+    let isWaveformLoading = $state(true);
 
-    const progress = $derived(duration > 0 ? currentTime / duration : 0);
+    const progress = $derived(duration > 0 ? clamp01(currentTime / duration) : 0);
 
-    const eqLevels = $derived(
-        Array.from({ length: BAR_COUNT }, (_, i) => {
-            if (!isPlaying) {
-                return 0.3 + 0.05 * i;
+    async function loadWaveformPeaks(targetUrl: string): Promise<number[]> {
+        if (waveformCache.has(targetUrl)) {
+            return waveformCache.get(targetUrl)!;
+        }
+
+        if (waveformPromises.has(targetUrl)) {
+            return waveformPromises.get(targetUrl)!;
+        }
+
+        const promise = (async () => {
+            try {
+                const response = await fetch(targetUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch audio (${response.status})`);
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                const AudioContextCtor =
+                    (window as any).AudioContext || (window as any).webkitAudioContext;
+
+                if (!AudioContextCtor) {
+                    throw new Error('AudioContext not available');
+                }
+
+                const context = new AudioContextCtor() as AudioContext;
+                try {
+                    const decoded = await context.decodeAudioData(arrayBuffer.slice(0));
+                    const computed = computePeaksFromAudioBuffer(decoded, BAR_COUNT);
+                    waveformCache.set(targetUrl, computed);
+                    return computed;
+                } finally {
+                    try {
+                        await context.close();
+                    } catch {
+                        // ignore
+                    }
+                }
+            } catch {
+                const fallback = buildFallbackPeaks(targetUrl, BAR_COUNT);
+                waveformCache.set(targetUrl, fallback);
+                return fallback;
+            } finally {
+                waveformPromises.delete(targetUrl);
             }
-            const phase = (i / BAR_COUNT) * Math.PI * 2;
-            const t = currentTime ?? 0;
-            const value = 0.4 + 0.6 * Math.abs(Math.sin(t * EQ_SPEED + phase));
-            return value;
-        })
-    );
+        })();
+
+        waveformPromises.set(targetUrl, promise);
+        return promise;
+    }
+
+    $effect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        isWaveformLoading = true;
+        peaks = buildFallbackPeaks(url, BAR_COUNT);
+
+        void loadWaveformPeaks(url).then((value) => {
+            peaks = value;
+            isWaveformLoading = false;
+        });
+    });
 
     function togglePlay() {
         if (!audioElement) {
@@ -73,6 +133,16 @@
         }
     }
 
+    function handleSeek(nextProgress: number): void {
+        if (!audioElement || duration <= 0) {
+            return;
+        }
+
+        const clamped = clamp01(nextProgress);
+        audioElement.currentTime = clamped * duration;
+        currentTime = audioElement.currentTime;
+    }
+
     function formatTime(seconds: number): string {
         if (!isFinite(seconds) || seconds <= 0) {
             return '0:00';
@@ -102,13 +172,12 @@
         isOwn ? 'text-blue-50' : 'text-gray-900 dark:text-slate-100'
     }`}
 >
-
-
     <button
         type="button"
         onclick={togglePlay}
         class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-blue-500 text-white shadow-sm hover:bg-blue-600 disabled:opacity-60"
         aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
+        disabled={isLoading}
     >
         {#if isPlaying}
             <svg
@@ -140,29 +209,25 @@
         {/if}
     </button>
 
-    <div class="flex-1 flex flex-col gap-1 min-w-0">
+    <div class="flex-1 flex flex-col gap-2 min-w-0">
         <div class="text-[11px] font-semibold truncate tracking-wide">
             Audio
-         </div>
-
-
-        <!-- Equalizer -->
-        <div class="flex items-end gap-[4px] h-8 w-full">
-            {#each eqLevels as level}
-                <div
-                    class="flex-1 max-w-[7px] rounded-full bg-blue-400/95 dark:bg-blue-300/95 transition-[height,opacity]"
-                    style={`height: ${4 + level * 24}px; opacity: ${isPlaying ? 0.98 : 0.7}`}
-                ></div>
-            {/each}
         </div>
 
-        <!-- Progress bar below equalizer -->
-        <div class="mt-1 h-[3px] w-full rounded-full bg-gray-200/80 dark:bg-slate-800/80 overflow-hidden">
-            <div
-                class="h-full rounded-full bg-blue-500/90 dark:bg-blue-400/90 transition-[width]"
-                style={`width: ${progress * 100}%`}
-            ></div>
-        </div>
+        <WaveformBars
+            peaks={peaks}
+            barCount={BAR_COUNT}
+            heightPx={32}
+            progress={progress}
+            seekable={!isLoading}
+            onSeek={handleSeek}
+            playedClass="bg-blue-500/90 dark:bg-blue-400/90"
+            unplayedClass="bg-blue-300/50 dark:bg-blue-200/40"
+        />
+
+        {#if isWaveformLoading}
+            <div class="typ-meta text-[10px] text-gray-500 dark:text-slate-400">Loading waveform…</div>
+        {/if}
     </div>
 
     <div class="flex-shrink-0 text-[10px] tabular-nums text-right min-w-[56px]">

@@ -11,6 +11,7 @@
   import MessageReactions from "./MessageReactions.svelte";
   import MediaUploadButton from "./MediaUploadButton.svelte";
   import AttachmentPreviewModal from "./AttachmentPreviewModal.svelte";
+  import VoiceMessageSheet from "./VoiceMessageSheet.svelte";
   import { currentUser } from "$lib/stores/auth";
   import { clearChatUnread, getUnreadSnapshot, isActivelyViewingConversation } from "$lib/stores/unreadMessages";
   import { emojis } from "$lib/utils/emojis";
@@ -31,6 +32,7 @@
   import { isCaptionMessage, getCaptionForParent } from '$lib/core/captionGrouping';
   import { buildChatHistorySearchResults } from '$lib/core/chatHistorySearch';
   import { getCurrentPosition } from '$lib/core/LocationService';
+  import { isVoiceRecordingSupported } from '$lib/core/VoiceRecorder';
   import Button from '$lib/components/ui/Button.svelte';
   import Textarea from '$lib/components/ui/Textarea.svelte';
   import CircularProgress from '$lib/components/ui/CircularProgress.svelte';
@@ -376,6 +378,8 @@
 
   let showLocationPreview = $state(false);
   let pendingLocation = $state<{ latitude: number; longitude: number } | null>(null);
+
+  let showVoiceSheet = $state(false);
 
 
   // Context menu state
@@ -1222,6 +1226,86 @@
       });
     }
   }
+
+  const showVoiceButton = $derived(
+    typeof window !== 'undefined' &&
+      inputText.trim().length === 0 &&
+      isVoiceRecordingSupported()
+  );
+
+  async function sendVoiceMessage(file: File): Promise<void> {
+    if (!partnerNpub) {
+      return;
+    }
+
+    // Best-effort: ensure default Blossom servers exist.
+    try {
+      await ensureDefaultBlossomServersForCurrentUser();
+    } catch {
+      // ignore
+    }
+
+    const createdAtSeconds = Math.floor(Date.now() / 1000);
+    const sentAtMs = createdAtSeconds * 1000;
+
+    const optimisticEventId = makeOptimisticEventId();
+    const optimisticUrl = URL.createObjectURL(file);
+
+    const optimistic: Message = {
+      recipientNpub: partnerNpub,
+      message: '',
+      sentAt: sentAtMs,
+      eventId: optimisticEventId,
+      direction: 'sent',
+      createdAt: Date.now(),
+      rumorKind: 15,
+      fileUrl: optimisticUrl,
+      fileType: file.type || 'audio/webm',
+    };
+
+    optimisticMessages = [...optimisticMessages, optimistic];
+    scrollToBottom();
+
+    void (async () => {
+      try {
+        await messagingService.sendFileMessage(partnerNpub, file, 'audio', createdAtSeconds);
+
+        if (isDestroyed) return;
+
+        setTimeout(() => {
+          if (!isDestroyed) {
+            removeOptimisticMessage(optimisticEventId);
+          }
+        }, 0);
+
+        clearUnreadMarkersForChat();
+        scrollToBottom();
+        hapticLightImpact();
+      } catch (e) {
+        if (isDestroyed) return;
+
+        console.error('Failed to send voice message:', e);
+        clearRelayStatus();
+        removeOptimisticMessage(optimisticEventId);
+
+        await nativeDialogService.alert({
+          title: translate('chat.sendFailedTitle'),
+          message: translate('chat.sendFailedMessagePrefix') + (e as Error).message,
+        });
+      }
+    })();
+  }
+
+  function openVoiceSheet(): void {
+    if (!showVoiceButton) {
+      return;
+    }
+    showVoiceSheet = true;
+  }
+
+  function closeVoiceSheet(): void {
+    showVoiceSheet = false;
+  }
 </script>
 
 <svelte:head>
@@ -1271,6 +1355,15 @@
       disableConfirm={isSending}
       onCancel={resetLocationPreview}
       onConfirm={confirmSendLocation}
+    />
+  {/if}
+
+  {#if showVoiceSheet}
+    <VoiceMessageSheet
+      isOpen={showVoiceSheet}
+      onCancel={closeVoiceSheet}
+      onClose={closeVoiceSheet}
+      onSend={(file) => void sendVoiceMessage(file)}
     />
   {/if}
 
@@ -1633,6 +1726,24 @@
           class="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm md:text-base dark:text-white disabled:opacity-50 resize-none overflow-hidden placeholder:text-gray-400 dark:placeholder:text-slate-500 py-1"
           placeholder={$t('chat.inputPlaceholder')}
         ></textarea>
+
+        {#if showVoiceButton}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            class="flex-shrink-0"
+            onclick={openVoiceSheet}
+            aria-label="Record voice message"
+          >
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </Button>
+        {/if}
 
         {#if inputText.trim().length > 0}
           <Button
