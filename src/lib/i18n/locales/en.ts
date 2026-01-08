@@ -211,6 +211,25 @@ const en = {
             cameraErrorMessage: 'Failed to capture photo'
         },
         mediaUnavailable: 'This media is no longer available.',
+        voiceMessage: {
+            title: 'Voice message',
+            recordAria: 'Record voice message',
+            playPreviewAria: 'Play preview',
+            pausePreviewAria: 'Pause preview',
+            cancelButton: 'Cancel',
+            pauseButton: 'Pause',
+            doneButton: 'Done',
+            resumeButton: 'Resume',
+            sendButton: 'Send',
+            microphoneTitle: 'Microphone',
+            permissionDeniedTitle: 'Microphone permission',
+            permissionDeniedMessage: 'Please allow microphone access to record.',
+            nativeNotAvailable: 'Native recording not available.',
+            unsupported: 'Voice recording unsupported on this device.',
+            failedToStart: 'Failed to start recording.',
+            failedToStop: 'Failed to stop recording.',
+            recordingFailed: 'Recording failed.'
+        },
         relayStatus: {
             sending: 'sending...',
             sentToRelays: 'sent to {successful}/{desired} relays'

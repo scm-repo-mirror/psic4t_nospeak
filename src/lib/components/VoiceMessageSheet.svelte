@@ -289,7 +289,7 @@
 
     async function startNativeRecording(): Promise<void> {
         if (!AndroidMicrophone) {
-            error = 'Native recording not available.';
+            error = translate('chat.voiceMessage.nativeNotAvailable');
             recordingState = 'error';
             return;
         }
@@ -317,7 +317,7 @@
 
             errorListener = await AndroidMicrophone.addListener('recordingError', ({ error: errMsg }) => {
                 console.error('[voice] native recording error:', errMsg);
-                error = errMsg || 'Recording failed.';
+                error = errMsg || translate('chat.voiceMessage.recordingFailed');
                 recordingState = 'error';
             });
 
@@ -326,7 +326,7 @@
             const result = await AndroidMicrophone.startRecording();
 
             if (!result.success) {
-                throw new Error(result.error || 'Failed to start recording');
+                throw new Error(result.error || translate('chat.voiceMessage.failedToStart'));
             }
 
             mimeType = 'audio/mp4';
@@ -349,10 +349,10 @@
             const err = e as any;
             const message =
                 (typeof err?.message === 'string' && err.message) ||
-                'Failed to start recording.';
+                translate('chat.voiceMessage.failedToStart');
 
             await nativeDialogService.alert({
-                title: 'Microphone',
+                title: translate('chat.voiceMessage.microphoneTitle'),
                 message
             });
             onCancel();
@@ -364,7 +364,7 @@
         console.info('[voice] detected supported mime', { supportedMime });
 
         if (!supportedMime) {
-            error = 'Voice recording unsupported on this device.';
+            error = translate('chat.voiceMessage.unsupported');
             recordingState = 'error';
             console.warn('[voice] startRecording: no supported mime');
             return;
@@ -430,7 +430,7 @@
 
             recorder.onerror = (event) => {
                 console.error('[voice] MediaRecorder: error', event);
-                error = 'Voice recording failed.';
+                error = translate('chat.voiceMessage.recordingFailed');
                 recordingState = 'error';
             };
 
@@ -464,10 +464,10 @@
             const message =
                 (typeof err?.message === 'string' && err.message) ||
                 (typeof err?.name === 'string' && err.name) ||
-                'Microphone permission denied.';
+                translate('chat.voiceMessage.failedToStart');
 
             await nativeDialogService.alert({
-                title: 'Microphone',
+                title: translate('chat.voiceMessage.microphoneTitle'),
                 message
             });
             onCancel();
@@ -599,7 +599,7 @@
 
         } catch (e) {
             console.error('[voice] stopNativeRecording failed', e);
-            error = 'Failed to stop recording.';
+            error = translate('chat.voiceMessage.failedToStop');
             recordingState = 'error';
         }
     }
@@ -897,7 +897,7 @@
             class="relative w-full bg-white/95 dark:bg-slate-900/95 border border-gray-200/80 dark:border-slate-700/80 shadow-2xl backdrop-blur-xl p-4 space-y-4 rounded-t-3xl md:max-w-md md:rounded-2xl"
         >
             <div class="flex items-center justify-between">
-                <h2 class="typ-title dark:text-white">Voice message</h2>
+                <h2 class="typ-title dark:text-white">{$t('chat.voiceMessage.title')}</h2>
 
                 <div class="typ-meta text-xs tabular-nums text-gray-600 dark:text-slate-300">
                     {timerLabel} / {formatDurationMs(effectiveMaxDurationMs)}
@@ -926,7 +926,7 @@
                             size="icon"
                             variant="filled-tonal"
                             onclick={togglePreview}
-                            aria-label={isPreviewPlaying ? 'Pause preview' : 'Play preview'}
+                            aria-label={isPreviewPlaying ? $t('chat.voiceMessage.pausePreviewAria') : $t('chat.voiceMessage.playPreviewAria')}
                         >
                             {#if isPreviewPlaying}
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -961,21 +961,21 @@
 
             <div class="flex items-center justify-between gap-2">
                 <Button onclick={onCancel} disabled={isStopping}>
-                    Cancel
+                    {$t('chat.voiceMessage.cancelButton')}
                 </Button>
 
                 <div class="flex items-center gap-2">
                     {#if canPause}
                         <Button onclick={() => void pauseRecording()} disabled={isStopping}>
-                            Pause
+                            {$t('chat.voiceMessage.pauseButton')}
                         </Button>
                     {:else if canDone}
                         <Button onclick={() => void stopRecording()} disabled={isStopping}>
-                            Done
+                            {$t('chat.voiceMessage.doneButton')}
                         </Button>
                     {:else if canResume}
                         <Button onclick={() => void resumeRecording()} disabled={isStopping}>
-                            Resume
+                            {$t('chat.voiceMessage.resumeButton')}
                         </Button>
                     {/if}
 
@@ -984,7 +984,7 @@
                         onclick={() => void handleSend()}
                         disabled={isStopping || recordingState === 'error'}
                     >
-                        Send
+                        {$t('chat.voiceMessage.sendButton')}
                     </Button>
                 </div>
             </div>

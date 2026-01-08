@@ -1736,7 +1736,7 @@
           size="icon"
           class="flex-shrink-0"
           onclick={openVoiceSheet}
-          aria-label="Record voice message"
+          aria-label={$t('chat.voiceMessage.recordAria')}
         >
           <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />

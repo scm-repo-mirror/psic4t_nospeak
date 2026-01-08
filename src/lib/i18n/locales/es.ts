@@ -211,6 +211,25 @@ const es = {
             cameraErrorMessage: 'No se pudo capturar la foto'
         },
         mediaUnavailable: 'Este medio ya no está disponible.',
+        voiceMessage: {
+            title: 'Mensaje de voz',
+            recordAria: 'Grabar mensaje de voz',
+            playPreviewAria: 'Reproducir vista previa',
+            pausePreviewAria: 'Pausar vista previa',
+            cancelButton: 'Cancelar',
+            pauseButton: 'Pausar',
+            doneButton: 'Listo',
+            resumeButton: 'Reanudar',
+            sendButton: 'Enviar',
+            microphoneTitle: 'Micrófono',
+            permissionDeniedTitle: 'Permiso de micrófono',
+            permissionDeniedMessage: 'Permite el acceso al micrófono para grabar.',
+            nativeNotAvailable: 'La grabación nativa no está disponible.',
+            unsupported: 'La grabación de voz no es compatible con este dispositivo.',
+            failedToStart: 'No se pudo iniciar la grabación.',
+            failedToStop: 'No se pudo detener la grabación.',
+            recordingFailed: 'La grabación falló.'
+        },
         relayStatus: {
             sending: 'enviando...',
             sentToRelays: 'enviado a {successful}/{desired} relays'

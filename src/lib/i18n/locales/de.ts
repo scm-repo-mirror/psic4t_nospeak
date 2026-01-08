@@ -213,6 +213,25 @@ const de = {
             cameraErrorMessage: 'Foto konnte nicht aufgenommen werden'
         },
         mediaUnavailable: 'Dieses Medium ist nicht mehr verfügbar.',
+        voiceMessage: {
+            title: 'Sprachnachricht',
+            recordAria: 'Sprachnachricht aufnehmen',
+            playPreviewAria: 'Vorschau abspielen',
+            pausePreviewAria: 'Vorschau pausieren',
+            cancelButton: 'Abbrechen',
+            pauseButton: 'Pausieren',
+            doneButton: 'Fertig',
+            resumeButton: 'Fortsetzen',
+            sendButton: 'Senden',
+            microphoneTitle: 'Mikrofon',
+            permissionDeniedTitle: 'Mikrofonberechtigung',
+            permissionDeniedMessage: 'Bitte erlaube Zugriff auf das Mikrofon, um aufzunehmen.',
+            nativeNotAvailable: 'Native Aufnahme nicht verfügbar.',
+            unsupported: 'Sprachaufnahme wird auf diesem Gerät nicht unterstützt.',
+            failedToStart: 'Aufnahme konnte nicht gestartet werden.',
+            failedToStop: 'Aufnahme konnte nicht beendet werden.',
+            recordingFailed: 'Aufnahme fehlgeschlagen.'
+        },
         relayStatus: {
             sending: 'wird gesendet...',
             sentToRelays: 'an {successful}/{desired} Relays gesendet'
