@@ -51,6 +51,33 @@
     };
   });
 
+  function getMediaPreviewLabel(fileType: string): string {
+    // Voice messages (webm/opus or m4a)
+    if (
+      fileType === "audio/webm" ||
+      fileType === "audio/ogg" ||
+      fileType === "audio/mp4" ||
+      fileType === "audio/x-m4a" ||
+      fileType.includes("opus")
+    ) {
+      return `🎤 ${get(t)("contacts.mediaPreview.voiceMessage")}`;
+    }
+    // Images
+    if (fileType.startsWith("image/")) {
+      return `📷 ${get(t)("contacts.mediaPreview.image")}`;
+    }
+    // Videos
+    if (fileType.startsWith("video/")) {
+      return `🎬 ${get(t)("contacts.mediaPreview.video")}`;
+    }
+    // Other audio (music files)
+    if (fileType.startsWith("audio/")) {
+      return `🎵 ${get(t)("contacts.mediaPreview.audio")}`;
+    }
+    // Generic file
+    return `📎 ${get(t)("contacts.mediaPreview.file")}`;
+  }
+
   async function refreshContacts(dbContacts: ContactItem[]): Promise<void> {
     console.log("ContactList: Processing contacts from DB:", dbContacts.length);
 
@@ -65,12 +92,19 @@
           c.lastActivityAt || 0,
         );
 
-        const rawLastMessageText = lastMsg ? lastMsg.message : "";
+        let lastMessageText = "";
+        if (lastMsg) {
+          if (lastMsg.fileUrl && lastMsg.fileType) {
+            // Media attachment - show friendly label only (message field contains URL, not caption)
+            lastMessageText = getMediaPreviewLabel(lastMsg.fileType);
+          } else {
+            // Regular text message
+            lastMessageText = (lastMsg.message || "").replace(/\s+/g, " ").trim();
+          }
 
-        let lastMessageText = rawLastMessageText.replace(/\s+/g, " ").trim();
-
-        if (lastMessageText && lastMsg && lastMsg.direction === "sent") {
-          lastMessageText = `${get(t)("contacts.youPrefix") || "You"}: ${lastMessageText}`;
+          if (lastMessageText && lastMsg.direction === "sent") {
+            lastMessageText = `${get(t)("contacts.youPrefix") || "You"}: ${lastMessageText}`;
+          }
         }
 
         let name = c.npub.slice(0, 10) + "...";

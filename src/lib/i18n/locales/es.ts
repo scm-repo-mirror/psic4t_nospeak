@@ -37,7 +37,14 @@ const es = {
         scanQrAria: 'Escanear código QR de contacto',
         emptyHint: 'Si no aparecen contactos, pulsa Gestionar para añadir algunos.',
         selectPrompt: 'Selecciona un contacto para empezar a chatear',
-        youPrefix: 'Tú'
+        youPrefix: 'Tú',
+        mediaPreview: {
+            image: 'Imagen',
+            video: 'Vídeo',
+            voiceMessage: 'Mensaje de voz',
+            audio: 'Audio',
+            file: 'Archivo'
+        }
     },
     connection: {
         relaysLabel: 'Relays:',

@@ -37,7 +37,14 @@ const en = {
         scanQrAria: 'Scan contact QR code',
         emptyHint: 'If no contacts appear, click Manage to add some.',
         selectPrompt: 'Select a contact to start chatting',
-        youPrefix: 'You'
+        youPrefix: 'You',
+        mediaPreview: {
+            image: 'Image',
+            video: 'Video',
+            voiceMessage: 'Voice Message',
+            audio: 'Audio',
+            file: 'File'
+        }
     },
     connection: {
         relaysLabel: 'Relays:',

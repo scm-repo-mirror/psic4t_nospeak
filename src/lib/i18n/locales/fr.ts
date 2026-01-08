@@ -35,9 +35,16 @@ const fr = {
         manage: 'Gérer',
         scanQr: 'Scanner QR',
         scanQrAria: 'Scanner le QR du contact',
-        emptyHint: 'Si aucun contact n’apparaît, cliquez sur Gérer pour en ajouter.',
+        emptyHint: "Si aucun contact n'apparaît, cliquez sur Gérer pour en ajouter.",
         selectPrompt: 'Sélectionnez un contact pour commencer à discuter',
-        youPrefix: 'Vous'
+        youPrefix: 'Vous',
+        mediaPreview: {
+            image: 'Image',
+            video: 'Vidéo',
+            voiceMessage: 'Message vocal',
+            audio: 'Audio',
+            file: 'Fichier'
+        }
     },
     connection: {
         relaysLabel: 'Relays :',

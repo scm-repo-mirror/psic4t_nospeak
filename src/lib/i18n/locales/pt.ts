@@ -37,7 +37,14 @@ const pt = {
         scanQrAria: 'Ler QR de contacto',
         emptyHint: 'Se não aparecerem contactos, clique em Gerir para adicionar alguns.',
         selectPrompt: 'Selecione um contacto para começar a conversar',
-        youPrefix: 'Tu'
+        youPrefix: 'Tu',
+        mediaPreview: {
+            image: 'Imagem',
+            video: 'Vídeo',
+            voiceMessage: 'Mensagem de voz',
+            audio: 'Áudio',
+            file: 'Arquivo'
+        }
     },
     connection: {
         relaysLabel: 'Relays:',

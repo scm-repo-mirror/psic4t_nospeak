@@ -37,7 +37,14 @@ const it = {
         scanQrAria: 'Scansiona il QR del contatto',
         emptyHint: 'Se non vedi contatti, clicca su Gestisci per aggiungerne.',
         selectPrompt: 'Seleziona un contatto per iniziare a chattare',
-        youPrefix: 'Tu'
+        youPrefix: 'Tu',
+        mediaPreview: {
+            image: 'Immagine',
+            video: 'Video',
+            voiceMessage: 'Messaggio vocale',
+            audio: 'Audio',
+            file: 'File'
+        }
     },
     connection: {
         relaysLabel: 'Relays:',

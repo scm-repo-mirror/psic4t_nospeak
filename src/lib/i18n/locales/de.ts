@@ -35,9 +35,16 @@ const de = {
         manage: 'Verwalten',
         scanQr: 'QR scannen',
         scanQrAria: 'Kontakt-QR-Code scannen',
-        emptyHint: 'Wenn keine Kontakte angezeigt werden, klicke auf „Verwalten“, um welche hinzuzufügen.',
+        emptyHint: 'Wenn keine Kontakte angezeigt werden, klicke auf „Verwalten", um welche hinzuzufügen.',
         selectPrompt: 'Wähle einen Kontakt aus, um zu chatten',
-        youPrefix: 'Du'
+        youPrefix: 'Du',
+        mediaPreview: {
+            image: 'Bild',
+            video: 'Video',
+            voiceMessage: 'Sprachnachricht',
+            audio: 'Audio',
+            file: 'Datei'
+        }
     },
 
     connection: {
