@@ -189,14 +189,16 @@
         const data = new Uint8Array(bufferLength);
         analyser.getByteTimeDomainData(data);
 
-        let sumSquares = 0;
+        let max = 0;
         for (let i = 0; i < bufferLength; i++) {
-            const v = (data[i] - 128) / 128;
-            sumSquares += v * v;
+            const v = Math.abs((data[i] - 128) / 128);
+            if (v > max) {
+                max = v;
+            }
         }
 
-        const rms = Math.sqrt(sumSquares / Math.max(1, bufferLength));
-        return clamp01(0.08 + rms * 1.25);
+        // Use the same scaling as playback visualization (Waveform.ts)
+        return clamp01(0.08 + max * 1.15);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -415,7 +417,7 @@
             audioContext = new AudioContext();
             const source = audioContext.createMediaStreamSource(captured);
             analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
+            analyser.fftSize = 2048;
             source.connect(analyser);
 
             rawPeaks = [];

@@ -54,8 +54,7 @@ public class NativeAudioRecorder {
 
     // For peak computation
     private int samplesSincePeak = 0;
-    private float peakAccumulator = 0f;
-    private int peakSampleCount = 0;
+    private float currentMaxPeak = 0f;
 
     public interface Callback {
         void onPeak(float peak);
@@ -85,8 +84,7 @@ public class NativeAudioRecorder {
         this.totalSamplesWritten = 0;
         this.presentationTimeUs = 0;
         this.samplesSincePeak = 0;
-        this.peakAccumulator = 0f;
-        this.peakSampleCount = 0;
+        this.currentMaxPeak = 0f;
 
         // Calculate buffer size
         bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
@@ -286,31 +284,29 @@ public class NativeAudioRecorder {
     }
 
     private void processPeaks(short[] buffer, int length) {
-        // Compute RMS for this chunk
-        float sumSquares = 0f;
+        // Find max amplitude in this chunk
         for (int i = 0; i < length; i++) {
-            float sample = buffer[i] / 32768f; // Normalize to -1.0 to 1.0
-            sumSquares += sample * sample;
+            float sample = Math.abs(buffer[i] / 32768f); // Normalize to 0.0 to 1.0
+            if (sample > currentMaxPeak) {
+                currentMaxPeak = sample;
+            }
         }
 
-        peakAccumulator += sumSquares;
-        peakSampleCount += length;
         samplesSincePeak += length;
 
         // Emit peak at regular intervals
-        if (samplesSincePeak >= PEAK_INTERVAL_SAMPLES && peakSampleCount > 0) {
-            float rms = (float) Math.sqrt(peakAccumulator / peakSampleCount);
-            // Scale RMS to 0.0-1.0 range (with some headroom)
-            float peak = Math.min(1.0f, 0.08f + rms * 1.25f);
+        if (samplesSincePeak >= PEAK_INTERVAL_SAMPLES) {
+            // Scale peak to match playback visualization (Waveform.ts)
+            // playback uses: Math.min(1, 0.08 + max * 1.15)
+            float finalPeak = Math.min(1.0f, 0.08f + currentMaxPeak * 1.15f);
 
             if (callback != null) {
-                callback.onPeak(peak);
+                callback.onPeak(finalPeak);
             }
 
-            // Reset accumulators
+            // Reset for next interval
             samplesSincePeak = 0;
-            peakAccumulator = 0f;
-            peakSampleCount = 0;
+            currentMaxPeak = 0f;
         }
     }
 
