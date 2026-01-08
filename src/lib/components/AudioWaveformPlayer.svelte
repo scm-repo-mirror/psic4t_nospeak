@@ -7,6 +7,7 @@
     const BAR_COUNT = 40;
 
     const waveformCache = new Map<string, number[]>();
+    const durationCache = new Map<string, number>();
     const waveformPromises = new Map<string, Promise<number[]>>();
 
     let audioElement: HTMLAudioElement | null = null;
@@ -49,6 +50,7 @@
                     const decoded = await context.decodeAudioData(arrayBuffer.slice(0));
                     const computed = computePeaksFromAudioBuffer(decoded, BAR_COUNT);
                     waveformCache.set(targetUrl, computed);
+                    durationCache.set(targetUrl, decoded.duration);
                     return computed;
                 } finally {
                     try {
@@ -70,10 +72,36 @@
         return promise;
     }
 
+    function updateDurationFromElement(): void {
+        if (!audioElement) {
+            return;
+        }
+
+        const nextDuration = audioElement.duration;
+        if (isFinite(nextDuration) && nextDuration > 0) {
+            duration = nextDuration;
+        }
+    }
+
+    function updateDurationFromCache(targetUrl: string): void {
+        const cachedDuration = durationCache.get(targetUrl);
+        if (typeof cachedDuration === 'number' && isFinite(cachedDuration) && cachedDuration > 0) {
+            duration = cachedDuration;
+        }
+    }
+
     $effect(() => {
         if (typeof window === 'undefined') {
             return;
         }
+
+        // Reset playback state when URL changes.
+        currentTime = 0;
+        isPlaying = false;
+        isLoading = true;
+        duration = 0;
+
+        updateDurationFromCache(url);
 
         isWaveformLoading = true;
         peaks = buildFallbackPeaks(url, BAR_COUNT);
@@ -81,6 +109,7 @@
         void loadWaveformPeaks(url).then((value) => {
             peaks = value;
             isWaveformLoading = false;
+            updateDurationFromCache(url);
         });
     });
 
@@ -107,14 +136,22 @@
         if (!audioElement) {
             return;
         }
-        duration = audioElement.duration || 0;
+
+        updateDurationFromElement();
+        updateDurationFromCache(url);
         isLoading = false;
+    }
+
+    function handleDurationChange(): void {
+        updateDurationFromElement();
     }
 
     function handleTimeUpdate() {
         if (!audioElement) {
             return;
         }
+
+        updateDurationFromElement();
         currentTime = audioElement.currentTime || 0;
     }
 
@@ -215,7 +252,11 @@
     </div>
 
     <div class="flex-shrink-0 text-[10px] tabular-nums text-right min-w-[56px]">
-        {formatTime(currentTime)} / {formatTime(duration)}
+        {#if isPlaying || currentTime > 0}
+            {formatTime(currentTime)} / {formatTime(duration)}
+        {:else}
+            {formatTime(duration)}
+        {/if}
     </div>
 </div>
 
@@ -223,7 +264,9 @@
 <audio
     bind:this={audioElement}
     src={url}
+    preload="metadata"
     onloadedmetadata={handleLoadedMetadata}
+    ondurationchange={handleDurationChange}
     ontimeupdate={handleTimeUpdate}
     onplay={handlePlay}
     onpause={handlePause}
