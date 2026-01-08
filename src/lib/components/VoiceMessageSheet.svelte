@@ -727,7 +727,14 @@
         if (!previewAudio) {
             return;
         }
-        previewDuration = previewAudio.duration || 0;
+        const audioDuration = previewAudio.duration;
+        // WebM blobs without proper headers return Infinity or NaN
+        if (isFinite(audioDuration) && audioDuration > 0) {
+            previewDuration = audioDuration;
+        } else {
+            // Fall back to recorded elapsed time
+            previewDuration = elapsedMs / 1000;
+        }
     }
 
     function handlePreviewTimeUpdate(): void {
@@ -850,19 +857,7 @@
                 />
 
                 {#if canPreview}
-                    <!-- svelte-ignore a11y_media_has_caption -->
-                    <audio
-                        bind:this={previewAudio}
-                        src={recordedUrl}
-                        class="hidden"
-                        onloadedmetadata={handlePreviewLoadedMetadata}
-                        ontimeupdate={handlePreviewTimeUpdate}
-                        onplay={handlePreviewPlay}
-                        onpause={handlePreviewPause}
-                        onended={handlePreviewEnded}
-                    ></audio>
-
-                    <div class="mt-3 flex items-center justify-center">
+                    <div class="mt-3 flex items-center justify-center gap-3">
                         <Button
                             size="icon"
                             variant="filled-tonal"
@@ -880,9 +875,25 @@
                                 </svg>
                             {/if}
                         </Button>
+                        <span class="typ-meta text-xs tabular-nums text-gray-600 dark:text-slate-300">
+                            {formatDurationMs(previewCurrentTime * 1000)} / {formatDurationMs(previewDuration * 1000)}
+                        </span>
                     </div>
                 {/if}
             </div>
+
+            <!-- Audio element always rendered to avoid bind:this race condition -->
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <audio
+                bind:this={previewAudio}
+                src={recordedUrl ?? ''}
+                class="hidden"
+                onloadedmetadata={handlePreviewLoadedMetadata}
+                ontimeupdate={handlePreviewTimeUpdate}
+                onplay={handlePreviewPlay}
+                onpause={handlePreviewPause}
+                onended={handlePreviewEnded}
+            ></audio>
 
             <div class="flex items-center justify-between gap-2">
                 <Button onclick={onCancel} disabled={isStopping}>
