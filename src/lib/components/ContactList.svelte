@@ -51,6 +51,19 @@
     };
   });
 
+  function parseMarkdownPreview(text: string): string {
+    // Escape HTML entities first for security
+    text = text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    // Bold (**text**)
+    text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    // Italic (*text*)
+    text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    return text;
+  }
+
   function getMediaPreviewLabel(fileType: string): string {
     // Voice messages (webm/opus or m4a)
     if (
@@ -415,7 +428,7 @@
             <div
               class="typ-body text-gray-800 dark:text-slate-300 truncate md:hidden"
             >
-              {contact.lastMessageText}
+              {@html parseMarkdownPreview(contact.lastMessageText)}
             </div>
           {/if}
         </div>
