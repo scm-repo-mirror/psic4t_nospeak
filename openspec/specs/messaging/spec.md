@@ -153,6 +153,16 @@ The chat interface SHALL implement infinite scrolling to handle large message hi
 - **THEN** the system SHALL display a non-intrusive status near the top of the message list indicating that no more messages are available from relays for this conversation
 - **AND** the UI SHALL avoid offering further relay history fetch actions for that conversation unless the user explicitly refreshes or reconnects.
 
+### Requirement: Scroll Positioning and Media Loading
+The chat interface SHALL ensure correct scroll positioning at the bottom of the conversation when opened, even when recent messages contain media.
+
+#### Scenario: Eager loading for recent media attachments
+- **GIVEN** the user opens a chat or switches conversations
+- **WHEN** the message list renders the most recent messages
+- **THEN** any media attachments (images) within the last 3 messages SHALL be forced to load eagerly (`loading="eager"`)
+- **AND** older messages SHALL continue to use lazy loading (`loading="lazy"`)
+- **AND** this ensures the browser resolves media dimensions immediately, preventing "false bottom" issues where the scroll position stops short of the actual latest content.
+
 ### Requirement: Startup Navigation
 The system SHALL handle application startup navigation differently based on the device form factor to optimize user experience.
 
