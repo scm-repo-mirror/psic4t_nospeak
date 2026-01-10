@@ -23,6 +23,7 @@
   import { isAndroidNative } from "$lib/core/NativeDialogs";
   import Button from "$lib/components/ui/Button.svelte";
   import SplitButton from "$lib/components/ui/SplitButton.svelte";
+  import { getMediaPreviewLabel } from "$lib/utils/mediaPreview";
 
   const isAndroidApp = isAndroidNative();
   let myPicture = $state<string | undefined>(undefined);
@@ -62,33 +63,6 @@
     // Italic (*text*)
     text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
     return text;
-  }
-
-  function getMediaPreviewLabel(fileType: string): string {
-    // Voice messages (webm/opus or m4a)
-    if (
-      fileType === "audio/webm" ||
-      fileType === "audio/ogg" ||
-      fileType === "audio/mp4" ||
-      fileType === "audio/x-m4a" ||
-      fileType.includes("opus")
-    ) {
-      return `🎤 ${get(t)("contacts.mediaPreview.voiceMessage")}`;
-    }
-    // Images
-    if (fileType.startsWith("image/")) {
-      return `📷 ${get(t)("contacts.mediaPreview.image")}`;
-    }
-    // Videos
-    if (fileType.startsWith("video/")) {
-      return `🎬 ${get(t)("contacts.mediaPreview.video")}`;
-    }
-    // Other audio (music files)
-    if (fileType.startsWith("audio/")) {
-      return `🎵 ${get(t)("contacts.mediaPreview.audio")}`;
-    }
-    // Generic file
-    return `📎 ${get(t)("contacts.mediaPreview.file")}`;
   }
 
   async function refreshContacts(dbContacts: ContactItem[]): Promise<void> {

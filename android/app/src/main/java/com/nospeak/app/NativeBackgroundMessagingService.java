@@ -1367,7 +1367,8 @@ public class NativeBackgroundMessagingService extends Service {
         }
 
         if (rumor.kind == 15) {
-            return "Message: Sent you an attachment";
+            String fileType = getTagValue(rumor.tags, "file-type");
+            return getMediaPreviewLabel(fileType);
         }
 
         if (rumor.kind == 7) {
@@ -1397,6 +1398,49 @@ public class NativeBackgroundMessagingService extends Service {
         }
 
         return trimmed.substring(0, PREVIEW_TRUNCATE_CHARS - 1) + "…";
+    }
+
+    private String getTagValue(JSONArray tags, String tagName) {
+        if (tags == null) return null;
+        try {
+            for (int i = 0; i < tags.length(); i++) {
+                JSONArray tag = tags.optJSONArray(i);
+                if (tag != null && tag.length() >= 2 && tagName.equals(tag.optString(0))) {
+                    return tag.optString(1);
+                }
+            }
+        } catch (Exception e) {
+            // Ignore parsing errors
+        }
+        return null;
+    }
+
+    private String getMediaPreviewLabel(String fileType) {
+        if (fileType == null || fileType.isEmpty()) {
+            return "📎 File";
+        }
+        // Voice messages (webm/opus or m4a)
+        if (fileType.equals("audio/webm") ||
+            fileType.equals("audio/ogg") ||
+            fileType.equals("audio/mp4") ||
+            fileType.equals("audio/x-m4a") ||
+            fileType.contains("opus")) {
+            return "🎤 Voice Message";
+        }
+        // Images
+        if (fileType.startsWith("image/")) {
+            return "📷 Image";
+        }
+        // Videos
+        if (fileType.startsWith("video/")) {
+            return "🎬 Video";
+        }
+        // Other audio (music files)
+        if (fileType.startsWith("audio/")) {
+            return "🎵 Audio";
+        }
+        // Generic file
+        return "📎 File";
     }
 
     private boolean shouldEmitMessageNotification() {

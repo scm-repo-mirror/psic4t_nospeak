@@ -74,6 +74,15 @@ vi.mock('$lib/db/ReactionRepository', () => ({
     },
 }));
 
+vi.mock('$lib/i18n', () => ({
+    t: {
+        subscribe: vi.fn((fn) => {
+            fn((key: string) => key);
+            return () => {};
+        })
+    }
+}));
+
 vi.mock('./connection/instance', () => ({
     connectionManager: {
         fetchEvents: vi.fn().mockResolvedValue([]),

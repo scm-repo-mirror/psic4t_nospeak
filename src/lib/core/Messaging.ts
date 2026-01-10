@@ -16,6 +16,7 @@ import { reactionRepo, type Reaction } from '$lib/db/ReactionRepository';
 import { reactionsStore } from '$lib/stores/reactions';
 import { encryptFileWithAesGcm, type EncryptedFileResult } from './FileEncryption';
 import { uploadToBlossomServers } from './BlossomUpload';
+import { getMediaPreviewLabel } from '$lib/utils/mediaPreview';
  
  export class MessagingService {
    private debug: boolean = true;
@@ -339,7 +340,11 @@ import { uploadToBlossomServers } from './BlossomUpload';
       // Don't show notifications for messages fetched during history sync
       // or for messages sent before the current session started
       if (!this.isFetchingHistory && rumor.created_at >= this.sessionStartedAt) {
-        await notificationService.showNewMessageNotification(message.recipientNpub, message.message);
+        // Use friendly label for media attachments instead of raw URL
+        const notificationBody = (message.fileUrl && message.fileType)
+          ? getMediaPreviewLabel(message.fileType)
+          : message.message;
+        await notificationService.showNewMessageNotification(message.recipientNpub, notificationBody);
       }
 
       // Auto-add unknown contacts
