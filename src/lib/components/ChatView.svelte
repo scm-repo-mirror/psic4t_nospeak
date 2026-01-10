@@ -20,6 +20,7 @@
   import { tapSoundClick } from '$lib/utils/tapSound';
   import { copyTextToClipboard } from '$lib/utils/clipboard';
   import { isAndroidCapacitorShell, blur } from '$lib/utils/platform';
+  import { overscroll } from '$lib/utils/overscroll';
   import { lastRelaySendStatus, clearRelayStatus } from '$lib/stores/sending';
   import { openProfileModal } from '$lib/stores/modals';
   import { openImageViewer } from '$lib/stores/imageViewer';
@@ -1468,6 +1469,7 @@
     class="flex-1 overflow-x-hidden overflow-y-auto px-4 pb-safe-offset-28 pt-[calc(5rem+env(safe-area-inset-top))] space-y-4 custom-scrollbar native-scroll focus:outline-none focus:ring-0"
     onscroll={handleScroll}
     onpointerdown={activateMessageWindow}
+    use:overscroll
   >
     {#if isSearchActive}
       {#if isSearchingHistory}

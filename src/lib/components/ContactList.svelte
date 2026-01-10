@@ -24,6 +24,7 @@
   import Button from "$lib/components/ui/Button.svelte";
   import SplitButton from "$lib/components/ui/SplitButton.svelte";
   import { getMediaPreviewLabel } from "$lib/utils/mediaPreview";
+  import { overscroll } from "$lib/utils/overscroll";
 
   const isAndroidApp = isAndroidNative();
   let myPicture = $state<string | undefined>(undefined);
@@ -327,7 +328,7 @@
     </div>
   </div>
 
-  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[calc(120px+env(safe-area-inset-top))] pb-safe-offset-16">
+  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[calc(120px+env(safe-area-inset-top))] pb-safe-offset-16" use:overscroll>
     {#if $contactsStore.length === 0}
       <div class="space-y-3 p-3 animate-pulse">
         {#each Array(5) as _}
