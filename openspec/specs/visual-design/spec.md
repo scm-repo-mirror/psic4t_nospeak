@@ -6,12 +6,12 @@ This spec defines the shared visual design system for the nospeak web client, in
 ### Requirement: Consistent glassmorphism visual language
 The application interface SHALL use the glass & slate visual language described in this spec for primary containers, backgrounds, and interactive elements, **EXCEPT** where performance constraints on mobile/Android devices necessitate simpler rendering for scrolling content. When running inside the Android Capacitor app shell with edge-to-edge layout enabled, primary surfaces and full-screen glass overlays (such as the authenticated app window and root-level modals) SHALL respect OS-provided safe-area insets so that content does not clash with the system status bar or gesture regions.
 
-#### Scenario: Simplified rendering on Android/Mobile for scrolling content
-- **GIVEN** the application is running on an Android device or mobile viewport
-- **WHEN** rendering scrolling lists (such as message bubbles in a chat)
-- **THEN** the application MAY disable `backdrop-filter` (blur) effects on individual list items
-- **AND** SHALL use increased opacity (e.g., 90% instead of 70%) to maintain legibility and contrast against the background
-- **AND** static elements (headers, footers) MAY retain glassmorphism if performance permits.
+#### Scenario: Simplified rendering on Android for scrolling content
+- **GIVEN** the application is running inside the Android Capacitor app shell
+- **WHEN** rendering scrolling lists and their containers (such as chat view, contact list, message bubbles, date separators, and status indicators)
+- **THEN** the application SHALL disable `backdrop-filter` (blur) effects on these elements using the `blur()` utility from `platform.ts`
+- **AND** the application SHALL keep the same background opacity values as non-Android platforms
+- **AND** static elements in non-scrolling contexts (such as modals and overlays) MAY retain glassmorphism.
 
 #### Scenario: Root layout and modals respect safe-area insets on Android
 - **GIVEN** the application is running inside the Android Capacitor app shell with edge-to-edge layout and a StatusBar overlay configuration
@@ -297,7 +297,7 @@ The application follows a "Glass & Slate" aesthetic, prioritizing depth, motion,
 ### Transitions
 *   **Page Navigation:** Subtle `fade` (150ms) transition when switching contexts (e.g., chat threads).
 *   **Modals:** Fade-in backdrop with scaled content entry.
-*   **Messages:** `fly` (y: 20px) entrance animation with `cubicOut` easing.
+*   **Messages:** `fly` (y: 20px) entrance animation with `cubicOut` easing on desktop/iOS; disabled on Android for scroll performance.
 
 ### Micro-interactions
 *   **Hover:** Elements (contacts, buttons) brighten and/or shift background color.

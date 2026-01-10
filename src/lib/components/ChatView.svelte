@@ -19,7 +19,7 @@
   import { hapticLightImpact, hapticSelection } from '$lib/utils/haptics';
   import { tapSoundClick } from '$lib/utils/tapSound';
   import { copyTextToClipboard } from '$lib/utils/clipboard';
-  import { isAndroidCapacitorShell } from '$lib/utils/platform';
+  import { isAndroidCapacitorShell, blur } from '$lib/utils/platform';
   import { lastRelaySendStatus, clearRelayStatus } from '$lib/stores/sending';
   import { openProfileModal } from '$lib/stores/modals';
   import { openImageViewer } from '$lib/stores/imageViewer';
@@ -1318,7 +1318,7 @@
   {/if}
 </svelte:head>
 
-<div bind:this={chatRoot} class="relative flex flex-col h-full overflow-hidden bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm">
+<div bind:this={chatRoot} class="relative flex flex-col h-full overflow-hidden bg-white/30 dark:bg-slate-900/30 {blur('sm')}">
   {#if showMediaPreview && pendingMediaFile && pendingMediaType}
     <AttachmentPreviewModal
       isOpen={showMediaPreview}
@@ -1371,7 +1371,7 @@
 
   {#if partnerNpub}
     <div
-      class="absolute top-0 left-0 right-0 z-20 p-2 pt-safe min-h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out"
+      class="absolute top-0 left-0 right-0 z-20 p-2 pt-safe min-h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 {blur('xl')} shadow-sm transition-all duration-150 ease-out"
     >
       <div class="flex items-center gap-3">
         <button 
@@ -1476,7 +1476,7 @@
         </div>
       {:else if displayMessages.length === 0}
         <div class="flex justify-center mt-10">
-          <div class="px-4 py-2 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md backdrop-blur-xl typ-body text-gray-600 dark:text-slate-200">
+          <div class="px-4 py-2 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md {blur('xl')} typ-body text-gray-600 dark:text-slate-200">
             {$t('chat.searchNoMatches')}
           </div>
         </div>
@@ -1485,7 +1485,7 @@
        {#if canRequestNetworkHistory && displayMessages.length > 0}
            <div class="flex flex-col items-center p-2 gap-2">
              <button
-              class="typ-meta px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-700/90 transition-all shadow-sm"
+              class="typ-meta px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-800/80 {blur('sm')} border border-gray-200/60 dark:border-slate-700/60 text-gray-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-700/90 transition-all shadow-sm"
               type="button"
               onclick={() => onRequestNetworkHistory && onRequestNetworkHistory()}
             >
@@ -1493,7 +1493,7 @@
             </button>
 
             {#if networkHistorySummary}
-              <div class="px-3 py-1 rounded-full typ-meta bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 text-gray-600 dark:text-slate-200 shadow-sm backdrop-blur-sm">
+              <div class="px-3 py-1 rounded-full typ-meta bg-white/60 dark:bg-slate-800/60 border border-gray-200/60 dark:border-slate-700/60 text-gray-600 dark:text-slate-200 shadow-sm {blur('sm')}">
                 {get(t)('chat.history.summary', { values: { events: networkHistorySummary.eventsFetched, saved: networkHistorySummary.messagesSaved, chat: networkHistorySummary.messagesForChat } })}
               </div>
             {/if}
@@ -1501,7 +1501,7 @@
 
       {:else if networkHistoryStatus === 'no-more' && displayMessages.length > 0}
           <div class="flex justify-center p-2">
-            <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-500 dark:text-slate-300 shadow-sm backdrop-blur-sm">
+            <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-500 dark:text-slate-300 shadow-sm {blur('sm')}">
              {$t('chat.history.none')}
            </div>
 
@@ -1509,7 +1509,7 @@
 
       {:else if networkHistoryStatus === 'error' && displayMessages.length > 0}
           <div class="flex justify-center p-2">
-           <div class="px-3 py-1 rounded-full typ-meta bg-red-50/80 dark:bg-red-900/40 border border-red-200/80 dark:border-red-500/70 text-red-600 dark:text-red-200 shadow-sm backdrop-blur-sm">
+           <div class="px-3 py-1 rounded-full typ-meta bg-red-50/80 dark:bg-red-900/40 border border-red-200/80 dark:border-red-500/70 text-red-600 dark:text-red-200 shadow-sm {blur('sm')}">
              {$t('chat.history.error')}
            </div>
          </div>
@@ -1524,7 +1524,7 @@
    
       {#if displayMessages.length === 0 && !isFetchingHistory}
         <div class="flex justify-center mt-10">
-          <div class="max-w-sm px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md backdrop-blur-xl text-center space-y-1">
+          <div class="max-w-sm px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-gray-200/70 dark:border-slate-700/70 shadow-md {blur('xl')} text-center space-y-1">
             <div class="typ-meta font-semibold uppercase text-gray-500 dark:text-slate-400">
               {$t('chat.empty.noMessagesTitle')}
             </div>
@@ -1544,7 +1544,7 @@
     {#each displayMessages as msg, i (msg.eventId || msg.id || i)}
       {#if i === 0 || !isSameDay(msg.sentAt, displayMessages[i - 1].sentAt)}
         <div class="flex justify-center my-2">
-          <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-600 dark:text-slate-200 shadow-sm backdrop-blur-sm">
+          <div class="px-3 py-1 rounded-full typ-meta bg-white/70 dark:bg-slate-800/80 border border-gray-200/70 dark:border-slate-700/70 text-gray-600 dark:text-slate-200 shadow-sm {blur('sm')}">
             {formatDateLabel(msg.sentAt)}
           </div>
         </div>
@@ -1566,7 +1566,7 @@
        {#if !caption}
       <div
         class={`flex ${msg.direction === "sent" ? "justify-end" : "justify-start"} items-end gap-2`}
-        in:fly={{ y: 20, duration: 300, easing: cubicOut }}
+        in:fly={isAndroidShell ? { duration: 0 } : { y: 20, duration: 300, easing: cubicOut }}
       >
         {#if msg.direction === "received" && partnerNpub && !caption}
           <button
@@ -1680,7 +1680,7 @@
   </div>
 
   <div
-    class="absolute bottom-0 left-0 right-0 z-20 p-4 p-4-safe-bottom border-t border-gray-200/50 dark:border-slate-700/70 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-lg transition-all duration-150 ease-out"
+    class="absolute bottom-0 left-0 right-0 z-20 p-4 p-4-safe-bottom border-t border-gray-200/50 dark:border-slate-700/70 bg-white/80 dark:bg-slate-900/80 {blur('xl')} shadow-lg transition-all duration-150 ease-out"
   >
     <form
       onsubmit={(e) => {
@@ -1691,7 +1691,7 @@
     >
       {#if showEmojiPicker && filteredEmojis.length > 0}
         <div
-          class="absolute bottom-full mb-2 left-12 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-64 z-50"
+          class="absolute bottom-full mb-2 left-12 bg-white/80 dark:bg-slate-900/80 {blur('xl')} border border-gray-200 dark:border-slate-700 shadow-xl rounded-lg overflow-hidden w-64 z-50"
         >
           {#each filteredEmojis as emoji, i}
             <button

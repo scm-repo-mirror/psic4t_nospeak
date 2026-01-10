@@ -15,3 +15,16 @@ export function isAndroidCapacitorShell(): boolean {
 
     return false;
 }
+
+/**
+ * Returns the appropriate backdrop-blur class based on platform.
+ * On Android, backdrop-blur is disabled for scroll performance.
+ * @param level - Blur intensity: 'sm', 'md', or 'xl'
+ * @returns Tailwind backdrop-blur class or empty string on Android
+ */
+export function blur(level: 'sm' | 'md' | 'xl' = 'sm'): string {
+    if (isAndroidCapacitorShell()) {
+        return '';
+    }
+    return `backdrop-blur-${level}`;
+}

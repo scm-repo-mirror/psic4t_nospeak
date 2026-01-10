@@ -209,10 +209,10 @@
   }}
   class:select-none={isAndroidApp}
   class:androidNoCallout={isAndroidApp}
-  class="relative flex flex-col h-full bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-700/70 overflow-hidden"
+  class="relative flex flex-col h-full bg-white/50 dark:bg-slate-900/50 {isAndroidApp ? '' : 'backdrop-blur-sm'} border-r border-gray-200/50 dark:border-slate-700/70 overflow-hidden"
 >
   <div
-    class="absolute top-0 left-0 right-0 z-20 flex flex-col pt-safe bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-slate-700/70 shadow-sm transition-all duration-200"
+    class="absolute top-0 left-0 right-0 z-20 flex flex-col pt-safe bg-white/80 dark:bg-slate-900/80 {isAndroidApp ? '' : 'backdrop-blur-xl'} border-b border-gray-200/50 dark:border-slate-700/70 shadow-sm transition-all duration-200"
   >
     <div class="p-2 h-16 flex items-center justify-between relative">
       {#if $currentUser}
