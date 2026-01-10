@@ -39,6 +39,7 @@
     let networkHistoryStatus = $state<'idle' | 'loading' | 'no-more' | 'error'>('idle');
     let networkHistorySummary = $state<{ eventsFetched: number; messagesSaved: number; messagesForChat: number } | null>(null);
     let lastPartner: string | null = null;
+    let initialLoadDone = false;
 
     const canRequestNetworkHistory = $derived(
         cacheExhausted && networkHistoryStatus !== 'no-more' && networkHistoryStatus !== 'loading'
@@ -176,7 +177,14 @@
          const s = $signer;
          const partner = currentPartner;
          if (!s || !partner) return;
+
+         // Only refresh if partner actually changed or this is the initial load
+         if (initialLoadDone && partner === lastPartner) {
+             return;
+         }
+
          refreshMessagesForCurrentPartner();
+         initialLoadDone = true;
      });
 
      // Consume any pending Android inbound share after contact selection
