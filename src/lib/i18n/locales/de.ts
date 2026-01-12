@@ -53,17 +53,24 @@ const de = {
         authFailedLabel: 'Fehlgeschlagen:'
     },
     sync: {
-         title: 'Nachrichten werden synchronisiert...',
-         fetched: '{count} abgerufen',
-         steps: {
-             connectDiscoveryRelays: 'Verbindung zu Discovery-Relays herstellen',
-             fetchMessagingRelays: 'Messaging-Relays des Nutzers abrufen und zwischenspeichern',
-             connectReadRelays: 'Verbindung zu den Messaging-Relays des Nutzers herstellen',
-             fetchHistory: 'Verlaufseinträge von Relays abrufen und zwischenspeichern',
-             fetchContactProfiles: 'Kontaktprofile und Relay-Informationen abrufen und zwischenspeichern',
-             fetchUserProfile: 'Benutzerprofil abrufen und zwischenspeichern'
-         }
-     },
+        title: 'Nachrichten werden synchronisiert...',
+        fetched: '{count} abgerufen',
+        errorTitle: 'Synchronisierung fehlgeschlagen',
+        timeoutError: 'Zeitüberschreitung nach 5 Minuten',
+        relayErrorsTitle: 'Relay-Fehler',
+        retryButton: 'Erneut versuchen',
+        skipButton: 'Überspringen und fortfahren',
+        continueInBackground: 'Im Hintergrund fortfahren',
+        backgroundComplete: 'Synchronisierung abgeschlossen',
+        steps: {
+            connectDiscoveryRelays: 'Verbindung zu Discovery-Relays herstellen',
+            fetchMessagingRelays: 'Messaging-Relays des Nutzers abrufen und zwischenspeichern',
+            connectReadRelays: 'Verbindung zu den Messaging-Relays des Nutzers herstellen',
+            fetchHistory: 'Verlaufseinträge von Relays abrufen und zwischenspeichern',
+            fetchContactProfiles: 'Kontaktprofile und Relay-Informationen abrufen und zwischenspeichern',
+            fetchUserProfile: 'Benutzerprofil abrufen und zwischenspeichern'
+        }
+    },
 
          modals: {
           manageContacts: {

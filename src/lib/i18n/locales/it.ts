@@ -54,13 +54,20 @@ const it = {
     sync: {
         title: 'Sincronizzazione messaggi...',
         fetched: '{count} recuperati',
+        errorTitle: 'Sincronizzazione fallita',
+        timeoutError: 'Timeout dopo 5 minuti',
+        relayErrorsTitle: 'Errori relay',
+        retryButton: 'Riprova',
+        skipButton: 'Salta e continua',
+        continueInBackground: 'Continua in background',
+        backgroundComplete: 'Sincronizzazione completata',
         steps: {
             connectDiscoveryRelays: 'Connetti ai relays di discovery',
-            fetchMessagingRelays: "Recupera e memorizza nella cache i relays di messaggistica dell’utente",
-            connectReadRelays: "Connetti ai relays di messaggistica dell’utente",
+            fetchMessagingRelays: "Recupera e memorizza nella cache i relays di messaggistica dell'utente",
+            connectReadRelays: "Connetti ai relays di messaggistica dell'utente",
             fetchHistory: 'Recupera e memorizza nella cache la cronologia dai relays',
             fetchContactProfiles: 'Recupera e memorizza nella cache profili dei contatti e info relay',
-            fetchUserProfile: "Recupera e memorizza nella cache il profilo dell’utente"
+            fetchUserProfile: "Recupera e memorizza nella cache il profilo dell'utente"
         }
     },
 

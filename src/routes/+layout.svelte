@@ -34,7 +34,8 @@
    import { initLanguage } from "$lib/stores/language";
    import { isAndroidNative, nativeDialogService } from "$lib/core/NativeDialogs";
    import { initAndroidBackNavigation } from "$lib/core/AndroidBackHandler";
-   import ImageViewerOverlay from "$lib/components/ImageViewerOverlay.svelte";
+    import ImageViewerOverlay from "$lib/components/ImageViewerOverlay.svelte";
+    import Toast from "$lib/components/Toast.svelte";
  
 
    const { showSettingsModal, showManageContactsModal, showEmptyProfileModal, showUserQrModal, showScanContactQrModal, profileModalState, scanContactQrResultState, closeProfileModal, closeScanContactQrResult } = modals;
@@ -373,6 +374,7 @@
      />
  
      <ImageViewerOverlay />
+     <Toast />
    </div>
  {/if}
 

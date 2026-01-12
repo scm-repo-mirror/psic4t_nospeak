@@ -52,17 +52,24 @@ const en = {
         authFailedLabel: 'Failed:'
     },
     sync: {
-         title: 'Syncing messages...',
-         fetched: '{count} fetched',
-         steps: {
-             connectDiscoveryRelays: 'Connect to discovery relays',
-             fetchMessagingRelays: "Fetch and cache user's messaging relays",
-             connectReadRelays: "Connect to user's messaging relays",
-             fetchHistory: 'Fetch and cache history items from relays',
-             fetchContactProfiles: 'Fetch and cache contact profiles and relay info',
-             fetchUserProfile: 'Fetch and cache user profile'
-         }
-     },
+        title: 'Syncing messages...',
+        fetched: '{count} fetched',
+        errorTitle: 'Sync failed',
+        timeoutError: 'Sync timed out after 5 minutes',
+        relayErrorsTitle: 'Relay errors',
+        retryButton: 'Retry',
+        skipButton: 'Skip and continue',
+        continueInBackground: 'Continue in background',
+        backgroundComplete: 'Sync completed',
+        steps: {
+            connectDiscoveryRelays: 'Connect to discovery relays',
+            fetchMessagingRelays: "Fetch and cache user's messaging relays",
+            connectReadRelays: "Connect to user's messaging relays",
+            fetchHistory: 'Fetch and cache history items from relays',
+            fetchContactProfiles: 'Fetch and cache contact profiles and relay info',
+            fetchUserProfile: 'Fetch and cache user profile'
+        }
+    },
 
          modals: {
           manageContacts: {

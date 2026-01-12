@@ -54,6 +54,13 @@ const pt = {
     sync: {
         title: 'A sincronizar mensagens...',
         fetched: '{count} obtidas',
+        errorTitle: 'Sincronização falhou',
+        timeoutError: 'Tempo limite excedido após 5 minutos',
+        relayErrorsTitle: 'Erros de relay',
+        retryButton: 'Tentar novamente',
+        skipButton: 'Saltar e continuar',
+        continueInBackground: 'Continuar em segundo plano',
+        backgroundComplete: 'Sincronização concluída',
         steps: {
             connectDiscoveryRelays: 'Ligar a relays de descoberta',
             fetchMessagingRelays: 'Obter e colocar em cache os relays de mensagens do utilizador',

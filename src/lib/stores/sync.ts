@@ -14,6 +14,12 @@ export interface LoginSyncStep {
     status: 'pending' | 'active' | 'completed';
 }
 
+export interface RelayError {
+    url: string;
+    error: string;
+    step: LoginSyncStepId;
+}
+
 export interface SyncState {
     isSyncing: boolean;
     progress: number;
@@ -21,6 +27,12 @@ export interface SyncState {
     flowActive: boolean;
     steps: LoginSyncStep[];
     currentStepId: LoginSyncStepId | null;
+    hasError: boolean;
+    errorMessage: string | null;
+    relayErrors: RelayError[];
+    canDismiss: boolean;
+    isBackgroundMode: boolean;
+    startedAt: number | null;
 }
 
 const STEP_ORDER: LoginSyncStepId[] = [
@@ -73,7 +85,13 @@ const initialState: SyncState = {
     isFirstSync: false,
     flowActive: false,
     steps: createInitialSteps(),
-    currentStepId: null
+    currentStepId: null,
+    hasError: false,
+    errorMessage: null,
+    relayErrors: [],
+    canDismiss: false,
+    isBackgroundMode: false,
+    startedAt: null
 };
 
 export const syncState = writable<SyncState>(initialState);
@@ -81,8 +99,10 @@ export const syncState = writable<SyncState>(initialState);
 export function beginLoginSyncFlow(isFirstSync: boolean) {
     syncState.set({
         ...initialState,
+        steps: createInitialSteps(),
         isFirstSync,
-        flowActive: true
+        flowActive: true,
+        startedAt: Date.now()
     });
 }
 
@@ -122,7 +142,13 @@ export function completeLoginSyncFlow() {
                 ? { ...step, status: 'completed' as const }
                 : step
         ),
-        currentStepId: null
+        currentStepId: null,
+        hasError: false,
+        errorMessage: null,
+        relayErrors: [],
+        canDismiss: false,
+        isBackgroundMode: false,
+        startedAt: null
     }));
 }
 
@@ -149,4 +175,41 @@ export function endSync() {
         progress: 0,
         isFirstSync: false
     }));
+}
+
+export function setSyncError(message: string) {
+    syncState.update(state => ({
+        ...state,
+        hasError: true,
+        errorMessage: message
+    }));
+}
+
+export function addRelayError(url: string, error: string, step: LoginSyncStepId) {
+    syncState.update(state => ({
+        ...state,
+        relayErrors: [...state.relayErrors, { url, error, step }]
+    }));
+}
+
+export function setCanDismiss(canDismiss: boolean) {
+    syncState.update(state => ({
+        ...state,
+        canDismiss
+    }));
+}
+
+export function setBackgroundMode() {
+    syncState.update(state => ({
+        ...state,
+        isBackgroundMode: true,
+        flowActive: false
+    }));
+}
+
+export function resetSyncFlow() {
+    syncState.set({
+        ...initialState,
+        steps: createInitialSteps()
+    });
 }

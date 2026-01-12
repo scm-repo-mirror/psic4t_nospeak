@@ -208,7 +208,9 @@ The system SHALL initialize relay connections for returning authenticated users 
 - **AND** it prefers kind 10050 messaging relay lists when updating the cached configuration, only using kind 10002 lists when no messaging relay list is published for that profile.
 
 ### Requirement: First-Time Sync Progress Indicator
-The system SHALL display a blocking modal progress indicator during the ordered login and first-time message synchronization flow on both desktop and mobile devices. The indicator SHALL remain visible and blocking until the flow has completed all required steps and SHALL show both the current step label and the number of fetched messages, updating in real time as history sync batches are processed.
+The system SHALL display a blocking modal progress indicator during the ordered login and first-time message synchronization flow on both desktop and mobile devices. The indicator SHALL remain visible and blocking until the flow has completed all required steps, has timed out, or has been dismissed by the user, and SHALL show both the current step label and the number of fetched messages, updating in real time as history sync batches are processed.
+
+The sync flow SHALL enforce a global timeout of 5 minutes. When the timeout is reached, the modal SHALL display an error state showing which relays encountered errors and during which step, along with options to retry or skip. After 2 minutes of sync progress, the modal SHALL offer a "Continue in background" option that dismisses the modal while allowing sync to complete silently; when background sync completes, the system SHALL display a toast notification.
 
 #### Scenario: Ordered login and history sync steps
 - **GIVEN** the user has successfully authenticated but the messaging environment has not yet completed initialization
@@ -238,6 +240,51 @@ The system SHALL display a blocking modal progress indicator during the ordered 
 - **THEN** the system SHALL still execute the ordered login history synchronization flow
 - **AND** steps whose data is already fresh MAY complete quickly or be marked as skipped, but the modal SHALL remain visible until all required steps reach a completed or intentionally skipped state
 - **AND** the user SHALL NOT be able to interact with the main messaging UI until the flow completes and the modal is dismissed.
+
+#### Scenario: Global sync timeout triggers error state
+- **GIVEN** the blocking login history synchronization flow is in progress
+- **WHEN** 5 minutes have elapsed since the flow started without reaching completion
+- **THEN** the sync flow SHALL be aborted
+- **AND** the modal SHALL transition to an error state displaying:
+  - An error title indicating sync failed
+  - A message indicating the sync timed out after 5 minutes
+  - A list of relay errors showing which relay URLs failed and during which step
+- **AND** the modal SHALL display a "Retry" button and a "Skip and continue" button.
+
+#### Scenario: Relay error tracking during sync
+- **GIVEN** the login history synchronization flow is executing a step that involves relay communication
+- **WHEN** a relay fails to connect, times out, or returns an error during that step
+- **THEN** the system SHALL record the relay URL, error message, and current step identifier
+- **AND** these errors SHALL be displayed in the error state UI when the sync fails or times out.
+
+#### Scenario: Retry button restarts sync flow
+- **GIVEN** the sync modal is displaying the error state with "Retry" and "Skip and continue" buttons
+- **WHEN** the user clicks the "Retry" button
+- **THEN** the system SHALL reset the sync state (clearing errors, progress, and step statuses)
+- **AND** SHALL restart the login history synchronization flow from the beginning
+- **AND** the modal SHALL return to the normal progress display.
+
+#### Scenario: Skip button dismisses modal and continues in background
+- **GIVEN** the sync modal is displaying the error state with "Retry" and "Skip and continue" buttons
+- **WHEN** the user clicks the "Skip and continue" button
+- **THEN** the blocking modal overlay SHALL be dismissed immediately
+- **AND** the sync flow SHALL continue executing in the background (if not already terminated)
+- **AND** the main chat interface SHALL become usable
+- **AND** when the background sync completes (successfully or not), a toast notification SHALL be displayed.
+
+#### Scenario: Continue in background option after 2 minutes
+- **GIVEN** the blocking login history synchronization flow is in progress
+- **AND** the modal is displaying normal progress (not error state)
+- **WHEN** 2 minutes have elapsed since the flow started
+- **THEN** the modal SHALL display a "Continue in background" button
+- **AND** clicking this button SHALL dismiss the modal, allow the sync to continue in the background, and display a toast notification when sync completes.
+
+#### Scenario: Toast notification on background sync completion
+- **GIVEN** the user has dismissed the sync modal via "Skip and continue" or "Continue in background"
+- **AND** the sync flow is continuing in the background
+- **WHEN** the background sync flow completes (either successfully or by exhausting retries)
+- **THEN** the system SHALL display a toast notification indicating sync has completed
+- **AND** the toast SHALL auto-dismiss after a short duration (e.g., 4 seconds).
 
 ### Requirement: Real-Time Message Subscription and Deduplication
 When Android background messaging is enabled and delegated to the native Android foreground service, the system SHALL avoid notification floods caused by historical replay while still tolerating backdated gift-wrap timestamps.

@@ -54,6 +54,13 @@ const es = {
     sync: {
         title: 'Sincronizando mensajes...',
         fetched: '{count} recuperados',
+        errorTitle: 'Sincronización fallida',
+        timeoutError: 'Tiempo de espera agotado después de 5 minutos',
+        relayErrorsTitle: 'Errores de relay',
+        retryButton: 'Reintentar',
+        skipButton: 'Omitir y continuar',
+        continueInBackground: 'Continuar en segundo plano',
+        backgroundComplete: 'Sincronización completada',
         steps: {
             connectDiscoveryRelays: 'Conectar a relays de descubrimiento',
             fetchMessagingRelays: "Obtener y guardar en caché los relays de mensajería del usuario",

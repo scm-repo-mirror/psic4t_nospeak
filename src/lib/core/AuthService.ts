@@ -13,11 +13,24 @@ import { profileRepo } from '$lib/db/ProfileRepository';
  import { contactRepo } from '$lib/db/ContactRepository';
 import { profileResolver } from './ProfileResolver';
 import { messageRepo } from '$lib/db/MessageRepository';
-import { beginLoginSyncFlow, completeLoginSyncFlow, setLoginSyncActiveStep } from '$lib/stores/sync';
+import {
+    beginLoginSyncFlow,
+    completeLoginSyncFlow,
+    setLoginSyncActiveStep,
+    setSyncError,
+    addRelayError,
+    setCanDismiss,
+    setBackgroundMode,
+    resetSyncFlow,
+    syncState,
+    type LoginSyncStepId
+} from '$lib/stores/sync';
 import { showEmptyProfileModal } from '$lib/stores/modals';
 import { isAndroidNative } from './NativeDialogs';
 import { notificationService } from './NotificationService';
 import { clearAndroidLocalSecretKey, getAndroidLocalSecretKeyHex, setAndroidLocalSecretKeyHex } from './AndroidLocalSecretKey';
+import { showToast } from '$lib/stores/toast';
+import { get } from 'svelte/store';
 
 // Helper for hex conversion
 function bytesToHex(bytes: Uint8Array): string {
@@ -42,7 +55,13 @@ const NIP46_BUNKER_RELAYS_KEY = 'nospeak:nip46_bunker_relays';
 const SETTINGS_KEY = 'nospeak-settings';
 const NOTIFICATION_PERMISSION_PROMPTED_KEY = 'nospeak_notifications_permission_prompted';
 
+const SYNC_GLOBAL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const SYNC_DISMISS_DELAY_MS = 2 * 60 * 1000; // 2 minutes
+
 export class AuthService {
+    private lastLoginNpub: string | null = null;
+    private lastLoginContext: string = '';
+
     public generateKeypair(): { npub: string; nsec: string } {
         const secret = generateSecretKey();
         const nsec = nip19.nsecEncode(secret);
@@ -180,6 +199,24 @@ export class AuthService {
     }
 
     private async runLoginHistoryFlow(npub: string, context: string): Promise<void> {
+        this.lastLoginNpub = npub;
+        this.lastLoginContext = context;
+
+        let dismissTimer: ReturnType<typeof setTimeout> | null = null;
+        let timeoutTimer: ReturnType<typeof setTimeout> | null = null;
+        let isTimedOut = false;
+
+        const cleanup = () => {
+            if (dismissTimer) {
+                clearTimeout(dismissTimer);
+                dismissTimer = null;
+            }
+            if (timeoutTimer) {
+                clearTimeout(timeoutTimer);
+                timeoutTimer = null;
+            }
+        };
+
         try {
             const existingProfile = await profileRepo.getProfileIgnoreTTL(npub);
             const hasCachedRelays = !!existingProfile && (
@@ -191,90 +228,195 @@ export class AuthService {
 
             beginLoginSyncFlow(isFirstSync);
 
-            if (!hasCachedRelays) {
-                // 1. Connect to discovery relays
-                setLoginSyncActiveStep('connect-discovery-relays');
-                connectionManager.clearAllRelays();
-                for (const url of getDiscoveryRelays()) {
-                    connectionManager.addTemporaryRelay(url);
-                }
-                await new Promise(resolve => setTimeout(resolve, 1000));
+            // Set up dismiss timer (2 minutes)
+            dismissTimer = setTimeout(() => {
+                setCanDismiss(true);
+            }, SYNC_DISMISS_DELAY_MS);
 
-                // 2. Fetch and cache the user's messaging relays
-                setLoginSyncActiveStep('fetch-messaging-relays');
-                await profileResolver.resolveProfile(npub, true);
-            } else {
-                // Treat discovery and relay fetching as effectively complete
-                setLoginSyncActiveStep('connect-discovery-relays');
-                setLoginSyncActiveStep('fetch-messaging-relays');
-            }
+            // Set up global timeout (5 minutes)
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                timeoutTimer = setTimeout(() => {
+                    isTimedOut = true;
+                    reject(new Error('SYNC_TIMEOUT'));
+                }, SYNC_GLOBAL_TIMEOUT_MS);
+            });
 
-            const profile = await profileRepo.getProfileIgnoreTTL(npub);
-            const messagingRelays = profile?.messagingRelays || [];
- 
-            // 3. Connect to user's messaging relays
-            setLoginSyncActiveStep('connect-read-relays');
-            for (const url of messagingRelays) {
-                connectionManager.addPersistentRelay(url);
-            }
+            // Run the actual sync flow
+            const syncPromise = this.runLoginHistoryFlowInternal(npub, context, hasCachedRelays);
 
-
-            // Cleanup discovery relays used during this flow
-            connectionManager.cleanupTemporaryConnections();
-
-            // 4. Fetch and cache history items from relays
-            setLoginSyncActiveStep('fetch-history');
-            await messagingService.fetchHistory();
-
-            // 5. Fetch and cache profile and relay infos for created contacts
-            setLoginSyncActiveStep('fetch-contact-profiles');
-            const contacts = await contactRepo.getContacts();
-            for (const contact of contacts) {
-                try {
-                    await profileResolver.resolveProfile(contact.npub, false);
-                } catch (error) {
-                    console.error(`${context} contact profile refresh failed for ${contact.npub}:`, error);
-                }
-            }
-
-            // 6. Fetch and cache user profile
-            setLoginSyncActiveStep('fetch-user-profile');
-            try {
-                await profileResolver.resolveProfile(npub, false);
-            } catch (error) {
-                console.error(`${context} user profile refresh failed:`, error);
-            }
-
-            try {
-                const finalProfile = await profileRepo.getProfileIgnoreTTL(npub);
-                const hasRelays = !!finalProfile && Array.isArray(finalProfile.messagingRelays) && finalProfile.messagingRelays.length > 0;
- 
-                const metadata = finalProfile?.metadata || {};
-                const hasUsername = !!(metadata.name || metadata.display_name || metadata.nip05);
- 
-                if (!hasRelays && !hasUsername) {
-                    showEmptyProfileModal.set(true);
-                }
-            } catch (profileError) {
-                console.error(`${context} empty profile check failed:`, profileError);
-            }
+            await Promise.race([syncPromise, timeoutPromise]);
 
         } catch (error) {
-             console.error(`${context} login history flow failed:`, error);
-         } finally {
-             completeLoginSyncFlow();
- 
-             // Start app-global message subscriptions once login history flow completes
-             messagingService.startSubscriptionsForCurrentUser().catch(e => {
-                 console.error('Failed to start app-global message subscriptions after login flow:', e);
-             });
- 
-              // Sync Android background messaging with the saved preference once startup flow completes
-              syncAndroidBackgroundMessagingFromPreference().catch(e => {
-                  console.error('Failed to sync Android background messaging preference after login flow:', e);
-              });
-          }
-      }
+            const state = get(syncState);
+            const errorMessage = isTimedOut
+                ? 'Sync timed out after 5 minutes'
+                : (error instanceof Error ? error.message : 'Sync failed');
+
+            console.error(`${context} login history flow failed:`, error);
+
+            // Only show error UI if not in background mode
+            if (!state.isBackgroundMode) {
+                setSyncError(errorMessage);
+            }
+            return; // Don't complete flow if there's an error - let user retry or skip
+        } finally {
+            cleanup();
+
+            const state = get(syncState);
+
+            // If we're in background mode, show toast and complete
+            if (state.isBackgroundMode) {
+                showToast('Sync completed', 'success');
+                completeLoginSyncFlow();
+                this.startPostSyncServices();
+            } else if (!state.hasError) {
+                // Normal completion
+                completeLoginSyncFlow();
+                this.startPostSyncServices();
+            }
+            // If hasError, we leave the modal open for retry/skip
+        }
+    }
+
+    private async runLoginHistoryFlowInternal(
+        npub: string,
+        context: string,
+        hasCachedRelays: boolean
+    ): Promise<void> {
+        const trackRelayError = (url: string, error: unknown, step: LoginSyncStepId) => {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            addRelayError(url, errorMsg, step);
+            console.error(`${context} relay error on ${url} during ${step}:`, error);
+        };
+
+        if (!hasCachedRelays) {
+            // 1. Connect to discovery relays
+            setLoginSyncActiveStep('connect-discovery-relays');
+            connectionManager.clearAllRelays();
+            for (const url of getDiscoveryRelays()) {
+                try {
+                    connectionManager.addTemporaryRelay(url);
+                } catch (error) {
+                    trackRelayError(url, error, 'connect-discovery-relays');
+                }
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // 2. Fetch and cache the user's messaging relays
+            setLoginSyncActiveStep('fetch-messaging-relays');
+            try {
+                await profileResolver.resolveProfile(npub, true);
+            } catch (error) {
+                console.error(`${context} failed to fetch messaging relays:`, error);
+                // Continue anyway - we might have partial data
+            }
+        } else {
+            // Treat discovery and relay fetching as effectively complete
+            setLoginSyncActiveStep('connect-discovery-relays');
+            setLoginSyncActiveStep('fetch-messaging-relays');
+        }
+
+        const profile = await profileRepo.getProfileIgnoreTTL(npub);
+        const messagingRelays = profile?.messagingRelays || [];
+
+        // 3. Connect to user's messaging relays
+        setLoginSyncActiveStep('connect-read-relays');
+        for (const url of messagingRelays) {
+            try {
+                connectionManager.addPersistentRelay(url);
+            } catch (error) {
+                trackRelayError(url, error, 'connect-read-relays');
+            }
+        }
+
+        // Cleanup discovery relays used during this flow
+        connectionManager.cleanupTemporaryConnections();
+
+        // 4. Fetch and cache history items from relays
+        setLoginSyncActiveStep('fetch-history');
+        try {
+            await messagingService.fetchHistory();
+        } catch (error) {
+            console.error(`${context} history fetch failed:`, error);
+            // Track as generic relay error
+            addRelayError('relays', error instanceof Error ? error.message : 'History fetch failed', 'fetch-history');
+        }
+
+        // 5. Fetch and cache profile and relay infos for created contacts
+        setLoginSyncActiveStep('fetch-contact-profiles');
+        const contacts = await contactRepo.getContacts();
+        for (const contact of contacts) {
+            try {
+                await profileResolver.resolveProfile(contact.npub, false);
+            } catch (error) {
+                console.error(`${context} contact profile refresh failed for ${contact.npub}:`, error);
+            }
+        }
+
+        // 6. Fetch and cache user profile
+        setLoginSyncActiveStep('fetch-user-profile');
+        try {
+            await profileResolver.resolveProfile(npub, false);
+        } catch (error) {
+            console.error(`${context} user profile refresh failed:`, error);
+        }
+
+        try {
+            const finalProfile = await profileRepo.getProfileIgnoreTTL(npub);
+            const hasRelays = !!finalProfile && Array.isArray(finalProfile.messagingRelays) && finalProfile.messagingRelays.length > 0;
+
+            const metadata = finalProfile?.metadata || {};
+            const hasUsername = !!(metadata.name || metadata.display_name || metadata.nip05);
+
+            if (!hasRelays && !hasUsername) {
+                showEmptyProfileModal.set(true);
+            }
+        } catch (profileError) {
+            console.error(`${context} empty profile check failed:`, profileError);
+        }
+    }
+
+    private startPostSyncServices(): void {
+        // Start app-global message subscriptions once login history flow completes
+        messagingService.startSubscriptionsForCurrentUser().catch(e => {
+            console.error('Failed to start app-global message subscriptions after login flow:', e);
+        });
+
+        // Sync Android background messaging with the saved preference once startup flow completes
+        syncAndroidBackgroundMessagingFromPreference().catch(e => {
+            console.error('Failed to sync Android background messaging preference after login flow:', e);
+        });
+    }
+
+    public async retrySyncFlow(): Promise<void> {
+        if (!this.lastLoginNpub) {
+            console.error('Cannot retry sync: no previous login npub');
+            return;
+        }
+
+        resetSyncFlow();
+        await this.runLoginHistoryFlow(this.lastLoginNpub, this.lastLoginContext || 'Retry');
+    }
+
+    public skipSyncAndContinue(): void {
+        const state = get(syncState);
+
+        // Mark as background mode - sync continues but modal closes
+        setBackgroundMode();
+
+        // If there was an error, we need to complete the flow
+        if (state.hasError) {
+            completeLoginSyncFlow();
+        }
+
+        // Start post-sync services anyway
+        this.startPostSyncServices();
+
+        // Show toast when done (if sync is still running, it will show when it completes)
+        if (state.hasError) {
+            showToast('Sync skipped', 'info');
+        }
+    }
 
 
     public async restore(): Promise<boolean> {
