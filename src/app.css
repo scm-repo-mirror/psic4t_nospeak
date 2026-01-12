@@ -85,6 +85,12 @@
     touch-action: pan-y;
     transform: translateZ(0);
  }
+
+ /* Prevent long unbroken strings from overflowing message bubbles */
+ .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+ }
  
 .android-safe-area-top {
     padding-top: env(safe-area-inset-top);

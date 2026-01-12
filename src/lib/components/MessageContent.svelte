@@ -490,7 +490,7 @@
     }
  </script>
  
- <div bind:this={container} class={`whitespace-pre-wrap break-words leading-relaxed ${isSingleEmoji ? 'text-4xl' : ''}`}>
+ <div bind:this={container} class={`whitespace-pre-wrap break-anywhere leading-relaxed ${isSingleEmoji ? 'text-4xl' : ''}`}>
 
      {#if location}
          <div class="my-1">
@@ -653,7 +653,7 @@
          {/each}
 
          {#if preview}
-            <div class="mt-2 mb-1 overflow-hidden">
+            <div class="mt-2 mb-1 overflow-hidden break-anywhere">
                 <a
                     href={preview.url}
                     target="_blank"
