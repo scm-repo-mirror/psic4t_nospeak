@@ -1372,7 +1372,7 @@
 
   {#if partnerNpub}
     <div
-      class="absolute top-0 left-0 right-0 z-20 p-2 pt-safe min-h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 {blur('xl')} shadow-sm transition-all duration-150 ease-out"
+      class="absolute top-0 left-0 right-0 z-20 p-2 pt-safe min-h-16 border-b border-gray-200/50 dark:border-slate-700/70 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm transition-all duration-150 ease-out"
     >
       <div class="flex items-center gap-3">
         <button 
@@ -1682,7 +1682,7 @@
   </div>
 
   <div
-    class="absolute bottom-0 left-0 right-0 z-20 p-4 p-4-safe-bottom border-t border-gray-200/50 dark:border-slate-700/70 bg-white/80 dark:bg-slate-900/80 {blur('xl')} shadow-lg transition-all duration-150 ease-out"
+    class="absolute bottom-0 left-0 right-0 z-20 p-4 p-4-safe-bottom border-t border-gray-200/50 dark:border-slate-700/70 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-lg transition-all duration-150 ease-out"
   >
     <form
       onsubmit={(e) => {
