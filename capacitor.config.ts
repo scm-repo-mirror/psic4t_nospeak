@@ -26,6 +26,9 @@ const config: CapacitorConfig = {
       disableBackButtonHandler: false,
     },
     AndroidUnifiedPush: {},
+    SystemBars: {
+      insetsHandling: 'css',
+    },
   },
 };
 
