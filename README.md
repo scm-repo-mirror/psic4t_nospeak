@@ -3,7 +3,7 @@
 nospeak is a decentralized Nostr chat client for secure, private messaging. It is easy to
 use but has state of the art end-to-end encryption without metadata leakage. 
 
-Use https://nospeak.chat or download the APK for Android
+Install on Android over [F-Droid](https://fdroid.org), [Obtainium](https://github.com/ImranR98/Obtainium) or [Zapstore](https://github.com/zapstore/zapstore/releases). or use the Progressive Web App on https://nospeak.chat
 
 ## Features
 
