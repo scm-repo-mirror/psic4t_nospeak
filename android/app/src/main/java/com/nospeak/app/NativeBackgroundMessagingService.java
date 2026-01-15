@@ -439,6 +439,16 @@ public class NativeBackgroundMessagingService extends Service {
         if (ACTION_SET_ACTIVE_CONVERSATION.equals(action)) {
             String pubkey = intent.getStringExtra(EXTRA_ACTIVE_CONVERSATION_PUBKEY);
             activeConversationPubkeyHex = (pubkey != null && !pubkey.isEmpty()) ? pubkey : null;
+
+            // Cancel existing notification for this conversation when user opens the chat
+            if (activeConversationPubkeyHex != null) {
+                NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (manager != null) {
+                    int notificationId = Math.abs(activeConversationPubkeyHex.hashCode());
+                    manager.cancel(notificationId);
+                }
+            }
+
             return START_STICKY;
         }
 
