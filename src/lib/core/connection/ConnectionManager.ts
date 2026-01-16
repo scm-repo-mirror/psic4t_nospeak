@@ -389,9 +389,10 @@ export class ConnectionManager {
 
         void (async () => {
             const authenticated = await this.authenticateRelay(url);
-            if (authenticated && health.relay) {
-                // Re-apply subscriptions after successful auth
-                this.applySubscriptionsToRelay(health.relay);
+            // Re-fetch health after async operation - relay state may have changed
+            const currentHealth = this.relays.get(url);
+            if (authenticated && currentHealth?.relay && currentHealth.isConnected) {
+                this.applySubscriptionsToRelay(currentHealth.relay);
             }
         })();
     }
@@ -897,10 +898,7 @@ export class ConnectionManager {
                 resolve(events);
             }, timeoutMs);
 
-            // Track which relays have attempted auth to prevent infinite loops
-            const authAttempted = new Set<string>();
-
-            const subscribeToRelay = (relay: Relay) => {
+            for (const relay of connectedRelays) {
                 try {
                     const sub = relay.subscribe(filters, {
                         onevent(event) {
@@ -911,31 +909,6 @@ export class ConnectionManager {
                         },
                         oneose() {
                             checkCompletion();
-                        },
-                        onclose: (reason: string) => {
-                            // Handle auth-required closure
-                            if (typeof reason === 'string' && reason.startsWith('auth-required')) {
-                                this.markRelayAuthRequired(relay.url);
-
-                                // Only attempt auth once per relay per fetch
-                                if (authAttempted.has(relay.url)) {
-                                    checkCompletion();
-                                    return;
-                                }
-                                authAttempted.add(relay.url);
-
-                                // Attempt authentication and retry subscription
-                                void (async () => {
-                                    const authenticated = await this.authenticateRelay(relay.url);
-                                    if (authenticated) {
-                                        subscribeToRelay(relay);
-                                    } else {
-                                        checkCompletion();
-                                    }
-                                })();
-                            } else {
-                                checkCompletion();
-                            }
                         }
                     });
                     subs.push({ sub, relay: relay.url });
@@ -943,10 +916,6 @@ export class ConnectionManager {
                     console.error(`Fetch failed on ${relay.url}`, e);
                     checkCompletion();
                 }
-            };
-
-            for (const relay of connectedRelays) {
-                subscribeToRelay(relay);
             }
         });
     }
