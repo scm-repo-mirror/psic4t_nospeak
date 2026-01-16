@@ -1,18 +1,8 @@
-import { Capacitor } from '@capacitor/core';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 
 export async function configureAndroidStatusBar(): Promise<void> {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    try {
-        if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
-            await StatusBar.setOverlaysWebView({ overlay: true });
-        }
-    } catch (error) {
-        console.warn('Failed to configure Android status bar', error);
-    }
+    // Edge-to-edge is now automatic in Android 15+ / Capacitor 8
+    // No configuration needed on startup
 }
 
 export async function syncAndroidStatusBarTheme(isDark: boolean): Promise<void> {
@@ -22,12 +12,11 @@ export async function syncAndroidStatusBarTheme(isDark: boolean): Promise<void> 
 
     try {
         if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
-            // Status bar is transparent (overlay mode), only set icon style
-            await StatusBar.setStyle({
-                style: isDark ? Style.Dark : Style.Light
+            await SystemBars.setStyle({
+                style: isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light
             });
         }
     } catch (error) {
-        console.warn('Failed to sync Android status bar theme', error);
+        console.warn('Failed to sync Android system bars theme', error);
     }
 }

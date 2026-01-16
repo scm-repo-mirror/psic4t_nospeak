@@ -28,19 +28,19 @@ def nospeakVersionCode = packageJson?.versionCode ?: 1
 def nospeakVersionName = "v${packageVersion}"
 
 android {
-    namespace "com.nospeak.app"
-    compileSdk rootProject.ext.compileSdkVersion
+    namespace = "com.nospeak.app"
+    compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.nospeak.app"
+        applicationId = "com.nospeak.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode nospeakVersionCode
-        versionName nospeakVersionName
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = nospeakVersionCode
+        versionName = nospeakVersionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
 
@@ -64,12 +64,12 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 
             def releaseSigningConfig = signingConfigs.findByName("release")
             if (releaseSigningConfig != null && releaseSigningConfig.storeFile != null) {
-                signingConfig releaseSigningConfig
+                signingConfig = releaseSigningConfig
             }
         }
     }
