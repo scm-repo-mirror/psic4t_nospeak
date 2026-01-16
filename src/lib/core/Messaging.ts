@@ -401,12 +401,12 @@ import { getMediaPreviewLabel } from '$lib/utils/mediaPreview';
         const shouldPersistUnread = !isActivelyViewingConversation(partnerNpub);
         if (shouldPersistUnread) {
           addUnreadReaction(user.npub, partnerNpub, originalEventId);
-        }
 
-        try {
-          await contactRepo.markActivity(partnerNpub, rumor.created_at * 1000);
-        } catch (activityError) {
-          console.error('Failed to mark contact activity for reaction:', activityError);
+          try {
+            await contactRepo.markActivity(partnerNpub, rumor.created_at * 1000);
+          } catch (activityError) {
+            console.error('Failed to mark contact activity for reaction:', activityError);
+          }
         }
 
         // Don't show notifications for reactions during history sync
