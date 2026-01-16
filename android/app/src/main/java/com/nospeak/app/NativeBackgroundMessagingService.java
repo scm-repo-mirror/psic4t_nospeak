@@ -168,6 +168,12 @@ public class NativeBackgroundMessagingService extends Service {
     private Handler handler;
     private boolean serviceRunning = false;
 
+    // NIP-42 authentication state
+    private final Map<String, String> relayChallenges = new HashMap<>();      // relayUrl -> challenge
+    private final Map<String, String> relayAuthStatus = new HashMap<>();      // relayUrl -> status (none, required, pending, authenticated, failed)
+    private final Map<String, String> pendingAuthEventIds = new HashMap<>();  // eventId -> relayUrl
+    private final Set<String> authRetryScheduled = new HashSet<>();           // relayUrls with pending retry
+
     private OkHttpClient buildOkHttpClient(int pingSeconds) {
         return new OkHttpClient.Builder()
                 .pingInterval(pingSeconds, TimeUnit.SECONDS)
@@ -592,6 +598,11 @@ public class NativeBackgroundMessagingService extends Service {
                     activeSockets.put(relayUrl, webSocket);
                 }
                 retryAttempts.put(relayUrl, 0);
+
+                // Initialize NIP-42 auth state for this relay
+                relayAuthStatus.put(relayUrl, "none");
+                relayChallenges.remove(relayUrl);
+                authRetryScheduled.remove(relayUrl);
  
                 try {
                     JSONArray filters = new JSONArray();
@@ -622,12 +633,12 @@ public class NativeBackgroundMessagingService extends Service {
  
             @Override
             public void onMessage(WebSocket webSocket, String text) {
-                handleNostrMessage(webSocket, text);
+                handleNostrMessage(relayUrl, webSocket, text);
             }
  
             @Override
             public void onMessage(WebSocket webSocket, ByteString bytes) {
-                handleNostrMessage(webSocket, bytes.utf8());
+                handleNostrMessage(relayUrl, webSocket, bytes.utf8());
             }
  
             @Override
@@ -656,6 +667,13 @@ public class NativeBackgroundMessagingService extends Service {
                 activeSockets.remove(relayUrl);
             }
         }
+
+        // Clear NIP-42 auth state for this relay
+        relayChallenges.remove(relayUrl);
+        relayAuthStatus.remove(relayUrl);
+        authRetryScheduled.remove(relayUrl);
+        // Clean up any pending auth event IDs for this relay
+        pendingAuthEventIds.values().removeIf(url -> url.equals(relayUrl));
 
         if (isDebugBuild()) {
             String suffix = detail != null && !detail.trim().isEmpty() ? (" (" + detail + ")") : "";
@@ -688,7 +706,7 @@ public class NativeBackgroundMessagingService extends Service {
     }
 
 
-    private void handleNostrMessage(WebSocket socket, String text) {
+    private void handleNostrMessage(String relayUrl, WebSocket socket, String text) {
         try {
             JSONArray arr = new JSONArray(text);
             if (arr.length() < 2) return;
@@ -696,6 +714,38 @@ public class NativeBackgroundMessagingService extends Service {
             String type = arr.optString(0, "");
 
             if ("EOSE".equals(type)) {
+                return;
+            }
+
+            // Handle NIP-42 AUTH challenge from relay
+            if ("AUTH".equals(type)) {
+                String challenge = arr.optString(1, null);
+                if (challenge != null && !challenge.isEmpty()) {
+                    relayChallenges.put(relayUrl, challenge);
+                }
+                return;
+            }
+
+            // Handle CLOSED message - check for auth-required
+            if ("CLOSED".equals(type) && arr.length() >= 3) {
+                String reason = arr.optString(2, "");
+                if (reason != null && reason.startsWith("auth-required:")) {
+                    relayAuthStatus.put(relayUrl, "required");
+                    attemptAuthentication(relayUrl, socket);
+                }
+                return;
+            }
+
+            // Handle OK message - check for auth event confirmation
+            if ("OK".equals(type) && arr.length() >= 3) {
+                String eventId = arr.optString(1, null);
+                boolean success = arr.optBoolean(2, false);
+                if (eventId != null && pendingAuthEventIds.containsKey(eventId)) {
+                    String authRelayUrl = pendingAuthEventIds.remove(eventId);
+                    if (authRelayUrl != null && authRelayUrl.equals(relayUrl)) {
+                        handleAuthResponse(relayUrl, socket, success);
+                    }
+                }
                 return;
             }
  
@@ -1874,6 +1924,393 @@ public class NativeBackgroundMessagingService extends Service {
         }
         return out;
     }
+
+    // ========== NIP-42 Authentication Methods ==========
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b & 0xff));
+        }
+        return sb.toString();
+    }
+
+    private static byte[] sha256Bytes(byte[] input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(input);
+        } catch (NoSuchAlgorithmException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Serialize event for ID computation per NIP-01.
+     * Returns JSON array: [0, pubkey, created_at, kind, tags, content]
+     */
+    private static String serializeEventForId(JSONObject event) throws JSONException {
+        JSONArray arr = new JSONArray();
+        arr.put(0);
+        arr.put(event.getString("pubkey"));
+        arr.put(event.getLong("created_at"));
+        arr.put(event.getInt("kind"));
+        arr.put(event.getJSONArray("tags"));
+        arr.put(event.getString("content"));
+        return arr.toString();
+    }
+
+    /**
+     * Build unsigned kind 22242 AUTH event for NIP-42.
+     */
+    private String buildAuthEvent(String relayUrl, String challenge) {
+        if (currentPubkeyHex == null || currentPubkeyHex.isEmpty()) {
+            return null;
+        }
+
+        try {
+            long createdAt = System.currentTimeMillis() / 1000L;
+
+            JSONArray tags = new JSONArray();
+            tags.put(new JSONArray().put("relay").put(relayUrl));
+            tags.put(new JSONArray().put("challenge").put(challenge));
+
+            JSONObject event = new JSONObject();
+            event.put("kind", 22242);
+            event.put("created_at", createdAt);
+            event.put("tags", tags);
+            event.put("content", "");
+            event.put("pubkey", currentPubkeyHex);
+
+            return event.toString();
+        } catch (JSONException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Sign an event - dispatches to local or amber signer based on mode.
+     */
+    private String signEvent(String unsignedEventJson) {
+        if ("amber".equalsIgnoreCase(currentMode)) {
+            return amberSignEvent(unsignedEventJson);
+        }
+        if ("nsec".equalsIgnoreCase(currentMode)) {
+            return localSignEvent(unsignedEventJson);
+        }
+        return null;
+    }
+
+    /**
+     * Sign event using Amber via NIP-55 ContentResolver.
+     */
+    private String amberSignEvent(String unsignedEventJson) {
+        try {
+            ContentResolver resolver = getContentResolver();
+            Uri uri = Uri.parse("content://com.greenart7c3.nostrsigner.SIGN_EVENT");
+            String[] projection = new String[]{unsignedEventJson, "", currentPubkeyHex};
+            Cursor cursor = resolver.query(uri, projection, null, null, null);
+            if (cursor == null) {
+                return null;
+            }
+            try {
+                int rejectedIndex = cursor.getColumnIndex("rejected");
+                if (rejectedIndex >= 0) {
+                    return null;
+                }
+                if (!cursor.moveToFirst()) {
+                    return null;
+                }
+                int eventIndex = cursor.getColumnIndex("event");
+                if (eventIndex < 0) {
+                    return null;
+                }
+                return cursor.getString(eventIndex);
+            } finally {
+                cursor.close();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Sign event locally using nsec (BIP-340 Schnorr signature).
+     */
+    private String localSignEvent(String unsignedEventJson) {
+        if (localSecretKey == null || localSecretKey.length != 32) {
+            return null;
+        }
+
+        try {
+            JSONObject event = new JSONObject(unsignedEventJson);
+
+            // Compute event ID (SHA-256 of serialized event)
+            String serialized = serializeEventForId(event);
+            byte[] idBytes = sha256Bytes(serialized.getBytes(StandardCharsets.UTF_8));
+            if (idBytes == null) {
+                return null;
+            }
+            String id = bytesToHex(idBytes);
+
+            // Sign with Schnorr (BIP-340)
+            byte[] sig = schnorrSign(idBytes, localSecretKey);
+            if (sig == null) {
+                return null;
+            }
+            String sigHex = bytesToHex(sig);
+
+            // Add id and sig to event
+            event.put("id", id);
+            event.put("sig", sigHex);
+
+            return event.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * BIP-340 Schnorr signature using BouncyCastle.
+     */
+    private static byte[] schnorrSign(byte[] message, byte[] privateKey) {
+        try {
+            X9ECParameters params = SECNamedCurves.getByName("secp256k1");
+            if (params == null) {
+                return null;
+            }
+            BigInteger n = params.getN();
+            ECPoint G = params.getG();
+
+            BigInteger d = new BigInteger(1, privateKey);
+            ECPoint P = G.multiply(d).normalize();
+
+            // If P.y is odd, negate d
+            if (P.getAffineYCoord().testBitZero()) {
+                d = n.subtract(d);
+            }
+
+            byte[] pBytes = P.getAffineXCoord().getEncoded();
+            if (pBytes.length > 32) {
+                pBytes = Arrays.copyOfRange(pBytes, pBytes.length - 32, pBytes.length);
+            } else if (pBytes.length < 32) {
+                byte[] tmp = new byte[32];
+                System.arraycopy(pBytes, 0, tmp, 32 - pBytes.length, pBytes.length);
+                pBytes = tmp;
+            }
+
+            // Generate deterministic nonce per BIP-340
+            byte[] dBytes = bigIntTo32Bytes(d);
+            byte[] aux = sha256Bytes(dBytes);
+            if (aux == null) return null;
+
+            byte[] t = xorBytes(aux, sha256Bytes(concat(dBytes, pBytes, message)));
+            if (t == null) return null;
+
+            byte[] kHash = sha256Bytes(concat(t, pBytes, message));
+            if (kHash == null) return null;
+
+            BigInteger k = new BigInteger(1, kHash).mod(n);
+            if (k.equals(BigInteger.ZERO)) {
+                return null;
+            }
+
+            ECPoint R = G.multiply(k).normalize();
+
+            // If R.y is odd, negate k
+            if (R.getAffineYCoord().testBitZero()) {
+                k = n.subtract(k);
+            }
+
+            byte[] rBytes = R.getAffineXCoord().getEncoded();
+            if (rBytes.length > 32) {
+                rBytes = Arrays.copyOfRange(rBytes, rBytes.length - 32, rBytes.length);
+            } else if (rBytes.length < 32) {
+                byte[] tmp = new byte[32];
+                System.arraycopy(rBytes, 0, tmp, 32 - rBytes.length, rBytes.length);
+                rBytes = tmp;
+            }
+
+            // e = sha256(R.x || P.x || m) mod n
+            byte[] eHash = sha256Bytes(concat(rBytes, pBytes, message));
+            if (eHash == null) return null;
+
+            BigInteger e = new BigInteger(1, eHash).mod(n);
+
+            // s = (k + e * d) mod n
+            BigInteger s = k.add(e.multiply(d)).mod(n);
+
+            // Signature is R.x || s (64 bytes)
+            byte[] sig = new byte[64];
+            System.arraycopy(rBytes, 0, sig, 0, 32);
+            byte[] sBytes = bigIntTo32Bytes(s);
+            System.arraycopy(sBytes, 0, sig, 32, 32);
+
+            return sig;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static byte[] bigIntTo32Bytes(BigInteger val) {
+        byte[] bytes = val.toByteArray();
+        if (bytes.length == 32) {
+            return bytes;
+        }
+        if (bytes.length > 32) {
+            return Arrays.copyOfRange(bytes, bytes.length - 32, bytes.length);
+        }
+        byte[] out = new byte[32];
+        System.arraycopy(bytes, 0, out, 32 - bytes.length, bytes.length);
+        return out;
+    }
+
+    private static byte[] xorBytes(byte[] a, byte[] b) {
+        if (a == null || b == null || a.length != b.length) {
+            return null;
+        }
+        byte[] out = new byte[a.length];
+        for (int i = 0; i < a.length; i++) {
+            out[i] = (byte) (a[i] ^ b[i]);
+        }
+        return out;
+    }
+
+    /**
+     * Attempt NIP-42 authentication with a relay.
+     */
+    private void attemptAuthentication(String relayUrl, WebSocket socket) {
+        String challenge = relayChallenges.get(relayUrl);
+        if (challenge == null || challenge.isEmpty()) {
+            relayAuthStatus.put(relayUrl, "failed");
+            return;
+        }
+
+        if (currentPubkeyHex == null || currentPubkeyHex.isEmpty()) {
+            relayAuthStatus.put(relayUrl, "failed");
+            return;
+        }
+
+        relayAuthStatus.put(relayUrl, "pending");
+
+        // Build unsigned AUTH event
+        String unsignedEventJson = buildAuthEvent(relayUrl, challenge);
+        if (unsignedEventJson == null) {
+            relayAuthStatus.put(relayUrl, "failed");
+            scheduleAuthRetry(relayUrl);
+            return;
+        }
+
+        // Sign the event
+        String signedEventJson = signEvent(unsignedEventJson);
+        if (signedEventJson == null) {
+            relayAuthStatus.put(relayUrl, "failed");
+            scheduleAuthRetry(relayUrl);
+            return;
+        }
+
+        // Extract event ID for tracking
+        try {
+            JSONObject signedEvent = new JSONObject(signedEventJson);
+            String eventId = signedEvent.optString("id", null);
+            if (eventId != null) {
+                pendingAuthEventIds.put(eventId, relayUrl);
+            }
+        } catch (JSONException e) {
+            // Continue anyway
+        }
+
+        // Send AUTH message
+        try {
+            JSONArray authMsg = new JSONArray();
+            authMsg.put("AUTH");
+            authMsg.put(new JSONObject(signedEventJson));
+            socket.send(authMsg.toString());
+        } catch (JSONException e) {
+            relayAuthStatus.put(relayUrl, "failed");
+            scheduleAuthRetry(relayUrl);
+        }
+    }
+
+    /**
+     * Handle AUTH response (OK message).
+     */
+    private void handleAuthResponse(String relayUrl, WebSocket socket, boolean success) {
+        if (success) {
+            relayAuthStatus.put(relayUrl, "authenticated");
+            authRetryScheduled.remove(relayUrl);
+            // Re-subscribe after successful auth
+            resubscribeToRelay(relayUrl, socket);
+        } else {
+            relayAuthStatus.put(relayUrl, "failed");
+            scheduleAuthRetry(relayUrl);
+        }
+    }
+
+    /**
+     * Schedule a single auth retry after 5 seconds.
+     */
+    private void scheduleAuthRetry(String relayUrl) {
+        if (handler == null || !serviceRunning) {
+            return;
+        }
+
+        // Only retry once per relay
+        if (authRetryScheduled.contains(relayUrl)) {
+            return;
+        }
+        authRetryScheduled.add(relayUrl);
+
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (!serviceRunning) {
+                    return;
+                }
+
+                WebSocket socket;
+                synchronized (activeSockets) {
+                    socket = activeSockets.get(relayUrl);
+                }
+                if (socket == null) {
+                    return;
+                }
+
+                String status = relayAuthStatus.get(relayUrl);
+                if ("failed".equals(status) || "required".equals(status)) {
+                    attemptAuthentication(relayUrl, socket);
+                }
+            }
+        }, 5000L);
+    }
+
+    /**
+     * Re-subscribe to relay after successful authentication.
+     */
+    private void resubscribeToRelay(String relayUrl, WebSocket socket) {
+        if (currentPubkeyHex == null || currentPubkeyHex.isEmpty()) {
+            return;
+        }
+
+        try {
+            JSONObject filter = new JSONObject();
+            filter.put("kinds", new JSONArray().put(1059));
+
+            JSONArray pTag = new JSONArray();
+            pTag.put(currentPubkeyHex);
+            filter.put("#p", pTag);
+
+            JSONArray req = new JSONArray();
+            req.put("REQ");
+            req.put("nospeak-native-bg");
+            req.put(filter);
+
+            socket.send(req.toString());
+        } catch (JSONException e) {
+            // Ignore
+        }
+    }
+
+    // ========== End NIP-42 Authentication Methods ==========
 
     private String amberNip44Decrypt(String ciphertext, String senderPubkeyHex, String currentUserPubkeyHex) {
         try {

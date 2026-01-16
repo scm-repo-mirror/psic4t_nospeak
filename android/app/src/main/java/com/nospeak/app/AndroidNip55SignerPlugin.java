@@ -50,11 +50,12 @@ public class AndroidNip55SignerPlugin extends Plugin {
         // - kind 0  (metadata)
         // - kind 13 (gift wrap seals)
         // - kind 10050 (NIP-17 messaging relays)
+        // - kind 22242 (NIP-42 relay authentication)
         // - kind 27235 (NIP-98 upload auth)
         // and use nip44 encrypt/decrypt for messaging.
         // The structure follows NIP-55's suggested "permissions" extra.
         String permissionsJson = "[" +
-                "{\"type\":\"sign_event\",\"kinds\":[0,13,10050,27235]}," +
+                "{\"type\":\"sign_event\",\"kinds\":[0,13,10050,22242,27235]}," +
                 "{\"type\":\"nip44_encrypt\"}," +
                 "{\"type\":\"nip44_decrypt\"}" +
                 "]";

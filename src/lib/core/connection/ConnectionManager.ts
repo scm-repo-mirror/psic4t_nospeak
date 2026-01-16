@@ -348,9 +348,52 @@ export class ConnectionManager {
                     if (health.type === ConnectionType.Persistent) {
                         this.handleReconnection(url);
                     }
+                } else {
+                    // Socket is open but may need re-authentication after background.
+                    // Proactively re-authenticate relays that require auth to avoid
+                    // missing messages while waiting for reactive auth-required close.
+                    this.reauthenticateIfNeeded(url, health.relay);
                 }
             }
         }
+    }
+
+    /**
+     * Proactively re-authenticate a relay if it previously required auth.
+     * This avoids the gap where messages are missed between subscription open
+     * and the relay's auth-required close response.
+     */
+    private reauthenticateIfNeeded(url: string, relay: Relay) {
+        const health = this.relays.get(url);
+        if (!health) return;
+
+        // Only re-auth if we know this relay requires authentication
+        if (health.authStatus !== 'required' && health.authStatus !== 'authenticated') {
+            return;
+        }
+
+        // If already authenticated and subscriptions exist, we're good
+        if (health.authStatus === 'authenticated') {
+            // Check if subscriptions are active for this relay
+            let hasActiveSubscription = false;
+            for (const sub of this.subscriptions) {
+                if (sub.subMap.has(url)) {
+                    hasActiveSubscription = true;
+                    break;
+                }
+            }
+            if (hasActiveSubscription) return;
+        }
+
+        if (this.debug) console.log(`Proactively re-authenticating ${url} after visibility change`);
+
+        void (async () => {
+            const authenticated = await this.authenticateRelay(url);
+            if (authenticated && health.relay) {
+                // Re-apply subscriptions after successful auth
+                this.applySubscriptionsToRelay(health.relay);
+            }
+        })();
     }
 
     private startPingLoop() {
@@ -532,6 +575,9 @@ export class ConnectionManager {
                 }
                 sub.subMap.delete(url);
             }
+            // Clear auth retry state so this relay can attempt auth again on reconnect.
+            // Without this, a relay that failed auth once would never retry.
+            sub.authRetryMap.delete(url);
         }
     }
 
@@ -851,7 +897,10 @@ export class ConnectionManager {
                 resolve(events);
             }, timeoutMs);
 
-            for (const relay of connectedRelays) {
+            // Track which relays have attempted auth to prevent infinite loops
+            const authAttempted = new Set<string>();
+
+            const subscribeToRelay = (relay: Relay) => {
                 try {
                     const sub = relay.subscribe(filters, {
                         onevent(event) {
@@ -862,6 +911,31 @@ export class ConnectionManager {
                         },
                         oneose() {
                             checkCompletion();
+                        },
+                        onclose: (reason: string) => {
+                            // Handle auth-required closure
+                            if (typeof reason === 'string' && reason.startsWith('auth-required')) {
+                                this.markRelayAuthRequired(relay.url);
+
+                                // Only attempt auth once per relay per fetch
+                                if (authAttempted.has(relay.url)) {
+                                    checkCompletion();
+                                    return;
+                                }
+                                authAttempted.add(relay.url);
+
+                                // Attempt authentication and retry subscription
+                                void (async () => {
+                                    const authenticated = await this.authenticateRelay(relay.url);
+                                    if (authenticated) {
+                                        subscribeToRelay(relay);
+                                    } else {
+                                        checkCompletion();
+                                    }
+                                })();
+                            } else {
+                                checkCompletion();
+                            }
                         }
                     });
                     subs.push({ sub, relay: relay.url });
@@ -869,6 +943,10 @@ export class ConnectionManager {
                     console.error(`Fetch failed on ${relay.url}`, e);
                     checkCompletion();
                 }
+            };
+
+            for (const relay of connectedRelays) {
+                subscribeToRelay(relay);
             }
         });
     }
