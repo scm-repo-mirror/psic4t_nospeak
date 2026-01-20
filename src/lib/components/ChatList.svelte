@@ -413,7 +413,7 @@
         modals.showManageContactsModal.set(true);
       }
     }}
-    class="absolute right-4 w-14 h-14 rounded-full bg-[rgb(var(--color-lavender-rgb))] text-white shadow-lg flex items-center justify-center z-30 hover:scale-105 active:scale-95 transition-transform mb-safe {isAndroidApp ? 'bottom-24' : 'bottom-16'}"
+    class="absolute right-4 w-14 h-14 rounded-full bg-[rgb(var(--color-lavender-rgb))] text-white dark:text-[rgb(var(--color-crust-rgb))] shadow-lg flex items-center justify-center z-30 hover:scale-105 active:scale-95 transition-transform mb-safe {isAndroidApp ? 'bottom-24' : 'bottom-16'}"
     aria-label={$t("chats.addContact")}
   >
     <svg
