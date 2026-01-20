@@ -129,7 +129,10 @@
       }),
     );
 
-    const sortedContacts = contactsData.sort(
+    // Filter out contacts with no messages (no chat yet)
+    const contactsWithMessages = contactsData.filter(c => c.lastMessageTime > 0);
+
+    const sortedContacts = contactsWithMessages.sort(
       (a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0),
     );
     console.log(
