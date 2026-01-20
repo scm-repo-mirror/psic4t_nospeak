@@ -28,7 +28,6 @@
         'fetch-messaging-relays': 'sync.steps.fetchMessagingRelays',
         'connect-read-relays': 'sync.steps.connectReadRelays',
         'fetch-history': 'sync.steps.fetchHistory',
-        'fetch-contact-profiles': 'sync.steps.fetchContactProfiles',
         'fetch-user-profile': 'sync.steps.fetchUserProfile'
     };
 </script>

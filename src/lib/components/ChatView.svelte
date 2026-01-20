@@ -356,13 +356,19 @@
         }
       };
 
+      const handleProfilesUpdated = () => {
+        fetchPartnerProfile();
+      };
+
       window.addEventListener('blur', handleBlur);
       window.addEventListener('nospeak:new-message', handleNewMessage);
+      window.addEventListener('nospeak:profiles-updated', handleProfilesUpdated);
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
       return () => {
         window.removeEventListener('blur', handleBlur);
         window.removeEventListener('nospeak:new-message', handleNewMessage);
+        window.removeEventListener('nospeak:profiles-updated', handleProfilesUpdated);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     });
@@ -490,7 +496,7 @@
   }
 
   // Resolve profile info
-  $effect(() => {
+  function fetchPartnerProfile() {
     if (partnerNpub) {
       profileRepo.getProfileIgnoreTTL(partnerNpub).then((p) => {
         if (p && p.metadata) {
@@ -502,6 +508,11 @@
         }
       });
     }
+  }
+
+  $effect(() => {
+    partnerNpub;
+    fetchPartnerProfile();
   });
 
   // Fetch current user's profile picture

@@ -164,10 +164,23 @@
       }
     };
 
+    const handleProfilesUpdated = async () => {
+      try {
+        const dbContacts = await contactRepo.getContacts();
+        await refreshContacts(dbContacts as ContactItem[]);
+      } catch (e) {
+        console.error("ContactList: Failed to refresh after profiles updated", e);
+      }
+    };
+
     if (typeof window !== "undefined") {
       window.addEventListener(
         "nospeak:new-message",
         handleNewMessage as EventListener,
+      );
+      window.addEventListener(
+        "nospeak:profiles-updated",
+        handleProfilesUpdated as EventListener,
       );
     }
 
@@ -186,6 +199,10 @@
         window.removeEventListener(
           "nospeak:new-message",
           handleNewMessage as EventListener,
+        );
+        window.removeEventListener(
+          "nospeak:profiles-updated",
+          handleProfilesUpdated as EventListener,
         );
       }
     };

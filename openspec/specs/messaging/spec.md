@@ -226,6 +226,21 @@ The sync flow SHALL enforce a global timeout of 5 minutes. When the timeout is r
 - **AND** the modal highlights the current step as it runs and marks prior steps as completed before moving on
 - **AND** the fetched message count displayed in the modal updates in real time during step 4 as history batches are processed.
 
+#### Scenario: Discovery relays used for profile fetching steps
+- **GIVEN** the login history synchronization flow has completed step 4 (fetch history)
+- **AND** discovery relays have been cleaned up after step 3
+- **WHEN** the system begins step 5 (fetch contact profiles) or step 6 (fetch user profile)
+- **THEN** the system SHALL temporarily reconnect to discovery relays alongside the user's persistent messaging relays
+- **AND** profile resolution queries SHALL be sent to both discovery relays and the user's messaging relays
+- **AND** after both steps 5 and 6 complete, the system SHALL clean up the temporary discovery relay connections while keeping the user's persistent messaging relays connected.
+
+#### Scenario: Profile fetching succeeds when user has blank messaging relay
+- **GIVEN** the user has configured a single messaging relay that is new or does not have contact profiles cached
+- **AND** the login history synchronization flow is executing steps 5 and 6
+- **WHEN** the system attempts to fetch contact profiles and user profile
+- **THEN** profile resolution SHALL query both the user's messaging relay and discovery relays
+- **AND** profiles published to discovery relays (such as purplepag.es, relay.damus.io, nos.lol) SHALL be successfully fetched even when absent from the user's messaging relay.
+
 #### Scenario: Modal dismissal and view refresh after flow completion
 - **GIVEN** the blocking login history synchronization flow is in progress
 - **AND** all six steps have completed successfully
@@ -283,8 +298,7 @@ The sync flow SHALL enforce a global timeout of 5 minutes. When the timeout is r
 - **GIVEN** the user has dismissed the sync modal via "Skip and continue" or "Continue in background"
 - **AND** the sync flow is continuing in the background
 - **WHEN** the background sync flow completes (either successfully or by exhausting retries)
-- **THEN** the system SHALL display a toast notification indicating sync has completed
-- **AND** the toast SHALL auto-dismiss after a short duration (e.g., 4 seconds).
+- **THEN** a toast notification SHALL be displayed indicating whether sync completed successfully or with errors.
 
 ### Requirement: Real-Time Message Subscription and Deduplication
 When Android background messaging is enabled and delegated to the native Android foreground service, the system SHALL avoid notification floods caused by historical replay while still tolerating backdated gift-wrap timestamps.

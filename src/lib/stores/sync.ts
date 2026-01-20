@@ -5,7 +5,6 @@ export type LoginSyncStepId =
     | 'fetch-messaging-relays'
     | 'connect-read-relays'
     | 'fetch-history'
-    | 'fetch-contact-profiles'
     | 'fetch-user-profile';
 
 export interface LoginSyncStep {
@@ -40,7 +39,6 @@ const STEP_ORDER: LoginSyncStepId[] = [
     'fetch-messaging-relays',
     'connect-read-relays',
     'fetch-history',
-    'fetch-contact-profiles',
     'fetch-user-profile'
 ];
 
@@ -64,11 +62,6 @@ function createInitialSteps(): LoginSyncStep[] {
         {
             id: 'fetch-history',
             labelKey: 'sync.steps.fetchHistory',
-            status: 'pending'
-        },
-        {
-            id: 'fetch-contact-profiles',
-            labelKey: 'sync.steps.fetchContactProfiles',
             status: 'pending'
         },
         {

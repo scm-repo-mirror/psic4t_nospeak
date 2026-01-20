@@ -329,10 +329,8 @@ export class AuthService {
             }
         }
 
-        // Cleanup discovery relays used during this flow
-        connectionManager.cleanupTemporaryConnections();
-
         // 4. Fetch and cache history items from relays
+        // Note: Discovery relays stay connected so autoAddContact can resolve profiles
         setLoginSyncActiveStep('fetch-history');
         try {
             await messagingService.fetchHistory();
@@ -342,23 +340,20 @@ export class AuthService {
             addRelayError('relays', error instanceof Error ? error.message : 'History fetch failed', 'fetch-history');
         }
 
-        // 5. Fetch and cache profile and relay infos for created contacts
-        setLoginSyncActiveStep('fetch-contact-profiles');
-        const contacts = await contactRepo.getContacts();
-        for (const contact of contacts) {
-            try {
-                await profileResolver.resolveProfile(contact.npub, false);
-            } catch (error) {
-                console.error(`${context} contact profile refresh failed for ${contact.npub}:`, error);
-            }
-        }
-
-        // 6. Fetch and cache user profile
+        // 5. Fetch and cache user profile
         setLoginSyncActiveStep('fetch-user-profile');
         try {
             await profileResolver.resolveProfile(npub, false);
         } catch (error) {
             console.error(`${context} user profile refresh failed:`, error);
+        }
+
+        // Cleanup discovery relays, keep user's persistent messaging relays
+        connectionManager.cleanupTemporaryConnections();
+
+        // Notify UI that profiles have been updated
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('nospeak:profiles-updated'));
         }
 
         try {
