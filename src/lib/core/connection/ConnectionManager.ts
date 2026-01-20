@@ -188,22 +188,32 @@ export class ConnectionManager {
     }
 
     public async authenticateRelay(url: string): Promise<boolean> {
+        console.log(`[ConnectionManager] authenticateRelay(${url}): Starting...`);
         const health = this.relays.get(url);
-        if (!health?.relay || !health.isConnected) return false;
+        if (!health?.relay || !health.isConnected) {
+            console.log(`[ConnectionManager] authenticateRelay(${url}): Relay not connected, aborting`);
+            return false;
+        }
 
         const relayAny = health.relay as any;
-        if (!relayAny.auth) return false;
+        if (!relayAny.auth) {
+            console.log(`[ConnectionManager] authenticateRelay(${url}): Relay has no auth function`);
+            return false;
+        }
 
         if (!relayAny.onauth) {
+            console.log(`[ConnectionManager] authenticateRelay(${url}): Missing signer (no onauth handler)`);
             this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
             return false;
         }
 
         try {
             await relayAny.auth(relayAny.onauth);
+            console.log(`[ConnectionManager] authenticateRelay(${url}): AUTH successful`);
             return true;
         } catch (e) {
             const message = (e as Error)?.message || String(e);
+            console.log(`[ConnectionManager] authenticateRelay(${url}): AUTH failed: ${message}`);
             if (message.includes('Missing signer')) {
                 this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
             } else {
@@ -238,15 +248,18 @@ export class ConnectionManager {
         if (typeof relayAny.auth === 'function') {
             const originalAuth = relayAny.auth.bind(relayAny);
             relayAny.auth = async (signAuthEvent: (evt: EventTemplate) => Promise<NostrEvent>) => {
+                console.log(`[ConnectionManager] ${url}: AUTH challenge received, authenticating...`);
                 this.markRelayAuthRequired(url);
                 this.updateRelayAuthStatus(url, 'authenticating');
 
                 try {
                     const result = await originalAuth(signAuthEvent);
+                    console.log(`[ConnectionManager] ${url}: AUTH completed successfully`);
                     this.updateRelayAuthStatus(url, 'authenticated');
                     return result;
                 } catch (e) {
                     const message = (e as Error)?.message || String(e);
+                    console.log(`[ConnectionManager] ${url}: AUTH failed: ${message}`);
                     if (message.includes('Missing signer')) {
                         this.updateRelayAuthStatus(url, 'failed', 'Missing signer');
                     } else {

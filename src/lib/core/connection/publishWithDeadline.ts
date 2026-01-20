@@ -76,28 +76,37 @@ export async function publishWithDeadline(options: PublishWithDeadlineOptions): 
         onRelaySuccess,
     } = options;
 
+    console.log(`[publishWithDeadline] Starting publish to ${relayUrls.length} relays: ${relayUrls.join(', ')}`);
+
     const deadlineAt = Date.now() + deadlineMs;
 
     const attemptPublish = async (url: string) => {
+        console.log(`[publishWithDeadline] ${url}: Waiting for connection...`);
         const remainingForConnect = deadlineAt - Date.now();
         if (remainingForConnect <= 0) {
+            console.log(`[publishWithDeadline] ${url}: Connection timeout (no time remaining)`);
             return { url, status: 'timeout' as const };
         }
 
         const health = await waitForRelayConnected(connectionManager, url, deadlineAt, pollIntervalMs);
         if (!health?.relay || !health.isConnected) {
+            console.log(`[publishWithDeadline] ${url}: Connection timeout (relay not connected)`);
             return { url, status: 'timeout' as const };
         }
 
         const remainingForPublish = deadlineAt - Date.now();
         if (remainingForPublish <= 0) {
+            console.log(`[publishWithDeadline] ${url}: Timeout after connection (no time for publish)`);
             return { url, status: 'timeout' as const };
         }
 
         const relay = health.relay;
         if (!relay) {
+            console.log(`[publishWithDeadline] ${url}: Timeout (relay object missing)`);
             return { url, status: 'timeout' as const };
         }
+        
+        console.log(`[publishWithDeadline] ${url}: Connected, attempting publish`);
 
         const publishOnce = async () => {
             const remaining = deadlineAt - Date.now();
@@ -115,21 +124,25 @@ export async function publishWithDeadline(options: PublishWithDeadlineOptions): 
 
         try {
             await publishOnce();
+            console.log(`[publishWithDeadline] ${url}: Publish successful`);
             onRelaySuccess?.(url);
             return { url, status: 'success' as const };
         } catch (e) {
             const message = (e as Error)?.message || String(e);
 
             if (message === 'Timeout') {
+                console.log(`[publishWithDeadline] ${url}: Publish timeout`);
                 return { url, status: 'timeout' as const };
             }
 
             if (!retriedAfterAuth && message.startsWith('auth-required')) {
+                console.log(`[publishWithDeadline] ${url}: Publish failed with 'auth-required', attempting AUTH...`);
                 retriedAfterAuth = true;
                 connectionManager.markRelayAuthRequired?.(url);
 
                 const remainingForAuth = deadlineAt - Date.now();
                 if (remainingForAuth <= 0) {
+                    console.log(`[publishWithDeadline] ${url}: AUTH timeout (no time remaining)`);
                     return { url, status: 'timeout' as const };
                 }
 
@@ -141,21 +154,27 @@ export async function publishWithDeadline(options: PublishWithDeadlineOptions): 
                     const authenticated = await promiseWithTimeout(Promise.resolve(authPromise), remainingForAuth);
 
                     if (authenticated === false) {
+                        console.log(`[publishWithDeadline] ${url}: AUTH returned false (no auth handler or denied)`);
                         return { url, status: 'failure' as const };
                     }
 
+                    console.log(`[publishWithDeadline] ${url}: AUTH succeeded, retrying publish...`);
                     await publishOnce();
+                    console.log(`[publishWithDeadline] ${url}: Post-AUTH publish successful`);
                     onRelaySuccess?.(url);
                     return { url, status: 'success' as const };
                 } catch (authError) {
                     const authMessage = (authError as Error)?.message || String(authError);
                     if (authMessage === 'Timeout') {
+                        console.log(`[publishWithDeadline] ${url}: AUTH timeout`);
                         return { url, status: 'timeout' as const };
                     }
+                    console.log(`[publishWithDeadline] ${url}: AUTH error: ${authMessage}`);
                     return { url, status: 'failure' as const };
                 }
             }
 
+            console.log(`[publishWithDeadline] ${url}: Publish failed: ${message}`);
             return { url, status: 'failure' as const };
         }
     };
@@ -179,5 +198,6 @@ export async function publishWithDeadline(options: PublishWithDeadlineOptions): 
         }
     }
 
+    console.log(`[publishWithDeadline] Result: ${successfulRelays.length} successful, ${failedRelays.length} failed, ${timedOutRelays.length} timed out`);
     return { successfulRelays, failedRelays, timedOutRelays };
 }
