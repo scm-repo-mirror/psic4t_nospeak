@@ -161,6 +161,13 @@ const es = {
             typeTemporary: 'Temporal',
             never: 'Nunca'
         },
+        qr: {
+            title: 'QR',
+            tabs: {
+                myQr: 'Mi QR',
+                scanQr: 'Escanear QR'
+            }
+        },
         userQr: {
             preparing: 'Preparando código QR…'
         },

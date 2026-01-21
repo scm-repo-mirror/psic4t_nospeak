@@ -22,7 +22,6 @@
     import CreateGroupChatModal from "$lib/components/CreateGroupChatModal.svelte";
     import ProfileModal from "$lib/components/ProfileModal.svelte";
     import EmptyProfileModal from "$lib/components/EmptyProfileModal.svelte";
-    import UserQrModal from "$lib/components/UserQrModal.svelte";
     import ScanContactQrModal from "$lib/components/ScanContactQrModal.svelte";
     import ScanContactQrResultModal from "$lib/components/ScanContactQrResultModal.svelte";
     import * as modals from "$lib/stores/modals";
@@ -61,13 +60,14 @@
 
   // Close all modals when user logs out
   $effect(() => {
-         if (!$currentUser) {
-             showSettingsModal.set(false);
-             showManageContactsModal.set(false);
-             showRelayStatusModal.set(false);
-             showScanContactQrModal.set(false);
-              closeScanContactQrResult();
-              closeProfileModal();
+          if (!$currentUser) {
+              showSettingsModal.set(false);
+              showManageContactsModal.set(false);
+              showRelayStatusModal.set(false);
+              showUserQrModal.set(false);
+              showScanContactQrModal.set(false);
+               closeScanContactQrResult();
+               closeProfileModal();
 
          }
 
@@ -356,10 +356,11 @@
       close={() => showCreateGroupModal.set(false)}
     />
 
-     <ScanContactQrModal
-       isOpen={$showScanContactQrModal}
-       close={() => showScanContactQrModal.set(false)}
-     />
+      <ScanContactQrModal
+        isOpen={$showScanContactQrModal || $showUserQrModal}
+        defaultTab={$showUserQrModal ? 'myQr' : 'scan'}
+        close={() => { showScanContactQrModal.set(false); showUserQrModal.set(false); }}
+      />
 
     {#if $scanContactQrResultState.isOpen && $scanContactQrResultState.npub}
       <ScanContactQrResultModal
@@ -387,13 +388,7 @@
          <EmptyProfileModal isOpen={$showEmptyProfileModal} />
      {/if}
  
-     <UserQrModal 
-         isOpen={$showUserQrModal} 
-         close={() => showUserQrModal.set(false)} 
-     />
- 
-     <ImageViewerOverlay />
-     <Toast />
-   </div>
- {/if}
-
+      <ImageViewerOverlay />
+      <Toast />
+    </div>
+  {/if}

@@ -9,9 +9,12 @@ import {
     showManageContactsModal,
     showEmptyProfileModal,
     showUserQrModal,
+    showScanContactQrModal,
     showCreateGroupModal,
     profileModalState,
-    closeProfileModal
+    scanContactQrResultState,
+    closeProfileModal,
+    closeScanContactQrResult
 } from '$lib/stores/modals';
 import { showRelayStatusModal } from '$lib/stores/connection';
 
@@ -78,8 +81,19 @@ export function initAndroidBackNavigation(): void {
             return;
         }
 
+        const scanQrResultState = get(scanContactQrResultState);
+        if (scanQrResultState.isOpen) {
+            closeScanContactQrResult();
+            return;
+        }
+
         if (get(showUserQrModal)) {
             showUserQrModal.set(false);
+            return;
+        }
+
+        if (get(showScanContactQrModal)) {
+            showScanContactQrModal.set(false);
             return;
         }
 

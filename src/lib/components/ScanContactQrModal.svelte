@@ -1,12 +1,17 @@
 <script lang="ts">
+    import QRCode from 'qrcode';
     import { fade } from 'svelte/transition';
-     import { glassModal } from '$lib/utils/transitions';
-     import { isAndroidNative } from '$lib/core/NativeDialogs';
-     import { decodeQrFromImageData, parseNpubFromQrPayload } from '$lib/utils/qr';
-     import { hapticSelection } from '$lib/utils/haptics';
-     import Button from '$lib/components/ui/Button.svelte';
- 
-     import { openScanContactQrResult } from '$lib/stores/modals';
+
+    import Avatar from '$lib/components/Avatar.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import Tab from '$lib/components/ui/Tab.svelte';
+    import { isAndroidNative } from '$lib/core/NativeDialogs';
+    import { profileRepo } from '$lib/db/ProfileRepository';
+    import { currentUser } from '$lib/stores/auth';
+    import { openScanContactQrResult } from '$lib/stores/modals';
+    import { glassModal } from '$lib/utils/transitions';
+    import { decodeQrFromImageData, parseNpubFromQrPayload } from '$lib/utils/qr';
+    import { hapticSelection } from '$lib/utils/haptics';
     import { t } from '$lib/i18n';
 
     type ScanStatus =
@@ -18,23 +23,78 @@
         | 'add-error'
         | 'added';
 
-    let { isOpen, close } = $props<{ isOpen: boolean; close: () => void }>();
+    type QrTab = 'myQr' | 'scan';
+
+    let {
+        isOpen,
+        close,
+        defaultTab = 'scan'
+    } = $props<{ isOpen: boolean; close: () => void; defaultTab?: QrTab }>();
 
     const isAndroidApp = isAndroidNative();
 
+    let activeTab = $state<QrTab>('scan');
+    let prevIsOpen = $state(false);
+
+    // "My QR" state
+    let qrCanvas = $state<HTMLCanvasElement | null>(null);
+    let qrValue = $state<string>('');
+    let displayName = $state<string>('');
+    let picture = $state<string | undefined>(undefined);
+    let loading = $state(false);
+
+    // "Scan QR" state
     let videoEl = $state<HTMLVideoElement | null>(null);
-    let canvasEl = $state<HTMLCanvasElement | null>(null);
+    let scanCanvasEl = $state<HTMLCanvasElement | null>(null);
     let scanActive = $state(false);
     let status = $state<ScanStatus>('idle');
     let stream: MediaStream | null = null;
 
+    async function loadProfileAndQr(): Promise<void> {
+        const user = $currentUser;
+        if (!user?.npub || !qrCanvas) {
+            return;
+        }
+
+        loading = true;
+
+        try {
+            const profile = await profileRepo.getProfileIgnoreTTL(user.npub);
+
+            if (profile?.metadata) {
+                displayName =
+                    profile.metadata.name ||
+                    profile.metadata.display_name ||
+                    (profile.metadata as any).displayName ||
+                    user.npub.slice(0, 10) + '...';
+                picture = profile.metadata.picture;
+            } else {
+                displayName = user.npub.slice(0, 10) + '...';
+                picture = undefined;
+            }
+
+            qrValue = `nostr:${user.npub}`;
+
+            await QRCode.toCanvas(qrCanvas, qrValue, {
+                width: 256,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#ffffff'
+                }
+            });
+        } catch (e) {
+            console.error('ScanContactQrModal: failed to prepare user QR', e);
+        } finally {
+            loading = false;
+        }
+    }
 
     async function startCamera(): Promise<void> {
         if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             status = 'camera-error';
             return;
         }
-
 
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -63,7 +123,6 @@
         }
     }
 
-
     function stopCamera(): void {
         scanActive = false;
 
@@ -81,8 +140,7 @@
     }
 
     async function scanLoop(): Promise<void> {
-
-        if (!scanActive || !videoEl || !canvasEl) {
+        if (!scanActive || !videoEl || !scanCanvasEl) {
             return;
         }
 
@@ -96,7 +154,7 @@
             return;
         }
 
-        const ctx = canvasEl.getContext('2d', { willReadFrequently: true });
+        const ctx = scanCanvasEl.getContext('2d', { willReadFrequently: true });
 
         if (!ctx) {
             if (scanActive) {
@@ -105,68 +163,88 @@
             return;
         }
 
-        canvasEl.width = width;
-        canvasEl.height = height;
+        scanCanvasEl.width = width;
+        scanCanvasEl.height = height;
 
         ctx.drawImage(videoEl, 0, 0, width, height);
 
         const imageData = ctx.getImageData(0, 0, width, height);
         const raw = decodeQrFromImageData(imageData);
- 
+
         if (raw) {
             const npub = parseNpubFromQrPayload(raw);
- 
+
             if (npub) {
                 scanActive = false;
                 stopCamera();
                 openScanContactQrResult(npub);
-                close();
+                closeWithCleanup();
                 return;
             }
- 
+
             // QR present but not a valid contact npub
             status = 'invalid';
         }
-
 
         if (scanActive) {
             requestAnimationFrame(scanLoop);
         }
     }
 
-     function handleOverlayClick(e: MouseEvent): void {
- 
-         if (e.target === e.currentTarget) {
-             hapticSelection();
-             closeWithCleanup();
-         }
-     }
+    function handleOverlayClick(e: MouseEvent): void {
+        if (e.target === e.currentTarget) {
+            hapticSelection();
+            closeWithCleanup();
+        }
+    }
 
-     function handleKeydown(e: KeyboardEvent): void {
-         if (e.key === 'Escape') {
-             hapticSelection();
-             closeWithCleanup();
-         }
-     }
-
+    function handleKeydown(e: KeyboardEvent): void {
+        if (e.key === 'Escape') {
+            hapticSelection();
+            closeWithCleanup();
+        }
+    }
 
     function closeWithCleanup(): void {
         stopCamera();
         status = 'idle';
+        qrValue = '';
+        loading = false;
         close();
     }
 
+    // Initialize tab on open
+    $effect(() => {
+        if (isOpen && !prevIsOpen) {
+            activeTab = defaultTab;
+        }
+
+        prevIsOpen = isOpen;
+    });
+
+    // Start/stop camera and load QR based on tab
     $effect(() => {
         if (!isOpen) {
             stopCamera();
             status = 'idle';
+            qrValue = '';
+            displayName = '';
+            picture = undefined;
+            loading = false;
             return;
         }
- 
-        if (!scanActive && status !== 'added' && status !== 'add-error') {
-            startCamera();
+
+        if (activeTab === 'scan') {
+            if (!scanActive && status !== 'added' && status !== 'add-error') {
+                startCamera();
+            }
+            return;
         }
 
+        // activeTab === 'myQr'
+        stopCamera();
+        status = 'idle';
+        void loadProfileAndQr();
     });
 </script>
 
@@ -209,51 +287,96 @@
                 </svg>
             </Button>
 
-            <div class="mb-4">
-                <h2 class="typ-title dark:text-white">{$t('modals.scanContactQr.title')}</h2>
-                <p class="mt-1 text-xs text-gray-600 dark:text-slate-300">
-                    {$t('modals.scanContactQr.instructions')}
-                </p>
+            <div class="mb-3">
+                <h2 class="typ-title dark:text-white">{$t('modals.qr.title')}</h2>
             </div>
 
-            <div class="relative rounded-2xl overflow-hidden bg-black/80 border border-gray-800/80 shadow-inner">
-                <video
-                    bind:this={videoEl}
-                    autoplay
-                    playsinline
-                    muted
-                    class="w-full aspect-[3/4] object-cover"
-                ></video>
+            <Tab
+                bind:value={activeTab}
+                ariaLabel={$t('modals.qr.title')}
+                tabs={[
+                    { value: 'myQr', label: $t('modals.qr.tabs.myQr') },
+                    { value: 'scan', label: $t('modals.qr.tabs.scanQr') }
+                ]}
+            />
 
-                <!-- Simple scan-line overlay -->
-                <div class="absolute inset-x-6 top-1/2 -translate-y-1/2 h-0.5 bg-green-400/70 shadow-[0_0_12px_rgba(34,197,94,0.8)]"></div>
+            {#if activeTab === 'myQr'}
+                <div class="mt-5">
+                    <div class="flex items-center gap-3 mb-6">
+                        <Avatar
+                            npub={$currentUser?.npub || ''}
+                            src={picture}
+                            size="md"
+                            class="!w-14 !h-14 md:!w-10 md:!h-10 transition-all duration-150 ease-out"
+                        />
+                        <div class="flex flex-col flex-1 min-w-0">
+                            <div class="text-base font-semibold text-gray-900 dark:text-white">
+                                {displayName || $currentUser?.npub?.slice(0, 10) + '...'}
+                            </div>
+                            {#if $currentUser?.npub}
+                                <div class="text-[11px] text-gray-500 dark:text-slate-400 font-mono break-all select-all">
+                                    nostr:{$currentUser.npub}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
 
-                <!-- Corner markers -->
-                <div class="absolute inset-4 pointer-events-none">
-                    <div class="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-green-400"></div>
-                    <div class="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-green-400"></div>
-                    <div class="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-green-400"></div>
-                    <div class="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-green-400"></div>
+                    <div class="flex justify-center mb-2">
+                        <div class="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-inner border border-gray-200/70 dark:border-slate-700/70">
+                            <canvas bind:this={qrCanvas}></canvas>
+                        </div>
+                    </div>
+
+                    {#if loading}
+                        <div class="mt-4 text-xs text-center text-gray-500 dark:text-slate-400">
+                            {$t('modals.userQr.preparing')}
+                        </div>
+                    {/if}
                 </div>
+            {:else}
+                <div class="mt-5">
+                    <p class="mb-3 text-xs text-gray-600 dark:text-slate-300">
+                        {$t('modals.scanContactQr.instructions')}
+                    </p>
 
-                <canvas bind:this={canvasEl} class="hidden"></canvas>
-            </div>
+                    <div class="relative rounded-2xl overflow-hidden bg-black/80 border border-gray-800/80 shadow-inner">
+                        <video
+                            bind:this={videoEl}
+                            autoplay
+                            playsinline
+                            muted
+                            class="w-full aspect-[3/4] object-cover"
+                        ></video>
 
-            <div class="mt-4 text-xs text-center text-gray-600 dark:text-slate-300 min-h-[1.5rem]">
-                {#if status === 'scanning' || status === 'idle'}
-                    {$t('modals.scanContactQr.scanning')}
-                {:else if status === 'camera-error'}
-                    {$t('modals.scanContactQr.noCamera')}
-                {:else if status === 'invalid'}
-                    {$t('modals.scanContactQr.invalidQr')}
-                {:else if status === 'add-error'}
-                    {$t('modals.scanContactQr.addFailed')}
-                {:else if status === 'added'}
-                    {$t('modals.scanContactQr.added')}
-                {/if}
-            </div>
- 
+                        <!-- Simple scan-line overlay -->
+                        <div class="absolute inset-x-6 top-1/2 -translate-y-1/2 h-0.5 bg-green-400/70 shadow-[0_0_12px_rgba(34,197,94,0.8)]"></div>
 
+                        <!-- Corner markers -->
+                        <div class="absolute inset-4 pointer-events-none">
+                            <div class="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-green-400"></div>
+                            <div class="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-green-400"></div>
+                            <div class="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-green-400"></div>
+                            <div class="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-green-400"></div>
+                        </div>
+
+                        <canvas bind:this={scanCanvasEl} class="hidden"></canvas>
+                    </div>
+
+                    <div class="mt-4 text-xs text-center text-gray-600 dark:text-slate-300 min-h-[1.5rem]">
+                        {#if status === 'scanning' || status === 'idle'}
+                            {$t('modals.scanContactQr.scanning')}
+                        {:else if status === 'camera-error'}
+                            {$t('modals.scanContactQr.noCamera')}
+                        {:else if status === 'invalid'}
+                            {$t('modals.scanContactQr.invalidQr')}
+                        {:else if status === 'add-error'}
+                            {$t('modals.scanContactQr.addFailed')}
+                        {:else if status === 'added'}
+                            {$t('modals.scanContactQr.added')}
+                        {/if}
+                    </div>
+                </div>
+            {/if}
         </div>
     </div>
 {/if}
