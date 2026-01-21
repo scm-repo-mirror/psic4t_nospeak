@@ -1,15 +1,12 @@
 <script lang="ts">
     import { t } from '$lib/i18n';
 
-    let { x = 0, y = 0, isOpen = false, onClose, onCite, onReact, onCopy, message } = $props<{
+    let { x = 0, y = 0, isOpen = false, onClose, onDelete } = $props<{
         x: number;
         y: number;
         isOpen: boolean;
         onClose: () => void;
-        onCite: () => void;
-        onReact: (emoji: '👍' | '👎' | '❤️' | '😂') => void;
-        onCopy: () => void;
-        message?: { sentAt: number } | null;
+        onDelete: () => void;
     }>();
 
     // Close on outside press (pointerdown) so one tap closes,
@@ -19,7 +16,7 @@
 
         const handlePointerDown = (e: PointerEvent) => {
             const target = e.target as HTMLElement | null;
-            if (!target?.closest('.context-menu')) {
+            if (!target?.closest('.contact-context-menu')) {
                 e.stopPropagation();
                 e.preventDefault();
                 onClose();
@@ -86,35 +83,18 @@
     <div 
         use:portal
         use:reposition={{x, y}}
-        class="context-menu fixed bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-[9999] min-w-[140px] outline-none"
+        class="contact-context-menu fixed bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-[9999] min-w-[140px] outline-none"
     >
-        <div class="flex px-2 pt-1 pb-1 gap-1 border-b border-gray-200/70 dark:border-slate-700/70">
-            {#each ['👍','👎','❤️','😂'] as emoji}
-                <button
-                    type="button"
-                    class="flex-1 px-1 py-1 rounded-md hover:bg-gray-100/70 dark:hover:bg-slate-700/70 text-lg text-center"
-                    onclick={() => { onReact(emoji as '👍' | '👎' | '❤️' | '😂'); onClose(); }}
-                >
-                    {emoji}
-                </button>
-            {/each}
-        </div>
-        {#if message?.sentAt}
-            <div class="px-4 py-2 text-xs text-gray-600 dark:text-slate-400 border-b border-gray-200/70 dark:border-slate-700/70">
-                {$t('chat.contextMenu.sentAt')}: {new Date(message.sentAt).toLocaleString()}
-            </div>
-        {/if}
         <button
-            class="w-full text-left px-4 py-2 hover:bg-gray-100/50 dark:hover:bg-slate-700/50 text-sm dark:text-white transition-colors"
-            onclick={() => { onCite(); onClose(); }}
+            class="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm text-red-600 dark:text-red-400 transition-colors flex items-center gap-2"
+            onclick={() => { onDelete(); onClose(); }}
         >
-            {$t('chat.contextMenu.cite')}
-        </button>
-        <button 
-            class="w-full text-left px-4 py-2 hover:bg-gray-100/50 dark:hover:bg-slate-700/50 text-sm dark:text-white transition-colors"
-            onclick={() => { onCopy(); onClose(); }}
-        >
-            {$t('chat.contextMenu.copy')}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"/>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+            {$t('modals.manageContacts.contextMenu.delete')}
         </button>
     </div>
 {/if}

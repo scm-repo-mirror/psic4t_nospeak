@@ -14,9 +14,11 @@
     import { profileResolver } from '$lib/core/ProfileResolver';
     import { isAndroidNative } from "$lib/core/NativeDialogs";
     import { t } from '$lib/i18n';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { nip19 } from 'nostr-tools';
+import Button from '$lib/components/ui/Button.svelte';
+import Input from '$lib/components/ui/Input.svelte';
+import ContactContextMenu from '$lib/components/ContactContextMenu.svelte';
+import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+import { nip19 } from 'nostr-tools';
     import { contactSyncService } from '$lib/core/ContactSyncService';
     import { showScanContactQrModal, showManageContactsModal } from '$lib/stores/modals';
     import { overscroll, type OverscrollState } from '$lib/utils/overscroll';
@@ -67,6 +69,24 @@
     let nip05LookupToken = 0;
     let discoveryRelaysConnected = false;
     let addedDiscoveryRelays: string[] = [];
+
+    // Context menu state
+    let contextMenuOpen = $state(false);
+    let contextMenuX = $state(0);
+    let contextMenuY = $state(0);
+    type ContactView = typeof displayContacts[number];
+    let selectedContact = $state<ContactView | null>(null);
+
+    // Confirm dialog state
+    let confirmDeleteOpen = $state(false);
+
+    // Long-press timer
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    let longPressStartX = 0;
+    let longPressStartY = 0;
+
+    // Track when context menu closes to prevent click-through
+    let contextMenuClosedAt = 0;
 
     function cleanupDiscoveryRelays() {
         for (const url of addedDiscoveryRelays) {
@@ -365,6 +385,9 @@
     }
 
     function openChat(npub: string) {
+        // Skip if context menu just closed (prevents click-through)
+        if (Date.now() - contextMenuClosedAt < 150) return;
+
         hapticSelection();
         goto(`/chat/${npub}`);
     }
@@ -377,6 +400,60 @@
     function openScanQr() {
         hapticSelection();
         showScanContactQrModal.set(true);
+    }
+
+    function handleLongPressStart(e: TouchEvent, contact: ContactView) {
+        const touch = e.touches[0];
+        longPressStartX = touch.clientX;
+        longPressStartY = touch.clientY;
+
+        longPressTimer = setTimeout(() => {
+            hapticSelection();
+            selectedContact = contact;
+            contextMenuX = touch.clientX;
+            contextMenuY = touch.clientY;
+            contextMenuOpen = true;
+            longPressTimer = null;
+        }, 500);
+    }
+
+    function handleLongPressEnd() {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    function handleTouchMove(e: TouchEvent) {
+        if (!longPressTimer) return;
+
+        const touch = e.touches[0];
+        const dx = Math.abs(touch.clientX - longPressStartX);
+        const dy = Math.abs(touch.clientY - longPressStartY);
+
+        // Cancel if moved more than 10px
+        if (dx > 10 || dy > 10) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    function handleDeleteOption() {
+        contextMenuOpen = false;
+        confirmDeleteOpen = true;
+    }
+
+    function confirmDelete() {
+        if (selectedContact) {
+            remove(selectedContact.npub);
+        }
+        confirmDeleteOpen = false;
+        selectedContact = null;
+    }
+
+    function cancelDelete() {
+        confirmDeleteOpen = false;
+        selectedContact = null;
     }
 </script>
 
@@ -665,6 +742,10 @@
             <div 
                 class="flex justify-between items-center p-3 my-1.5 rounded-full bg-transparent text-gray-700 dark:text-gray-400 hover:bg-[rgb(var(--color-lavender-rgb)/0.12)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.16)] hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-out group cursor-pointer active:scale-[0.98]"
                 onclick={() => openChat(contact.npub)}
+                ontouchstart={(e) => handleLongPressStart(e, contact)}
+                ontouchend={handleLongPressEnd}
+                ontouchcancel={handleLongPressEnd}
+                ontouchmove={handleTouchMove}
             >
                 <div class="flex items-center gap-3 min-w-0">
                     <Avatar 
@@ -678,17 +759,27 @@
                         <span class="typ-meta text-gray-500 dark:text-slate-400 truncate font-mono opacity-75">{contact.shortNpub}</span>
                     </div>
                 </div>
-                <Button 
-                    onclick={(e: MouseEvent) => { e.stopPropagation(); remove(contact.npub); }}
-                    variant="danger"
-                    size="icon"
-                    class="!w-9 !h-9"
-                    aria-label={$t('modals.manageContacts.removeContactAria')}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                </Button>
             </div>
         {/each}
     </div>
 </div>
+
+<ContactContextMenu
+    x={contextMenuX}
+    y={contextMenuY}
+    isOpen={contextMenuOpen}
+    onClose={() => { contextMenuOpen = false; contextMenuClosedAt = Date.now(); }}
+    onDelete={handleDeleteOption}
+/>
+
+<ConfirmDialog
+    isOpen={confirmDeleteOpen}
+    title={$t('modals.manageContacts.confirmDelete.title')}
+    message={$t('modals.manageContacts.confirmDelete.message', { values: { name: selectedContact?.name ?? '' } })}
+    confirmText={$t('modals.manageContacts.confirmDelete.confirm')}
+    cancelText={$t('common.cancel')}
+    confirmVariant="danger"
+    onConfirm={confirmDelete}
+    onCancel={cancelDelete}
+/>
 {/if}

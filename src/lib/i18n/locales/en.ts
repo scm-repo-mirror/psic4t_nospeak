@@ -98,7 +98,16 @@ const en = {
               alreadyAdded: 'Already added',
               syncing: 'Syncing contacts…',
               pullToRefresh: 'Pull to refresh',
-              releaseToRefresh: 'Release to refresh'
+              releaseToRefresh: 'Release to refresh',
+              contextMenu: {
+                  openMenu: 'Open menu',
+                  delete: 'Delete'
+              },
+              confirmDelete: {
+                  title: 'Delete Contact',
+                  message: 'Are you sure you want to delete {name}?',
+                  confirm: 'Delete'
+              }
           },
          profile: {
               unknownName: 'Unknown',

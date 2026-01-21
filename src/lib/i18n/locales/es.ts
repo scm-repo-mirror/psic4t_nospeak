@@ -98,7 +98,16 @@ const es = {
             alreadyAdded: 'Ya añadido',
             syncing: 'Sincronizando contactos…',
             pullToRefresh: 'Tira para actualizar',
-            releaseToRefresh: 'Suelta para actualizar'
+            releaseToRefresh: 'Suelta para actualizar',
+            contextMenu: {
+                openMenu: 'Abrir menú',
+                delete: 'Eliminar'
+            },
+            confirmDelete: {
+                title: 'Eliminar contacto',
+                message: '¿Estás seguro de que quieres eliminar a {name}?',
+                confirm: 'Eliminar'
+            }
         },
         profile: {
             unknownName: 'Desconocido',

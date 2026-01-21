@@ -99,7 +99,16 @@ const de = {
               alreadyAdded: 'Bereits hinzugefügt',
               syncing: 'Kontakte werden synchronisiert…',
               pullToRefresh: 'Zum Aktualisieren ziehen',
-              releaseToRefresh: 'Loslassen zum Aktualisieren'
+              releaseToRefresh: 'Loslassen zum Aktualisieren',
+              contextMenu: {
+                  openMenu: 'Menü öffnen',
+                  delete: 'Löschen'
+              },
+              confirmDelete: {
+                  title: 'Kontakt löschen',
+                  message: 'Möchtest du {name} wirklich löschen?',
+                  confirm: 'Löschen'
+              }
           },
          profile: {
               unknownName: 'Unbekannt',

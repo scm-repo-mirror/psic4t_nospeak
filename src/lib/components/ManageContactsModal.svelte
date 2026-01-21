@@ -13,9 +13,11 @@
     import { fade } from 'svelte/transition';
     import { glassModal } from '$lib/utils/transitions';
     import { t } from '$lib/i18n';
-    import Button from '$lib/components/ui/Button.svelte';
-    import Input from '$lib/components/ui/Input.svelte';
-    import { nip19 } from 'nostr-tools';
+import Button from '$lib/components/ui/Button.svelte';
+import Input from '$lib/components/ui/Input.svelte';
+import ContactContextMenu from './ContactContextMenu.svelte';
+import ConfirmDialog from './ConfirmDialog.svelte';
+import { nip19 } from 'nostr-tools';
     import { goto } from '$app/navigation';
     import { contactSyncService } from '$lib/core/ContactSyncService';
     import { showScanContactQrModal } from '$lib/stores/modals';
@@ -47,6 +49,24 @@
     let nip05LookupToken = 0;
     let discoveryRelaysConnected = false;
     let addedDiscoveryRelays: string[] = [];
+
+    // Context menu state
+    let contextMenuOpen = $state(false);
+    let contextMenuX = $state(0);
+    let contextMenuY = $state(0);
+    type ContactView = typeof displayContacts[number];
+    let selectedContact = $state<ContactView | null>(null);
+
+    // Confirm dialog state
+    let confirmDeleteOpen = $state(false);
+
+    // Long-press timer
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+    let longPressStartX = 0;
+    let longPressStartY = 0;
+
+    // Track when context menu closes to prevent click-through
+    let contextMenuClosedAt = 0;
 
     function cleanupDiscoveryRelays() {
         for (const url of addedDiscoveryRelays) {
@@ -368,9 +388,82 @@
     }
 
     function openChat(npub: string) {
+        // Skip if context menu just closed (prevents click-through)
+        if (Date.now() - contextMenuClosedAt < 150) return;
+
         hapticSelection();
         close();
         goto(`/chat/${npub}`);
+    }
+
+    function handleLongPressStart(e: MouseEvent | TouchEvent, contact: ContactView) {
+        // Only on mobile (< 768px)
+        if (window.innerWidth >= 768) return;
+
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+        longPressStartX = clientX;
+        longPressStartY = clientY;
+
+        longPressTimer = setTimeout(() => {
+            hapticSelection();
+            selectedContact = contact;
+            contextMenuX = clientX;
+            contextMenuY = clientY;
+            contextMenuOpen = true;
+            longPressTimer = null;
+        }, 500);
+    }
+
+    function handleLongPressEnd() {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    function handleTouchMove(e: TouchEvent) {
+        if (!longPressTimer) return;
+
+        const touch = e.touches[0];
+        const dx = Math.abs(touch.clientX - longPressStartX);
+        const dy = Math.abs(touch.clientY - longPressStartY);
+
+        // Cancel if moved more than 10px
+        if (dx > 10 || dy > 10) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    function handleDotMenuClick(e: MouseEvent, contact: ContactView) {
+        e.stopPropagation();
+        hapticSelection();
+        selectedContact = contact;
+        // Position near the button
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        contextMenuX = rect.left;
+        contextMenuY = rect.bottom + 4;
+        contextMenuOpen = true;
+    }
+
+    function handleDeleteOption() {
+        contextMenuOpen = false;
+        confirmDeleteOpen = true;
+    }
+
+    function confirmDelete() {
+        if (selectedContact) {
+            remove(selectedContact.npub);
+        }
+        confirmDeleteOpen = false;
+        selectedContact = null;
+    }
+
+    function cancelDelete() {
+        confirmDeleteOpen = false;
+        selectedContact = null;
     }
 </script>
 
@@ -631,6 +724,12 @@
                     <div 
                         class="flex justify-between items-center p-3 my-1.5 rounded-full bg-transparent text-gray-700 dark:text-gray-400 hover:bg-[rgb(var(--color-lavender-rgb)/0.12)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.16)] hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-out group cursor-pointer active:scale-[0.98]"
                         onclick={() => openChat(contact.npub)}
+                        onmousedown={(e) => handleLongPressStart(e, contact)}
+                        onmouseup={handleLongPressEnd}
+                        ontouchstart={(e) => handleLongPressStart(e, contact)}
+                        ontouchend={handleLongPressEnd}
+                        ontouchcancel={handleLongPressEnd}
+                        ontouchmove={handleTouchMove}
                     >
                         <div class="flex items-center gap-3 min-w-0">
                             <Avatar 
@@ -644,18 +743,41 @@
                                 <span class="typ-meta text-gray-500 dark:text-slate-400 truncate font-mono opacity-75">{contact.shortNpub}</span>
                             </div>
                         </div>
-                        <Button 
-                            onclick={(e: MouseEvent) => { e.stopPropagation(); remove(contact.npub); }}
-                            variant="danger"
-                            size="icon"
-                            class="!w-9 !h-9"
-                            aria-label={$t('modals.manageContacts.removeContactAria')}
+                        <!-- 3-dot menu button (desktop only, visible on hover) -->
+                        <button
+                            type="button"
+                            class="hidden md:flex items-center justify-center w-9 h-9 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200/50 dark:hover:bg-slate-700/50"
+                            onclick={(e) => handleDotMenuClick(e, contact)}
+                            aria-label={$t('modals.manageContacts.contextMenu.openMenu')}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </Button>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="5" r="1"/>
+                                <circle cx="12" cy="12" r="1"/>
+                                <circle cx="12" cy="19" r="1"/>
+                            </svg>
+                        </button>
                     </div>
                 {/each}
             </div>
         </div>
     </div>
+
+    <ContactContextMenu
+        x={contextMenuX}
+        y={contextMenuY}
+        isOpen={contextMenuOpen}
+        onClose={() => { contextMenuOpen = false; contextMenuClosedAt = Date.now(); }}
+        onDelete={handleDeleteOption}
+    />
+
+    <ConfirmDialog
+        isOpen={confirmDeleteOpen}
+        title={$t('modals.manageContacts.confirmDelete.title')}
+        message={$t('modals.manageContacts.confirmDelete.message', { values: { name: selectedContact?.name ?? '' } })}
+        confirmText={$t('modals.manageContacts.confirmDelete.confirm')}
+        cancelText={$t('common.cancel')}
+        confirmVariant="danger"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+    />
 {/if}
