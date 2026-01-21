@@ -175,7 +175,14 @@
 
     function goBack(): void {
         hapticSelection();
-        goto('/contacts');
+        // Prefer popping history to avoid leaving /contacts/create-group
+        // on the stack (which would make the next Android back gesture
+        // return to this page).
+        if (typeof window !== 'undefined' && window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+        goto('/contacts', { replaceState: true });
     }
 </script>
 

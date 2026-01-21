@@ -105,7 +105,14 @@ export function initAndroidBackNavigation(): void {
         // 3. Route-level navigation for contacts create-group
         const path = typeof window !== 'undefined' ? window.location.pathname : '';
         if (path.startsWith('/contacts/create-group')) {
-            await goto('/contacts');
+            // IMPORTANT: use history.back when possible to avoid pushing
+            // an extra entry (/contacts) that makes the next back gesture
+            // return to /contacts/create-group.
+            if (event.canGoBack) {
+                window.history.back();
+                return;
+            }
+            await goto('/contacts', { replaceState: true });
             return;
         }
 
@@ -114,7 +121,12 @@ export function initAndroidBackNavigation(): void {
         const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
 
         if (isChatDetail && isMobile) {
-            await goto('/chat');
+            // Prefer the previous screen (often /contacts) when possible.
+            if (event.canGoBack) {
+                window.history.back();
+                return;
+            }
+            await goto('/chat', { replaceState: true });
             return;
         }
 
