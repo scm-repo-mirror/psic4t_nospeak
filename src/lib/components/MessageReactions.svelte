@@ -55,9 +55,9 @@
     });
 </script>
 
-<div bind:this={container} class="w-full h-0">
+<div bind:this={container} class={`relative z-10 ${isOwn ? 'flex justify-end pr-3' : 'flex justify-start pl-3'}`} style="margin-top: -10px;">
     {#if isVisible && summaries.length > 0}
-        <div class={`absolute -bottom-3 ${isOwn ? 'right-2' : 'left-2'} flex flex-wrap gap-1 text-xs z-10`}>
+        <div class="flex flex-wrap gap-1 text-xs">
             {#each summaries as summary}
                 <div
                     class={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] shadow-sm ${blur('md')}

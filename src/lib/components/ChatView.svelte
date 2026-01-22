@@ -1892,10 +1892,11 @@
           {/if}
         {/if}
 
+        <div class={`${bubbleWidthClass} min-w-0 flex flex-col`}>
         <div
           role="button"
           tabindex="0"
-          class={`${bubbleWidthClass} min-w-0 overflow-hidden p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative ${isAndroidShell ? 'select-none' : ''}
+          class={`min-w-0 overflow-hidden p-3 shadow-sm cursor-pointer transition-all duration-150 ease-out relative ${isAndroidShell ? 'select-none' : ''}
                           ${
                             msg.direction === "sent"
                               ? "bg-blue-50/10 dark:bg-blue-900/40 text-gray-900 dark:text-slate-100 border border-blue-500/10 dark:border-blue-400/10 rounded-2xl rounded-br-none hover:shadow-md"
@@ -1943,11 +1944,6 @@
               </div>
             {/if}
 
-           <MessageReactions
-             targetEventId={msg.rumorId || ''}
-             isOwn={msg.direction === "sent"}
-           />
-
            <div class={`typ-meta mt-1 flex items-center justify-end gap-2 ${msg.direction === "sent" ? "text-blue-100" : "text-gray-400"}`}>
              <span class="cursor-help" title={new Date(msg.sentAt).toLocaleString()}>
                {getRelativeTime(msg.sentAt)}
@@ -1980,6 +1976,11 @@
               </div>
             {/if}
           {/if}
+        </div>
+        <MessageReactions
+          targetEventId={msg.rumorId || ''}
+          isOwn={msg.direction === "sent"}
+        />
         </div>
 
         {#if msg.direction === "sent" && $currentUser}
