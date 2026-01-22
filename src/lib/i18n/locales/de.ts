@@ -163,14 +163,15 @@ const de = {
             never: 'Nie'
         },
         qr: {
-            title: 'QR',
+            title: 'QR-Code',
             tabs: {
-                myQr: 'Mein QR',
-                scanQr: 'QR scannen'
+                myQr: 'Mein Code',
+                scanQr: 'Code scannen'
             }
         },
         userQr: {
-            preparing: 'QR-Code wird vorbereitet…'
+            preparing: 'QR-Code wird vorbereitet…',
+            hint: 'Dies ist dein npub als QR-Code. Teile ihn mit jemandem, damit diese Person ihn scannen und dich als Kontakt hinzufügen kann.'
         },
         scanContactQr: {
             title: 'Kontakt-QR scannen',

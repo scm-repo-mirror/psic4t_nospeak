@@ -162,14 +162,15 @@ const it = {
             never: 'Mai'
         },
         qr: {
-            title: 'QR',
+            title: 'Codice QR',
             tabs: {
-                myQr: 'Il mio QR',
-                scanQr: 'Scansiona QR'
+                myQr: 'Il mio codice',
+                scanQr: 'Scansiona codice'
             }
         },
         userQr: {
-            preparing: 'Preparazione del QR…'
+            preparing: 'Preparazione del QR…',
+            hint: 'Questo è il tuo npub come codice QR. Condividilo con qualcuno affinché possa scansionarlo e aggiungerti come contatto.'
         },
         scanContactQr: {
             title: 'Scansiona QR contatto',

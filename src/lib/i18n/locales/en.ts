@@ -162,14 +162,15 @@ const en = {
             never: 'Never'
         },
         qr: {
-            title: 'QR',
+            title: 'QR Code',
             tabs: {
-                myQr: 'My QR',
-                scanQr: 'Scan QR'
+                myQr: 'My code',
+                scanQr: 'Scan code'
             }
         },
         userQr: {
-            preparing: 'Preparing QR code…'
+            preparing: 'Preparing QR code…',
+            hint: 'This is your npub as a QR code. Share it with someone so they can scan it to add you as a contact.'
         },
         scanContactQr: {
             title: 'Scan contact QR',

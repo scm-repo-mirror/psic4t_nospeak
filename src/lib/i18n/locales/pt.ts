@@ -162,14 +162,15 @@ const pt = {
             never: 'Nunca'
         },
         qr: {
-            title: 'QR',
+            title: 'Código QR',
             tabs: {
-                myQr: 'Meu QR',
-                scanQr: 'Ler QR'
+                myQr: 'Meu código',
+                scanQr: 'Ler código'
             }
         },
         userQr: {
-            preparing: 'A preparar código QR…'
+            preparing: 'A preparar código QR…',
+            hint: 'Este é o seu npub como código QR. Partilhe-o com alguém para que possa lê-lo e adicioná-lo como contacto.'
         },
         scanContactQr: {
             title: 'Ler QR de contacto',

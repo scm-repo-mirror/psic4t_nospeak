@@ -300,8 +300,12 @@
                 ]}
             />
 
-            {#if activeTab === 'myQr'}
-                <div class="mt-5">
+            <div class="grid mt-5">
+                <div
+                    class="col-start-1 row-start-1"
+                    class:invisible={activeTab !== 'myQr'}
+                    aria-hidden={activeTab !== 'myQr'}
+                >
                     <div class="flex items-center gap-3 mb-6">
                         <Avatar
                             npub={$currentUser?.npub || ''}
@@ -327,14 +331,22 @@
                         </div>
                     </div>
 
+                    <p class="mt-4 text-xs text-center text-gray-500 dark:text-slate-400">
+                        {$t('modals.userQr.hint')}
+                    </p>
+
                     {#if loading}
-                        <div class="mt-4 text-xs text-center text-gray-500 dark:text-slate-400">
+                        <div class="mt-2 text-xs text-center text-gray-500 dark:text-slate-400">
                             {$t('modals.userQr.preparing')}
                         </div>
                     {/if}
                 </div>
-            {:else}
-                <div class="mt-5">
+
+                <div
+                    class="col-start-1 row-start-1"
+                    class:invisible={activeTab !== 'scan'}
+                    aria-hidden={activeTab !== 'scan'}
+                >
                     <p class="mb-3 text-xs text-gray-600 dark:text-slate-300">
                         {$t('modals.scanContactQr.instructions')}
                     </p>
@@ -376,7 +388,7 @@
                         {/if}
                     </div>
                 </div>
-            {/if}
+            </div>
         </div>
     </div>
 {/if}
