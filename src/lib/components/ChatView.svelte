@@ -379,9 +379,16 @@
 
   function isPersistedMatch(optimistic: Message, persisted: Message): boolean {
     if (persisted.direction !== 'sent') return false;
-    if (persisted.recipientNpub !== optimistic.recipientNpub) return false;
     if ((persisted.rumorKind || 14) !== (optimistic.rumorKind || 14)) return false;
     if (persisted.sentAt !== optimistic.sentAt) return false;
+
+    // For group messages, match on conversationId instead of recipientNpub
+    if (optimistic.conversationId && persisted.conversationId) {
+      if (persisted.conversationId !== optimistic.conversationId) return false;
+    } else {
+      // For 1-on-1 messages, match on recipientNpub
+      if (persisted.recipientNpub !== optimistic.recipientNpub) return false;
+    }
 
     if ((optimistic.rumorKind || 14) === 14) {
       return persisted.message === optimistic.message;
@@ -706,6 +713,7 @@
   // Clear relay status when switching conversations
   $effect(() => {
     partnerNpub;
+    groupConversation?.id;
     clearRelayStatus();
   });
 
@@ -1939,8 +1947,8 @@
                </svg>
              </button>
            </div>
-          {#if msg.direction === "sent" && i === getLastSentIndex(displayMessages) && partnerNpub}
-            {#if $lastRelaySendStatus && $lastRelaySendStatus.recipientNpub === partnerNpub}
+          {#if msg.direction === "sent" && i === getLastSentIndex(displayMessages) && (partnerNpub || isGroup)}
+            {#if $lastRelaySendStatus && ($lastRelaySendStatus.recipientNpub === partnerNpub || $lastRelaySendStatus.conversationId === groupConversation?.id)}
               <div class="typ-meta mt-0.5 text-right text-blue-100">
                 {#if $lastRelaySendStatus.successfulRelays === 0}
                   {$t('chat.relayStatus.sending')}

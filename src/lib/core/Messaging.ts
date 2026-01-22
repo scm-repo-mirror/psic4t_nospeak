@@ -821,7 +821,7 @@ import type { Conversation } from '$lib/db/db';
     }
  
     // Initialize ephemeral relay send status for UI (do not persist)
-    initRelaySendStatus(giftWrap.id, recipientNpub, recipientRelays.length);
+    initRelaySendStatus(giftWrap.id, recipientRelays.length, recipientNpub);
  
     const publishResult = await publishWithDeadline({
       connectionManager,
@@ -975,21 +975,71 @@ import type { Conversation } from '$lib/db/db';
 
     const rumorId = getEventHash(rumor as NostrEvent);
 
-    // Send gift-wrap to each participant
+    // Create self-wrap first (we use its ID for relay status tracking)
+    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
+
+    // Calculate total desired relays for status tracking
+    let totalDesiredRelays = senderRelays.length;
+    for (const relays of participantRelaysMap.values()) {
+      totalDesiredRelays += relays.length;
+    }
+
+    // Initialize relay send status for UI
+    initRelaySendStatus(selfGiftWrap.id, totalDesiredRelays, undefined, conversationId);
+
+    let totalSuccessfulRelays = 0;
+
+    // Send gift-wrap to each participant using publishWithDeadline
     for (const [npub, relays] of participantRelaysMap) {
       const { data: recipientPubkey } = nip19.decode(npub);
       const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
 
-      // Best-effort delivery to each participant
+      const publishResult = await publishWithDeadline({
+        connectionManager,
+        event: giftWrap,
+        relayUrls: relays,
+        deadlineMs: 5000,
+        onRelaySuccess: () => registerRelaySuccess(selfGiftWrap.id, ''),
+      });
+
+      totalSuccessfulRelays += publishResult.successfulRelays.length;
+
+      // Enqueue failed/timed-out relays for best-effort retry
+      const successfulRelaySet = new Set(publishResult.successfulRelays);
       for (const url of relays) {
-        await retryQueue.enqueue(giftWrap, url);
+        if (!successfulRelaySet.has(url)) {
+          await retryQueue.enqueue(giftWrap, url);
+        }
       }
     }
 
-    // Create self-wrap
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
+    // Send self-wrap using publishWithDeadline
+    const selfPublishResult = await publishWithDeadline({
+      connectionManager,
+      event: selfGiftWrap,
+      relayUrls: senderRelays,
+      deadlineMs: 5000,
+      onRelaySuccess: () => registerRelaySuccess(selfGiftWrap.id, ''),
+    });
+
+    totalSuccessfulRelays += selfPublishResult.successfulRelays.length;
+
+    // Enqueue failed/timed-out self-wrap relays for best-effort retry
+    const selfSuccessfulRelaySet = new Set(selfPublishResult.successfulRelays);
     for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
+      if (!selfSuccessfulRelaySet.has(url)) {
+        await retryQueue.enqueue(selfGiftWrap, url);
+      }
+    }
+
+    // Check if at least one relay succeeded (same behavior as 1-on-1 DMs)
+    if (totalSuccessfulRelays === 0) {
+      console.warn('Group message send failed to reach any relays', {
+        conversationId,
+        selfGiftWrapId: selfGiftWrap.id,
+        participantCount: participantRelaysMap.size,
+      });
+      throw new Error('Failed to send message to any relay');
     }
 
     // Cache locally
@@ -1072,7 +1122,7 @@ import type { Conversation } from '$lib/db/db';
 
     const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
 
-    initRelaySendStatus(giftWrap.id, recipientNpub, recipientRelays.length);
+    initRelaySendStatus(giftWrap.id, recipientRelays.length, recipientNpub);
 
     const publishResult = await publishWithDeadline({
       connectionManager,
@@ -1356,7 +1406,7 @@ import type { Conversation } from '$lib/db/db';
     // 5. Create Gift Wraps
     const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
  
-    initRelaySendStatus(giftWrap.id, recipientNpub, recipientRelays.length);
+    initRelaySendStatus(giftWrap.id, recipientRelays.length, recipientNpub);
 
     const publishResult = await publishWithDeadline({
       connectionManager,

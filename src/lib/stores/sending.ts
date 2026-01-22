@@ -2,17 +2,24 @@ import { writable } from 'svelte/store';
 
 export interface RelaySendStatus {
     eventId: string;
-    recipientNpub: string;
+    recipientNpub?: string;      // For 1-on-1 DMs
+    conversationId?: string;     // For group messages
     successfulRelays: number;
     desiredRelays: number;
 }
 
 export const lastRelaySendStatus = writable<RelaySendStatus | null>(null);
 
-export function initRelaySendStatus(eventId: string, recipientNpub: string, desiredRelays: number) {
+export function initRelaySendStatus(
+    eventId: string,
+    desiredRelays: number,
+    recipientNpub?: string,
+    conversationId?: string
+) {
     lastRelaySendStatus.set({
         eventId,
         recipientNpub,
+        conversationId,
         successfulRelays: 0,
         desiredRelays,
     });
