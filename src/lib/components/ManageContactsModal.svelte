@@ -695,26 +695,27 @@ import { nip19 } from 'nostr-tools';
 
             <div class="flex-1 overflow-y-auto mb-6 min-h-[200px] custom-scrollbar native-scroll pr-1">
                 <!-- Create group row -->
-                <Button
-                    variant="primary"
-                    class="w-full justify-start gap-3 p-3 h-auto"
+                <button
+                    type="button"
+                    class="flex items-center gap-3 p-3 my-1.5 rounded-full w-full text-left bg-transparent text-gray-700 dark:text-gray-400 hover:bg-[rgb(var(--color-lavender-rgb)/0.12)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.16)] hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-out active:scale-[0.98]"
                     onclick={() => {
+                        hapticSelection();
                         close();
                         showCreateGroupModal.set(true);
                     }}
                 >
                     <div class="w-12 h-12 rounded-full bg-[rgb(var(--color-lavender-rgb))] flex items-center justify-center flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white dark:text-[rgb(var(--color-crust-rgb))]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                             <circle cx="9" cy="7" r="4"></circle>
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                             <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                         </svg>
                     </div>
-                    <span class="font-bold text-[15px]">
+                    <span class="font-bold text-gray-800 dark:text-slate-100 text-[15px]">
                         {$t('modals.manageContacts.createGroup')}
                     </span>
-                </Button>
+                </button>
 
                 <!-- Scan QR row -->
                 <button
