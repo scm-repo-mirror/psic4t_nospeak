@@ -89,7 +89,9 @@
             };
         }));
 
-        displayContacts = data;
+        displayContacts = data.sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+        );
     }
 
     $effect(() => {
