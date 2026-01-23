@@ -5,7 +5,6 @@ export {
     getDefaultBlossomServers,
     getDefaultMessagingRelays,
     getDiscoveryRelays,
-    getRobohashBaseUrl,
     getRuntimeConfigSnapshot,
     getSearchRelayUrl,
     getWebAppBaseUrl,

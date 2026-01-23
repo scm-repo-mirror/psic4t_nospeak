@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_RUNTIME_CONFIG } from '$lib/core/runtimeConfig/defaults';
+import { getIdenticonDataUri } from '$lib/core/identicon';
 
 const isAndroidNativeMock = vi.fn();
 const scheduleMock = vi.fn().mockResolvedValue(undefined);
@@ -174,7 +174,7 @@ describe('NotificationService (web notifications)', () => {
         (globalThis as any).Notification = FakeNotification as any;
     });
 
-    it('uses robohash as icon when profile picture is missing', async () => {
+    it('uses identicon as icon when profile picture is missing', async () => {
         isAndroidNativeMock.mockReturnValue(false);
         getProfileIgnoreTTLMock.mockResolvedValue({ metadata: { name: 'Alice' } });
 
@@ -195,7 +195,7 @@ describe('NotificationService (web notifications)', () => {
         await notificationService.showNewMessageNotification('npub1alice', 'Hello from Alice');
 
         expect(FakeNotification.calls.length).toBe(1);
-        expect(FakeNotification.calls[0].options.icon).toBe(`${DEFAULT_RUNTIME_CONFIG.robohashBaseUrl}npub1alice.png?set=set1&bgset=bg2`);
+        expect(FakeNotification.calls[0].options.icon).toBe(getIdenticonDataUri('npub1alice'));
         expect(FakeNotification.calls[0].options.badge).toBe('/nospeak.svg');
     });
 
@@ -278,6 +278,6 @@ describe('NotificationService (web notifications)', () => {
 
         expect(FakeNotification.calls.length).toBe(1);
         expect(FakeNotification.calls[0].title).toContain('Eve');
-        expect(FakeNotification.calls[0].options.icon).toBe(`${DEFAULT_RUNTIME_CONFIG.robohashBaseUrl}npub1eve.png?set=set1&bgset=bg2`);
+        expect(FakeNotification.calls[0].options.icon).toBe(getIdenticonDataUri('npub1eve'));
     });
 });

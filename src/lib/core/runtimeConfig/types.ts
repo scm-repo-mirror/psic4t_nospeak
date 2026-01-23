@@ -5,5 +5,4 @@ export interface RuntimeConfig {
     blasterRelayUrl: string;
     defaultBlossomServers: string[];
     webAppBaseUrl: string;
-    robohashBaseUrl: string;
 }

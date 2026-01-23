@@ -1,15 +1,15 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 
-import { getRobohashBaseUrl } from '$lib/core/runtimeConfig';
 import { profileRepo } from '$lib/db/ProfileRepository';
 
+import { getIdenticonDataUri } from './identicon';
 import { isAndroidNative } from './NativeDialogs';
 
 const DEFAULT_NOTIFICATION_ICON = '/nospeak.svg';
 const ANDROID_MESSAGE_CHANNEL_ID = 'messages';
 
-const ROBOHASH_URL_SUFFIX = '.png?set=set1&bgset=bg2';
 const ANDROID_NOTIFICATION_ICON_TIMEOUT_MS = 1000;
+const DATA_URI_PREFIX = 'data:';
 
 interface FilesystemWriteFileResult {
     uri?: string;
@@ -24,12 +24,8 @@ function isNonEmptyString(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;
 }
 
-function getRobohashAvatarUrl(npub: string): string {
-    return `${getRobohashBaseUrl()}${npub.slice(-10)}${ROBOHASH_URL_SUFFIX}`;
-}
-
 function getNotificationAvatarUrl(npub: string, picture: string | undefined): string {
-    return isNonEmptyString(picture) ? picture : getRobohashAvatarUrl(npub);
+    return isNonEmptyString(picture) ? picture : getIdenticonDataUri(npub);
 }
 
 function getFilesystemPlugin(): FilesystemLike | undefined {
@@ -232,6 +228,13 @@ export class NotificationService {
 
         try {
             const avatarUrl = getNotificationAvatarUrl(senderNpub, senderPicture);
+
+            // Data URIs (identicons) cannot be fetched; the native Android service
+            // handles identicon generation independently via IdenticonGenerator.java.
+            if (avatarUrl.startsWith(DATA_URI_PREFIX)) {
+                return undefined;
+            }
+
             const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
             const timeoutId = controller ? setTimeout(() => controller.abort(), ANDROID_NOTIFICATION_ICON_TIMEOUT_MS) : undefined;
 

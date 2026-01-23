@@ -887,6 +887,12 @@ public class NativeBackgroundMessagingService extends Service {
         String pictureUrl = identity != null ? identity.pictureUrl : null;
 
         Bitmap avatar = resolveCachedAvatarBitmap(senderPubkeyHex, pictureUrl);
+
+        // Generate identicon fallback when no profile picture is available
+        if (avatar == null) {
+            avatar = generateIdenticonForPubkey(senderPubkeyHex);
+        }
+
         long timestampMs = getConversationLastTimestampMs(conversationId);
 
         Person userPerson = new Person.Builder()
@@ -1175,6 +1181,12 @@ public class NativeBackgroundMessagingService extends Service {
         String pictureUrl = identity != null ? identity.pictureUrl : null;
 
         Bitmap avatar = resolveCachedAvatarBitmap(partnerPubkeyHex, pictureUrl);
+
+        // Generate identicon fallback when no profile picture is available
+        if (avatar == null) {
+            avatar = generateIdenticonForPubkey(partnerPubkeyHex);
+        }
+
         long timestampMs = getConversationLastTimestampMs(partnerPubkeyHex);
 
         Person userPerson = new Person.Builder()
@@ -1202,7 +1214,7 @@ public class NativeBackgroundMessagingService extends Service {
         if (!lockedProfileActive) {
             shortcutAvailable = ensureConversationShortcut(conversationId, title, senderPerson, avatar, avatarKey);
         }
- 
+
         if (!lockedProfileActive && avatar == null && pictureUrl != null && !pictureUrl.trim().isEmpty()) {
             fetchConversationAvatar(partnerPubkeyHex, pictureUrl.trim());
         }
@@ -1421,6 +1433,28 @@ public class NativeBackgroundMessagingService extends Service {
         canvas.drawCircle(radius, radius, radius, paint);
 
         return output;
+    }
+
+    /**
+     * Generates an identicon bitmap for a pubkey hex, using the same seed derivation
+     * as the JS side (npub.slice(-10)).
+     */
+    private Bitmap generateIdenticonForPubkey(String pubkeyHex) {
+        try {
+            String npub = Bech32.pubkeyHexToNpub(pubkeyHex);
+            if (npub == null || npub.length() < 10) {
+                return null;
+            }
+            String seed = npub.substring(npub.length() - 10);
+            Bitmap identicon = IdenticonGenerator.generate(seed, AVATAR_TARGET_PX);
+            if (identicon == null) {
+                return null;
+            }
+            return makeCircularBitmap(identicon);
+        } catch (Exception e) {
+            Log.w(LOG_TAG, "Failed to generate identicon for pubkey", e);
+            return null;
+        }
     }
 
     private boolean writeAvatarBitmap(File file, Bitmap bitmap) {

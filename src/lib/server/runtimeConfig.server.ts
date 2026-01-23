@@ -65,15 +65,6 @@ function normalizeHttpsOrigin(value: string): string | null {
     }
 }
 
-function normalizeHttpsOriginWithTrailingSlash(value: string): string | null {
-    const origin = normalizeHttpsOrigin(value);
-    if (!origin) {
-        return null;
-    }
-
-    return `${origin}/`;
-}
-
 function parseWssList(value: string | undefined): string[] {
     const entries = parseCommaSeparated(value);
     return dedupePreserveOrder(entries.map(normalizeWssUrl).filter((entry): entry is string => !!entry));
@@ -159,21 +150,13 @@ export function getRuntimeConfigFromEnv(env: Record<string, string | undefined>)
         'NOSPEAK_WEB_APP_BASE_URL'
     );
 
-    const robohashBaseUrl = resolveSingleOverride(
-        env.NOSPEAK_ROBOHASH_BASE_URL,
-        env.NOSPEAK_ROBOHASH_BASE_URL ? normalizeHttpsOriginWithTrailingSlash(env.NOSPEAK_ROBOHASH_BASE_URL) : null,
-        DEFAULT_RUNTIME_CONFIG.robohashBaseUrl,
-        'NOSPEAK_ROBOHASH_BASE_URL'
-    );
-
     return {
         discoveryRelays,
         defaultMessagingRelays,
         searchRelayUrl,
         blasterRelayUrl,
         defaultBlossomServers,
-        webAppBaseUrl,
-        robohashBaseUrl
+        webAppBaseUrl
     };
 }
 

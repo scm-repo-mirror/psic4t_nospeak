@@ -1,8 +1,8 @@
 {
   "name": "web",
   "private": true,
-  "version": "0.10.1",
-  "versionCode": 100010,
+  "version": "0.10.2",
+  "versionCode": 100020,
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -54,6 +54,7 @@
     "chokidar": "^5.0.0",
     "dexie": "^4.2.1",
     "jsqr": "^1.4.0",
+    "minidenticons": "^4.2.1",
     "nostr-tools": "^2.18.2",
     "qrcode": "^1.5.4",
     "svelte-i18n": "^4.0.0",

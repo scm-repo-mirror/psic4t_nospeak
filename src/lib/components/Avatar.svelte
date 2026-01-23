@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { getIdenticonDataUri } from '$lib/core/identicon';
+
     let { src, npub, size = 'md', class: className = '' } = $props<{ 
         src?: string, 
         npub: string, 
@@ -6,12 +8,12 @@
         class?: string 
     }>();
 
-    const robotUrl = $derived(`https://robohash.org/${npub.slice(-10)}.png?set=set1&bgset=bg2`);
+    const identiconSrc = $derived(getIdenticonDataUri(npub));
     
     let imgError = $state(false);
     
-    // If src provided and no error, use it. Otherwise fallback to robot.
-    const finalSrc = $derived(!imgError && src ? src : robotUrl);
+    // If src provided and no error, use it. Otherwise fallback to identicon.
+    const finalSrc = $derived(!imgError && src ? src : identiconSrc);
 
     // Reset error state when src changes
     $effect(() => {

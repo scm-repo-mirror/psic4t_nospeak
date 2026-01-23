@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { getIdenticonDataUri } from '$lib/core/identicon';
     import { profileRepo } from '$lib/db/ProfileRepository';
     import { onMount } from 'svelte';
 
@@ -27,8 +28,8 @@
     // Profile pictures for participants
     let pictures = $state<Map<string, string | undefined>>(new Map());
 
-    function getRobotUrl(npub: string): string {
-        return `https://robohash.org/${npub.slice(-10)}.png?set=set1&bgset=bg2`;
+    function getFallbackSrc(npub: string): string {
+        return getIdenticonDataUri(npub);
     }
 
     // Fetch profile pictures for participants
@@ -55,9 +56,9 @@
 
     function getSrc(npub: string): string {
         if (imgErrors.has(npub)) {
-            return getRobotUrl(npub);
+            return getFallbackSrc(npub);
         }
-        return pictures.get(npub) || getRobotUrl(npub);
+        return pictures.get(npub) || getFallbackSrc(npub);
     }
 
     const config = $derived(sizeConfig[size as keyof typeof sizeConfig]);

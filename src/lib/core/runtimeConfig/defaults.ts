@@ -19,6 +19,5 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
         'https://blossom.data.haus',
         'https://blossom.primal.net'
     ],
-    webAppBaseUrl: 'https://nospeak.chat',
-    robohashBaseUrl: 'https://robohash.org/'
+    webAppBaseUrl: 'https://nospeak.chat'
 };

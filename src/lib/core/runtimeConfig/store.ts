@@ -27,15 +27,6 @@ function normalizeHttpsOrigin(value: string): string | null {
     }
 }
 
-function normalizeHttpsOriginWithTrailingSlash(value: string): string | null {
-    const origin = normalizeHttpsOrigin(value);
-    if (!origin) {
-        return null;
-    }
-
-    return `${origin}/`;
-}
-
 function isRuntimeConfig(value: unknown): value is RuntimeConfig {
     if (!value || typeof value !== 'object') {
         return false;
@@ -49,8 +40,7 @@ function isRuntimeConfig(value: unknown): value is RuntimeConfig {
         Array.isArray(candidate.defaultBlossomServers) &&
         isNonEmptyString(candidate.searchRelayUrl) &&
         isNonEmptyString(candidate.blasterRelayUrl) &&
-        isNonEmptyString(candidate.webAppBaseUrl) &&
-        isNonEmptyString(candidate.robohashBaseUrl)
+        isNonEmptyString(candidate.webAppBaseUrl)
     );
 }
 
@@ -92,13 +82,10 @@ export async function initRuntimeConfig(fetchImpl: typeof fetch = fetch): Promis
 
         // Normalize https origins in case server format changes.
         const normalizedWebBase = normalizeHttpsOrigin(json.webAppBaseUrl) ?? DEFAULT_RUNTIME_CONFIG.webAppBaseUrl;
-        const normalizedRobohashBase =
-            normalizeHttpsOriginWithTrailingSlash(json.robohashBaseUrl) ?? DEFAULT_RUNTIME_CONFIG.robohashBaseUrl;
 
         runtimeConfig.set({
             ...json,
-            webAppBaseUrl: normalizedWebBase,
-            robohashBaseUrl: normalizedRobohashBase
+            webAppBaseUrl: normalizedWebBase
         });
     } catch (e) {
         console.warn('Failed to initialize runtime config; using defaults', e);
@@ -131,10 +118,6 @@ export function getDefaultBlossomServers(): string[] {
 
 export function getWebAppBaseUrl(): string {
     return getRuntimeConfigSnapshot().webAppBaseUrl;
-}
-
-export function getRobohashBaseUrl(): string {
-    return getRuntimeConfigSnapshot().robohashBaseUrl;
 }
 
 export { runtimeConfig };

@@ -83,7 +83,6 @@ NOSPEAK_SEARCH_RELAY=wss://relay.nostr.band
 NOSPEAK_BLASTER_RELAY=wss://sendit.nosflare.com
 NOSPEAK_DEFAULT_BLOSSOM_SERVERS=https://blossom.data.haus,https://blossom.primal.net
 NOSPEAK_WEB_APP_BASE_URL=https://nospeak.chat
-NOSPEAK_ROBOHASH_BASE_URL=https://robohash.org
 ```
 
 ### Docker Compose runtime configuration
@@ -101,7 +100,6 @@ services:
       NOSPEAK_BLASTER_RELAY: "wss://sendit.nosflare.com"
       NOSPEAK_DEFAULT_BLOSSOM_SERVERS: "https://blossom.data.haus,https://blossom.primal.net"
       NOSPEAK_WEB_APP_BASE_URL: "https://nospeak.chat"
-      NOSPEAK_ROBOHASH_BASE_URL: "https://robohash.org"
 ```
 
 Apply changes:
