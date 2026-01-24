@@ -49,7 +49,8 @@ const en = {
             video: 'Video',
             voiceMessage: 'Voice Message',
             audio: 'Audio',
-            file: 'File'
+            file: 'File',
+            location: 'Location'
         }
     },
     connection: {

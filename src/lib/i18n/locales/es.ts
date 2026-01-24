@@ -49,7 +49,8 @@ const es = {
             video: 'Vídeo',
             voiceMessage: 'Mensaje de voz',
             audio: 'Audio',
-            file: 'Archivo'
+            file: 'Archivo',
+            location: 'Ubicación'
         }
     },
     connection: {

@@ -31,3 +31,11 @@ export function getMediaPreviewLabel(fileType: string): string {
     // Generic file
     return `📎 ${get(t)("contacts.mediaPreview.file")}`;
 }
+
+/**
+ * Returns a user-friendly, localized label for a location message.
+ * Used in contact list previews and notifications.
+ */
+export function getLocationPreviewLabel(): string {
+    return `📍 ${get(t)("contacts.mediaPreview.location")}`;
+}

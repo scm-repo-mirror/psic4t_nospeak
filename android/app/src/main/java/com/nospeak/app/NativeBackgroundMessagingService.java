@@ -1481,7 +1481,12 @@ public class NativeBackgroundMessagingService extends Service {
 
     private String resolveRumorPreview(DecryptedRumor rumor) { 
         if (rumor.kind == 14) {
+            // Check for location message (has 'location' tag or content starts with 'geo:')
+            String locationTag = getTagValue(rumor.tags, "location");
             String content = rumor.content != null ? rumor.content.trim() : "";
+            if (locationTag != null || content.startsWith("geo:")) {
+                return "\uD83D\uDCCD Location";
+            }
             if (content.isEmpty()) {
                 return "New message";
             }

@@ -20,7 +20,7 @@
   import { get } from "svelte/store";
   import { isAndroidNative } from "$lib/core/NativeDialogs";
   import Button from "$lib/components/ui/Button.svelte";
-  import { getMediaPreviewLabel } from "$lib/utils/mediaPreview";
+  import { getMediaPreviewLabel, getLocationPreviewLabel } from "$lib/utils/mediaPreview";
   import { overscroll } from "$lib/utils/overscroll";
 
   // Extended contact type that includes group chats
@@ -104,6 +104,9 @@
           if (lastMsg.fileUrl && lastMsg.fileType) {
             // Media attachment - show friendly label only (message field contains URL, not caption)
             lastMessageText = getMediaPreviewLabel(lastMsg.fileType);
+          } else if (lastMsg.location) {
+            // Location message - show friendly label instead of raw geo: string
+            lastMessageText = getLocationPreviewLabel();
           } else {
             // Regular text message
             lastMessageText = (lastMsg.message || "").replace(/\s+/g, " ").trim();
@@ -159,6 +162,8 @@
         if (lastMsg) {
           if (lastMsg.fileUrl && lastMsg.fileType) {
             lastMessageText = getMediaPreviewLabel(lastMsg.fileType);
+          } else if (lastMsg.location) {
+            lastMessageText = getLocationPreviewLabel();
           } else {
             lastMessageText = (lastMsg.message || "").replace(/\s+/g, " ").trim();
           }

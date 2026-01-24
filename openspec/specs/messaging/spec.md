@@ -595,6 +595,8 @@ The chats sidebar header on mobile-sized layouts SHALL display the nospeak app n
 ### Requirement: Local Message Notifications for New Messages
 When message notifications are enabled for the current device and the platform has granted notification permission, the messaging experience SHALL surface user-visible notifications for newly received messages using the platform-appropriate mechanism (browser notifications on web, OS-level notifications in the Android app) while the application is running.
 
+When the received message is a media attachment (file message with a MIME type), the notification body SHALL display a localized media-type label with an icon instead of the raw file URL. When the received message is a location message (message with a `location` field), the notification body SHALL display `📍` followed by a localized "Location" label instead of the raw `geo:` coordinate string.
+
 #### Scenario: Web browser shows new message notification
 - **GIVEN** the user is accessing nospeak in a supported web browser
 - **AND** message notifications are enabled in Settings → General
@@ -649,6 +651,13 @@ When message notifications are enabled for the current device and the platform h
 - **THEN** the system SHALL NOT show a browser or Android OS notification for that message
 - **AND** the rest of the messaging behavior (message storage and in-app display) SHALL continue to function normally.
 
+#### Scenario: Location message notification shows localized label
+- **GIVEN** message notifications are enabled and the platform has granted notification permission
+- **AND** the user is not currently viewing the conversation with the sender
+- **WHEN** a new location message (message with a `location` field) is received and processed by the messaging pipeline
+- **THEN** the notification body SHALL display `📍` followed by the localized location label (for example "Location" in English, "Standort" in German)
+- **AND** SHALL NOT display the raw `geo:lat,lng` coordinate string as the notification body.
+
 ### Requirement: Android Native Dialog Integration for Messaging
 When running inside the Android Capacitor app shell, the messaging experience SHALL use Android-native dialogs and sheets via Capacitor plugins where appropriate for confirmations, media selection, error states, and sharing, while preserving the existing messaging semantics defined in `specs/messaging/spec.md`.
 
@@ -682,6 +691,8 @@ When running inside the Android Capacitor app shell, the messaging experience SH
 ### Requirement: Mobile contacts last message preview
 The mobile contacts list SHALL display a single-line preview of the most recent message under each contact's name when the viewport corresponds to a mobile-sized layout (for example, screen width <= 768px or a native mobile shell), using the latest stored message content for that contact. The preview SHALL be truncated when it does not fit in the available width and SHALL be omitted for contacts that have no stored messages. Desktop layouts (screen width > 768px) SHALL continue to display only the contact name and unread indicator without a message preview line.
 
+When the most recent message is a media attachment (file message with a MIME type), the preview SHALL display a localized media-type label with an icon (for example `🎤 Voice Message`, `📷 Image`) instead of the raw file URL. When the most recent message is a location message (message with a `location` field), the preview SHALL display `📍` followed by a localized "Location" label instead of the raw `geo:` coordinate string.
+
 #### Scenario: Mobile contacts list shows last message preview
 - **GIVEN** the user is authenticated and viewing the contacts list
 - **AND** the viewport corresponds to a mobile-sized layout (for example, screen width <= 768px or native mobile shell)
@@ -705,6 +716,14 @@ The mobile contacts list SHALL display a single-line preview of the most recent 
 - **THEN** each contact row SHALL display the contact name and unread indicator as currently specified
 - **AND** SHALL NOT display a last-message preview line, even if stored messages exist for that contact.
 
+#### Scenario: Location message shows localized label in preview
+- **GIVEN** the user is authenticated and viewing the contacts list
+- **AND** the viewport corresponds to a mobile-sized layout
+- **AND** the most recent message from Contact C is a location message (has a `location` field with latitude and longitude)
+- **WHEN** the contacts list is rendered
+- **THEN** the preview line for Contact C SHALL display `📍` followed by the localized location label (for example "Location" in English, "Standort" in German)
+- **AND** SHALL NOT display the raw `geo:lat,lng` coordinate string.
+
 ### Requirement: Android Background Message Delivery
 When running inside the Android Capacitor app shell with background messaging enabled, the messaging experience on Android SHALL delegate background message reception and notification to a native foreground service that connects to the user's read relays, subscribes to gift-wrapped messages, and triggers OS notifications even while the WebView is suspended.
 
@@ -715,6 +734,7 @@ When running inside the Android Capacitor app shell with background messaging en
 - **WHEN** a new gift-wrapped message addressed to the current user is delivered from any configured read relay while the app UI is not visible
 - **THEN** the native service SHALL attempt to decrypt the gift-wrap using the active Android signer integration
 - **AND** when the inner rumor is a Kind 14 text message authored by another user, it SHALL raise an Android OS notification whose body includes a truncated plaintext preview
+- **AND** when the inner rumor is a Kind 14 location message (has a `location` tag or content starting with `geo:`) authored by another user, it SHALL raise an Android OS notification whose body is `📍 Location`
 - **AND** when the inner rumor is a Kind 15 file message authored by another user, it SHALL raise an Android OS notification whose body includes the phrase `Message: Sent you an attachment`
 - **AND** when the decrypted inner rumor is a NIP-25 `kind 7` reaction, it SHALL NOT raise an Android OS notification for that reaction
 - **AND** when decryption is not available or fails, it SHALL NOT raise a generic "new encrypted message" notification.
@@ -1474,7 +1494,7 @@ The messaging UI SHALL provide a chat-history search control for an active conve
 ### Requirement: Android Conversation Notifications Use MessagingStyle
 When running inside the Android Capacitor app shell with Android background messaging enabled, the native foreground service SHALL render per-conversation OS notifications using `NotificationCompat.MessagingStyle` so that notifications appear as message conversations in Android's notification UI.
 
-Conversation notifications SHALL include exactly one message row representing the latest incoming conversation activity (for example a Kind 14 plaintext preview, `Message: Sent you an attachment` for Kind 15, or `Reaction: …` for Kind 7), and SHALL NOT aggregate multiple unseen items into a single prefixed string such as `N new items · ...`.
+Conversation notifications SHALL include exactly one message row representing the latest incoming conversation activity (for example a Kind 14 plaintext preview, `📍 Location` for Kind 14 location messages, `Message: Sent you an attachment` for Kind 15, or `Reaction: …` for Kind 7), and SHALL NOT aggregate multiple unseen items into a single prefixed string such as `N new items · ...`.
 
 When cached sender identity data is available on the device, the native service SHOULD represent the sender using a `Person` whose name is derived from the cached username and whose icon is derived from the cached avatar bitmap on a best-effort basis. When cached identity data is not available, the notification SHALL fall back to the existing generic conversation titling behavior.
 

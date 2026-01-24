@@ -49,7 +49,8 @@ const de = {
             video: 'Video',
             voiceMessage: 'Sprachnachricht',
             audio: 'Audio',
-            file: 'Datei'
+            file: 'Datei',
+            location: 'Standort'
         }
     },
 
