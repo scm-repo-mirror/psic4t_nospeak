@@ -283,9 +283,25 @@ import type { Conversation } from '$lib/db/db';
         const encAlgTag = rumor.tags.find(t => t[0] === 'encryption-algorithm');
         const keyTag = rumor.tags.find(t => t[0] === 'decryption-key');
         const nonceTag = rumor.tags.find(t => t[0] === 'decryption-nonce');
+        const dimTag = rumor.tags.find(t => t[0] === 'dim');
+        const blurhashTag = rumor.tags.find(t => t[0] === 'blurhash');
 
         const fileType = fileTypeTag?.[1];
         const fileSize = sizeTag ? parseInt(sizeTag[1], 10) || undefined : undefined;
+
+        let fileWidth: number | undefined;
+        let fileHeight: number | undefined;
+        if (dimTag?.[1]) {
+          const parts = dimTag[1].split('x');
+          if (parts.length === 2) {
+            const w = parseInt(parts[0], 10);
+            const h = parseInt(parts[1], 10);
+            if (w > 0 && h > 0) {
+              fileWidth = w;
+              fileHeight = h;
+            }
+          }
+        }
 
         return {
           recipientNpub: partnerNpub,
@@ -304,6 +320,9 @@ import type { Conversation } from '$lib/db/db';
           fileEncryptionAlgorithm: encAlgTag?.[1],
           fileKey: keyTag?.[1],
           fileNonce: nonceTag?.[1],
+          fileWidth,
+          fileHeight,
+          fileBlurhash: blurhashTag?.[1],
           conversationId,
           participants,
           senderNpub
@@ -1174,10 +1193,11 @@ import type { Conversation } from '$lib/db/db';
     file: File,
     mediaType: 'image' | 'video' | 'audio',
     createdAtSeconds?: number,
-    conversationId?: string
+    conversationId?: string,
+    mediaMeta?: { width?: number; height?: number; blurhash?: string }
   ): Promise<string> {
     if (conversationId) {
-      return this.sendGroupFileMessage(conversationId, file, mediaType, createdAtSeconds);
+      return this.sendGroupFileMessage(conversationId, file, mediaType, createdAtSeconds, mediaMeta);
     }
 
     if (!recipientNpub) {
@@ -1212,6 +1232,12 @@ import type { Conversation } from '$lib/db/db';
     if (encrypted.hashPlain) {
       tags.push(['ox', encrypted.hashPlain]);
     }
+    if (mediaMeta?.width && mediaMeta?.height) {
+      tags.push(['dim', `${mediaMeta.width}x${mediaMeta.height}`]);
+    }
+    if (mediaMeta?.blurhash) {
+      tags.push(['blurhash', mediaMeta.blurhash]);
+    }
 
     const rumor: Partial<NostrEvent> = {
       kind: 15,
@@ -1234,6 +1260,9 @@ import type { Conversation } from '$lib/db/db';
         fileEncryptionAlgorithm: 'aes-gcm',
         fileKey: encrypted.key,
         fileNonce: encrypted.nonce,
+        fileWidth: mediaMeta?.width,
+        fileHeight: mediaMeta?.height,
+        fileBlurhash: mediaMeta?.blurhash,
       },
     });
 
@@ -1244,7 +1273,8 @@ import type { Conversation } from '$lib/db/db';
     conversationId: string,
     file: File,
     mediaType: 'image' | 'video' | 'audio',
-    createdAtSeconds?: number
+    createdAtSeconds?: number,
+    mediaMeta?: { width?: number; height?: number; blurhash?: string }
   ): Promise<string> {
     const s = get(signer);
     if (!s) throw new Error('Not authenticated');
@@ -1292,6 +1322,12 @@ import type { Conversation } from '$lib/db/db';
     if (encrypted.hashPlain) {
       tags.push(['ox', encrypted.hashPlain]);
     }
+    if (mediaMeta?.width && mediaMeta?.height) {
+      tags.push(['dim', `${mediaMeta.width}x${mediaMeta.height}`]);
+    }
+    if (mediaMeta?.blurhash) {
+      tags.push(['blurhash', mediaMeta.blurhash]);
+    }
 
     const rumor: Partial<NostrEvent> = {
       kind: 15,
@@ -1316,6 +1352,9 @@ import type { Conversation } from '$lib/db/db';
         fileEncryptionAlgorithm: 'aes-gcm',
         fileKey: encrypted.key,
         fileNonce: encrypted.nonce,
+        fileWidth: mediaMeta?.width,
+        fileHeight: mediaMeta?.height,
+        fileBlurhash: mediaMeta?.blurhash,
       },
     });
 

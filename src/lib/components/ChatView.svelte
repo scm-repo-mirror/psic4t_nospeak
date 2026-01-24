@@ -4,6 +4,7 @@
   import { profileRepo } from "$lib/db/ProfileRepository";
   import { messagingService } from "$lib/core/Messaging";
   import { ensureDefaultBlossomServersForCurrentUser } from "$lib/core/DefaultBlossomServers";
+  import { getImageMetadata, getVideoMetadata } from "$lib/utils/mediaMetadata";
   import { runtimeConfig } from "$lib/core/runtimeConfig";
   import Avatar from "./Avatar.svelte";
   import GroupAvatar from "./GroupAvatar.svelte";
@@ -1242,12 +1243,26 @@
 
     void (async () => {
       try {
+        // Extract dimensions and blurhash for images/videos (best-effort)
+        let mediaMeta: { width?: number; height?: number; blurhash?: string } | undefined;
+        if (mediaType === 'image' || mediaType === 'video') {
+          try {
+            const meta = mediaType === 'image'
+              ? await getImageMetadata(file)
+              : await getVideoMetadata(file);
+            mediaMeta = meta;
+          } catch {
+            // Proceed without metadata on failure
+          }
+        }
+
         const parentRumorId = await messagingService.sendFileMessage(
           isGroup ? null : partnerNpub!,
           file,
           mediaType,
           createdAtSeconds,
-          isGroup ? groupConversation!.id : undefined
+          isGroup ? groupConversation!.id : undefined,
+          mediaMeta
         );
 
         if (caption.length > 0) {
@@ -1937,6 +1952,9 @@
                 onMediaLoad={handleMediaLoad}
                 location={msg.location}
                 forceEagerLoad={i >= displayMessages.length - 3}
+                fileWidth={msg.fileWidth}
+                fileHeight={msg.fileHeight}
+                fileBlurhash={msg.fileBlurhash}
               />
 
             {#if captionForThis}

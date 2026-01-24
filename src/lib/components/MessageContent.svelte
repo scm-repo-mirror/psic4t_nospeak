@@ -10,6 +10,7 @@
     import { profileRepo } from '$lib/db/ProfileRepository';
     import { profileResolver } from '$lib/core/ProfileResolver';
     import { buildBlossomCandidateUrls, extractBlossomSha256FromUrl } from '$lib/core/BlossomRetrieval';
+    import { decode as decodeBlurhash } from 'blurhash';
     import { t } from '$lib/i18n';
 
     let {
@@ -25,7 +26,10 @@
         authorNpub = undefined,
         onMediaLoad = undefined,
         location = undefined,
-        forceEagerLoad = false
+        forceEagerLoad = false,
+        fileWidth = undefined,
+        fileHeight = undefined,
+        fileBlurhash = undefined
     } = $props<{
         content: string;
         highlight?: string;
@@ -40,6 +44,9 @@
         onMediaLoad?: () => void;
         location?: { latitude: number; longitude: number };
         forceEagerLoad?: boolean;
+        fileWidth?: number;
+        fileHeight?: number;
+        fileBlurhash?: string;
     }>();
 
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -257,6 +264,39 @@
      let decryptedUrl = $state<string | null>(null);
      let isDecrypting = $state(false);
      let decryptError = $state<string | null>(null);
+     let mediaLoaded = $state(false);
+     let blurhashCanvas = $state<HTMLCanvasElement | null>(null);
+
+     const hasBlurhashPlaceholder = $derived(
+         !!(fileWidth && fileHeight && fileBlurhash)
+     );
+
+     function renderBlurhash(canvas: HTMLCanvasElement) {
+         if (!fileBlurhash || !fileWidth || !fileHeight) return;
+         try {
+             const pixels = decodeBlurhash(fileBlurhash, 32, 32);
+             const ctx = canvas.getContext('2d');
+             if (!ctx) return;
+             canvas.width = 32;
+             canvas.height = 32;
+             const imageData = ctx.createImageData(32, 32);
+             imageData.data.set(pixels);
+             ctx.putImageData(imageData, 0, 0);
+         } catch {
+             // Silently ignore decode errors
+         }
+     }
+
+     function handleRealMediaLoad() {
+         mediaLoaded = true;
+         onMediaLoad?.();
+     }
+
+     $effect(() => {
+         if (blurhashCanvas && fileBlurhash) {
+             renderBlurhash(blurhashCanvas);
+         }
+     });
  
      onMount(() => {
         if (typeof window === 'undefined') return;
@@ -501,6 +541,26 @@
               {:else if decryptedUrl}
 
                  {#if isImageMime(fileType) || isImage(decryptedUrl)}
+                     {#if hasBlurhashPlaceholder}
+                         <div class="my-1 relative overflow-hidden rounded" style="aspect-ratio: {fileWidth}/{fileHeight}; max-height: 300px; max-width: min(100%, {fileWidth! * 300 / fileHeight!}px);">
+                             {#if !mediaLoaded}
+                                 <canvas bind:this={blurhashCanvas} class="absolute inset-0 w-full h-full rounded"></canvas>
+                             {/if}
+                             {#if onImageClick}
+                                 <button
+                                     type="button"
+                                     class="block w-full h-full cursor-zoom-in"
+                                     onclick={() => onImageClick?.(decryptedUrl!, fileUrl)}
+                                 >
+                                     <img src={decryptedUrl} alt="Attachment" class="w-full h-full object-contain rounded" loading={forceEagerLoad ? "eager" : "lazy"} onload={handleRealMediaLoad} />
+                                 </button>
+                             {:else}
+                                 <a href={decryptedUrl} target="_blank" rel="noopener noreferrer" class="block w-full h-full">
+                                     <img src={decryptedUrl} alt="Attachment" class="w-full h-full object-contain rounded" loading={forceEagerLoad ? "eager" : "lazy"} onload={handleRealMediaLoad} />
+                                 </a>
+                             {/if}
+                         </div>
+                     {:else}
                       {#if onImageClick}
                           <button
                               type="button"
@@ -515,11 +575,21 @@
                              <img src={decryptedUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading={forceEagerLoad ? "eager" : "lazy"} onload={() => onMediaLoad?.()} />
                          </a>
                      {/if}
+                     {/if}
                  {:else if isVideoMime(fileType) || isVideo(decryptedUrl)}
                      <!-- svelte-ignore a11y_media_has_caption -->
+                     {#if hasBlurhashPlaceholder}
+                         <div class="my-1 relative overflow-hidden rounded" style="aspect-ratio: {fileWidth}/{fileHeight}; max-height: 300px; max-width: min(100%, {fileWidth! * 300 / fileHeight!}px);">
+                             {#if !mediaLoaded}
+                                 <canvas bind:this={blurhashCanvas} class="absolute inset-0 w-full h-full rounded"></canvas>
+                             {/if}
+                             <video controls src={decryptedUrl} class="w-full h-full rounded" preload="metadata" onloadedmetadata={handleRealMediaLoad}></video>
+                         </div>
+                     {:else}
                      <div class="my-1">
                          <video controls src={decryptedUrl} class="max-w-full rounded max-h-[300px]" preload="metadata" onloadedmetadata={() => onMediaLoad?.()}></video>
                      </div>
+                     {/if}
               {:else if isAudioMime(fileType) || isAudio(decryptedUrl)}
                       <div class="mb-1">
                           <AudioWaveformPlayer url={decryptedUrl} isOwn={isOwn} />
@@ -528,10 +598,25 @@
                      <a href={decryptedUrl} target="_blank" rel="noopener noreferrer" class="underline hover:opacity-80 break-all">Download attachment</a>
                  {/if}
              {:else}
+                 {#if hasBlurhashPlaceholder}
+                     <div class="my-1 relative overflow-hidden rounded" style="aspect-ratio: {fileWidth}/{fileHeight}; max-height: 300px; max-width: min(100%, {fileWidth! * 300 / fileHeight!}px);">
+                         <canvas bind:this={blurhashCanvas} class="absolute inset-0 w-full h-full rounded"></canvas>
+                         {#if isDecrypting}
+                             <div class="absolute inset-0 flex items-center justify-center">
+                                 <div class="typ-meta text-xs text-white/80 bg-black/30 px-2 py-1 rounded">Decrypting...</div>
+                             </div>
+                         {:else if decryptError}
+                             <div class="absolute inset-0 flex items-center justify-center">
+                                 <div class="typ-meta text-xs text-red-200 bg-black/30 px-2 py-1 rounded">{decryptError}</div>
+                             </div>
+                         {/if}
+                     </div>
+                 {:else}
                  {#if isDecrypting}
                      <div class="typ-meta text-xs text-gray-500 dark:text-slate-400">Decrypting attachment...</div>
                  {:else if decryptError}
                      <div class="typ-meta text-xs text-red-500">{decryptError}</div>
+                 {/if}
                  {/if}
              {/if}
          </div>
@@ -544,12 +629,31 @@
                       </div>
                   </div>
               {:else if isImageMime(fileType) || isImage(fileUrl)}
-
+                 {#if hasBlurhashPlaceholder}
+                     <div class="my-1 relative overflow-hidden rounded" style="aspect-ratio: {fileWidth}/{fileHeight}; max-height: 300px; max-width: min(100%, {fileWidth! * 300 / fileHeight!}px);">
+                         {#if !mediaLoaded}
+                             <canvas bind:this={blurhashCanvas} class="absolute inset-0 w-full h-full rounded"></canvas>
+                         {/if}
+                         {#if onImageClick}
+                             <button
+                                 type="button"
+                                 class="block w-full h-full cursor-zoom-in"
+                                 onclick={() => onImageClick?.(fileUrl!, fileUrl)}
+                             >
+                                 <img src={fileUrl} alt="Attachment" class="w-full h-full object-contain rounded" loading={forceEagerLoad ? "eager" : "lazy"} onload={handleRealMediaLoad} />
+                             </button>
+                         {:else}
+                             <a href={fileUrl} target="_blank" rel="noopener noreferrer" class="block w-full h-full">
+                                 <img src={fileUrl} alt="Attachment" class="w-full h-full object-contain rounded" loading={forceEagerLoad ? "eager" : "lazy"} onload={handleRealMediaLoad} />
+                             </a>
+                         {/if}
+                     </div>
+                 {:else}
                  {#if onImageClick}
                      <button
                          type="button"
                          class="block my-1 cursor-zoom-in"
-                         onclick={() => onImageClick?.(fileUrl, fileUrl)}
+                         onclick={() => onImageClick?.(fileUrl!, fileUrl)}
                      >
                          <img src={fileUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading={forceEagerLoad ? "eager" : "lazy"} onload={() => onMediaLoad?.()} />
                      </button>
@@ -558,11 +662,21 @@
                          <img src={fileUrl} alt="Attachment" class="max-w-full rounded max-h-[300px] object-contain" loading={forceEagerLoad ? "eager" : "lazy"} onload={() => onMediaLoad?.()} />
                      </a>
                  {/if}
+                 {/if}
              {:else if isVideoMime(fileType) || isVideo(fileUrl)}
                  <!-- svelte-ignore a11y_media_has_caption -->
+                 {#if hasBlurhashPlaceholder}
+                     <div class="my-1 relative overflow-hidden rounded" style="aspect-ratio: {fileWidth}/{fileHeight}; max-height: 300px; max-width: min(100%, {fileWidth! * 300 / fileHeight!}px);">
+                         {#if !mediaLoaded}
+                             <canvas bind:this={blurhashCanvas} class="absolute inset-0 w-full h-full rounded"></canvas>
+                         {/if}
+                         <video controls src={fileUrl} class="w-full h-full rounded" preload="metadata" onloadedmetadata={handleRealMediaLoad}></video>
+                     </div>
+                 {:else}
                  <div class="my-1">
                      <video controls src={fileUrl} class="max-w-full rounded max-h-[300px]" preload="metadata" onloadedmetadata={() => onMediaLoad?.()}></video>
                  </div>
+                 {/if}
               {:else if isAudioMime(fileType) || isAudio(fileUrl)}
                   <div class="mb-1">
                       <AudioWaveformPlayer url={fileUrl} isOwn={isOwn} />
