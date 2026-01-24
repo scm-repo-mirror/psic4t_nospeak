@@ -1,8 +1,4 @@
 <script lang="ts">
-  import {
-    contacts as contactsStore,
-    type Contact,
-  } from "$lib/stores/contacts";
   import { currentUser } from "$lib/stores/auth";
   import ConnectionStatus from "./ConnectionStatus.svelte";
   import { authService } from "$lib/core/AuthService";
@@ -234,19 +230,6 @@
     );
     
     chatItems = sortedItems;
-    
-    // Also update the contacts store for backward compatibility
-    const contactsOnly = contactItems.filter(c => c.lastMessageTime > 0).map(c => ({
-      npub: c.id,
-      name: c.name,
-      picture: c.picture,
-      hasUnread: c.hasUnread,
-      lastMessageTime: c.lastMessageTime,
-      nip05: c.nip05,
-      nip05Status: c.nip05Status,
-      lastMessageText: c.lastMessageText,
-    }));
-    contactsStore.set(contactsOnly);
   }
 
   // Sync contacts and group conversations from DB
