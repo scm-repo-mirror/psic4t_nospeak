@@ -1,15 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-    import { liveQuery } from 'dexie';
-    import { get } from 'svelte/store';
-    import { nip19 } from 'nostr-tools';
 
-    import type { ContactItem, Conversation } from '$lib/db/db';
-    import { contactRepo } from '$lib/db/ContactRepository';
-    import { profileRepo } from '$lib/db/ProfileRepository';
-    import { conversationRepo, deriveConversationId, generateGroupTitle } from '$lib/db/ConversationRepository';
-    import { signer } from '$lib/stores/auth';
     import { showCreateGroupModal } from '$lib/stores/modals';
     import { isAndroidNative } from '$lib/core/NativeDialogs';
     import { hapticSelection } from '$lib/utils/haptics';
@@ -18,6 +10,7 @@
     import Avatar from '$lib/components/Avatar.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import Input from '$lib/components/ui/Input.svelte';
+    import { createGroupCreationController, truncateName } from '$lib/core/GroupCreationController.svelte';
 
     const isAndroidApp = isAndroidNative();
 
@@ -31,155 +24,22 @@
         goto('/chat');
     });
 
-    let contacts = $state<ContactItem[]>([]);
-    let displayContacts = $state<{
-        npub: string;
-        name: string;
-        picture?: string;
-        shortNpub: string;
-    }[]>([]);
-
-    let selectedNpubs = $state<Set<string>>(new Set());
-    let searchQuery = $state('');
-    let isCreating = $state(false);
-
-    const filteredContacts = $derived(() => {
-        if (!searchQuery.trim()) {
-            return displayContacts;
-        }
-
-        const query = searchQuery.toLowerCase();
-        return displayContacts.filter((c) =>
-            c.name.toLowerCase().includes(query) || c.npub.toLowerCase().includes(query)
-        );
-    });
-
-    const selectedCount = $derived(selectedNpubs.size);
-    const canCreate = $derived(selectedCount >= 2);
-    const selectedContacts = $derived(
-        displayContacts.filter((c) => selectedNpubs.has(c.npub))
-    );
-
-    function shortenNpub(npub: string): string {
-        if (npub.length <= 20) return npub;
-        return `${npub.slice(0, 12)}...${npub.slice(-6)}`;
-    }
-
-    function truncateName(name: string, maxLength: number = 8): string {
-        if (name.length <= maxLength) return name;
-        return name.slice(0, maxLength - 3) + '...';
-    }
-
-    function toggleContact(npub: string): void {
-        hapticSelection();
-        const next = new Set(selectedNpubs);
-        if (next.has(npub)) {
-            next.delete(npub);
-        } else {
-            next.add(npub);
-        }
-        selectedNpubs = next;
-    }
-
-    function removeContact(npub: string): void {
-        hapticSelection();
-        const next = new Set(selectedNpubs);
-        next.delete(npub);
-        selectedNpubs = next;
-    }
-
-    async function refreshDisplayContacts(items: ContactItem[]): Promise<void> {
-        const data = await Promise.all(
-            items.map(async (c) => {
-                const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
-                const shortNpub = shortenNpub(c.npub);
-
-                let name = shortNpub;
-                let picture: string | undefined = undefined;
-
-                if (profile && profile.metadata) {
-                    name =
-                        profile.metadata.name ||
-                        profile.metadata.display_name ||
-                        profile.metadata.displayName ||
-                        shortNpub;
-                    picture = profile.metadata.picture;
-                }
-
-                return {
-                    npub: c.npub,
-                    name,
-                    picture,
-                    shortNpub
-                };
-            })
-        );
-
-        displayContacts = data.sort((a, b) =>
-            a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-        );
-    }
+    const ctrl = createGroupCreationController();
 
     $effect(() => {
         if (!isAndroidApp) return;
-
-        const sub = liveQuery(() => contactRepo.getContacts()).subscribe(async (c) => {
-            contacts = c;
-            await refreshDisplayContacts(c);
-        });
-
-        return () => sub.unsubscribe();
+        return ctrl.startSubscription();
     });
 
-    async function createGroup(): Promise<void> {
-        if (!canCreate || isCreating) return;
-
-        isCreating = true;
-        hapticSelection();
-
-        try {
-            const s = get(signer);
-            if (!s) throw new Error('Not authenticated');
-
-            const myPubkey = await s.getPublicKey();
-
-            const participantPubkeys = Array.from(selectedNpubs).map((npub) => {
-                const { data } = nip19.decode(npub);
-                return data as string;
-            });
-
-            const conversationId = deriveConversationId(participantPubkeys, myPubkey);
-
-            const names = displayContacts
-                .filter((c) => selectedNpubs.has(c.npub))
-                .map((c) => c.name);
-            const subject = generateGroupTitle(names);
-
-            const myNpub = nip19.npubEncode(myPubkey);
-            const allParticipantNpubs = [...Array.from(selectedNpubs), myNpub];
-
-            const conversation: Conversation = {
-                id: conversationId,
-                isGroup: true,
-                participants: allParticipantNpubs,
-                subject,
-                lastActivityAt: Date.now(),
-                createdAt: Date.now()
-            };
-
-            await conversationRepo.upsertConversation(conversation);
+    async function handleCreateGroup(): Promise<void> {
+        const conversationId = await ctrl.createGroup();
+        if (conversationId) {
             goto(`/chat/${conversationId}`);
-        } catch (e) {
-            console.error('Failed to create group chat:', e);
-            isCreating = false;
         }
     }
 
     function goBack(): void {
         hapticSelection();
-        // Prefer popping history to avoid leaving /contacts/create-group
-        // on the stack (which would make the next Android back gesture
-        // return to this page).
         if (typeof window !== 'undefined' && window.history.length > 1) {
             window.history.back();
             return;
@@ -208,10 +68,10 @@
                 </div>
 
                 <!-- Selected contacts chips (horizontal only) -->
-                {#if selectedCount > 0}
+                {#if ctrl.selectedCount > 0}
                     <div class="px-4 pb-2">
                         <div class="flex gap-3 overflow-x-auto py-1 scrollbar-hide">
-                            {#each selectedContacts as contact (contact.npub)}
+                            {#each ctrl.selectedContacts as contact (contact.npub)}
                                 <div class="flex flex-col items-center flex-shrink-0">
                                     <div class="relative">
                                         <Avatar
@@ -225,7 +85,7 @@
                                             class="absolute -top-1 -right-1 w-5 h-5 bg-gray-500 dark:bg-slate-600 hover:bg-gray-600 dark:hover:bg-slate-500 rounded-full flex items-center justify-center shadow-sm transition-colors"
                                             onclick={(e) => {
                                                 e.stopPropagation();
-                                                removeContact(contact.npub);
+                                                ctrl.removeContact(contact.npub);
                                             }}
                                             aria-label="Remove {contact.name}"
                                         >
@@ -247,7 +107,7 @@
                 <!-- Search field -->
                 <div class="px-4 pb-4">
                     <Input
-                        bind:value={searchQuery}
+                        bind:value={ctrl.searchQuery}
                         placeholder={$t('modals.createGroup.searchPlaceholder')}
                         class="w-full"
                     />
@@ -256,24 +116,24 @@
 
             <!-- Content (no nested vertical scroll) -->
             <div class="px-2 pb-safe-offset-28">
-                {#if contacts.length === 0}
+                {#if ctrl.contacts.length === 0}
                     <div class="typ-body text-gray-500 text-center py-8 mx-2 bg-gray-50/50 dark:bg-slate-800/30 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
                         {$t('modals.createGroup.noContacts')}
                     </div>
-                {:else if filteredContacts().length === 0}
+                {:else if ctrl.filteredContacts().length === 0}
                     <div class="typ-body text-gray-500 text-center py-8">
                         {$t('modals.manageContacts.noResults')}
                     </div>
                 {:else}
                     <div class="pt-2">
-                        {#each filteredContacts() as contact (contact.npub)}
+                        {#each ctrl.filteredContacts() as contact (contact.npub)}
                             <!-- svelte-ignore a11y_click_events_have_key_events -->
                             <!-- svelte-ignore a11y_no_static_element_interactions -->
                             <div
-                                class="flex justify-between items-center p-3 my-1.5 rounded-full transition-all duration-200 ease-out cursor-pointer active:scale-[0.98] {selectedNpubs.has(contact.npub)
+                                class="flex justify-between items-center p-3 my-1.5 rounded-full transition-all duration-200 ease-out cursor-pointer active:scale-[0.98] {ctrl.isSelected(contact.npub)
                                     ? 'bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)]'
                                     : 'bg-transparent hover:bg-[rgb(var(--color-lavender-rgb)/0.12)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.16)]'}"
-                                onclick={() => toggleContact(contact.npub)}
+                                onclick={() => ctrl.toggleContact(contact.npub)}
                             >
                                 <div class="flex items-center gap-3 min-w-0">
                                     <Avatar
@@ -288,11 +148,11 @@
                                     </div>
                                 </div>
 
-                                <div class="flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors {selectedNpubs.has(contact.npub)
+                                <div class="flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors {ctrl.isSelected(contact.npub)
                                     ? 'bg-[rgb(var(--color-lavender-rgb))] border-[rgb(var(--color-lavender-rgb))]'
                                     : 'border-gray-300 dark:border-slate-600'}"
                                 >
-                                    {#if selectedNpubs.has(contact.npub)}
+                                    {#if ctrl.isSelected(contact.npub)}
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                             <polyline points="20 6 9 17 4 12"></polyline>
                                         </svg>
@@ -307,7 +167,7 @@
             <!-- Sticky footer (still in the same scroller) -->
             <div class="sticky bottom-0 z-20 android-safe-area-bottom bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border-t border-gray-200/50 dark:border-slate-700/70 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
                 <div class="px-4 py-3">
-                    {#if !canCreate && selectedCount > 0}
+                    {#if !ctrl.canCreate && ctrl.selectedCount > 0}
                         <p class="typ-meta text-gray-500 dark:text-slate-400 text-center mb-2">
                             {$t('modals.createGroup.minContactsHint')}
                         </p>
@@ -321,12 +181,12 @@
                             {$t('common.cancel')}
                         </Button>
                         <Button
-                            onclick={createGroup}
-                            disabled={!canCreate || isCreating}
+                            onclick={handleCreateGroup}
+                            disabled={!ctrl.canCreate || ctrl.isCreating}
                             variant="primary"
                             class="flex-1"
                         >
-                            {#if isCreating}
+                            {#if ctrl.isCreating}
                                 <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
