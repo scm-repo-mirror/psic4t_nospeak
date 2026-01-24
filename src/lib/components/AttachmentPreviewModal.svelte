@@ -4,14 +4,13 @@
     import { isMobileWeb } from '$lib/core/NativeDialogs';
 
     import Button from '$lib/components/ui/Button.svelte';
+    import LocationMap from '$lib/components/LocationMap.svelte';
     import Textarea from '$lib/components/ui/Textarea.svelte';
+    import { MAP_HEIGHT_PREVIEW, buildOsmOpenUrl } from '$lib/core/MapUtils';
+
+    import type { LocationPoint } from '$lib/core/MapUtils';
 
     type Mode = 'media' | 'location';
-
-    export type LocationPoint = {
-        latitude: number;
-        longitude: number;
-    };
 
     let {
         isOpen,
@@ -68,21 +67,6 @@
 
     const isLocationMode = $derived(mode === 'location');
 
-    function buildOsmEmbedUrl(point: LocationPoint): string {
-        const padding = 0.01;
-        const left = point.longitude - padding;
-        const right = point.longitude + padding;
-        const bottom = point.latitude - padding;
-        const top = point.latitude + padding;
-
-        return `https://www.openstreetmap.org/export/embed.html?bbox=${left},${bottom},${right},${top}&layer=mapnik&marker=${point.latitude},${point.longitude}`;
-    }
-
-    function buildOsmOpenUrl(point: LocationPoint): string {
-        return `https://www.openstreetmap.org/?mlat=${point.latitude}&mlon=${point.longitude}&zoom=15`;
-    }
-
-    const mapUrl = $derived(location ? buildOsmEmbedUrl(location) : null);
     const openMapUrl = $derived(location ? buildOsmOpenUrl(location) : null);
     const showLocationConfirm = $derived(isLocationMode && !!confirmTextIdle);
 
@@ -262,15 +246,14 @@
             {/if}
 
             <div class="rounded-xl overflow-hidden bg-gray-100/80 dark:bg-slate-800/80 flex items-center justify-center min-h-[160px]">
-                {#if isLocationMode && location && mapUrl}
-                    <iframe
-                        src={mapUrl}
-                        width="100%"
-                        height="300"
-                        frameborder="0"
-                        class="w-full"
-                        title={title}
-                    ></iframe>
+                {#if isLocationMode && location}
+                    <div class="w-full">
+                        <LocationMap
+                            latitude={location.latitude}
+                            longitude={location.longitude}
+                            height={MAP_HEIGHT_PREVIEW}
+                        />
+                    </div>
                 {:else if mediaType === 'image' && objectUrl}
                     <img src={objectUrl} alt={imageAlt} class="max-h-64 w-full object-contain" />
                 {:else if mediaType === 'video' && objectUrl}

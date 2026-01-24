@@ -1852,10 +1852,11 @@
          activeHighlightMessageSet.has(msg.eventId)
        )}
 
-       {@const hasYouTubeLink = /https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(msg.message)}
-       {@const bubbleWidthClass = hasYouTubeLink
-         ? 'w-full max-w-full md:w-[560px] md:max-w-full'
-         : (useFullWidthBubbles ? 'max-w-full' : 'max-w-[70%]')}
+        {@const hasYouTubeLink = /https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(msg.message)}
+        {@const hasLocation = !!msg.location}
+        {@const bubbleWidthClass = (hasYouTubeLink || hasLocation)
+          ? 'w-full max-w-full md:w-[560px] md:max-w-full'
+          : (useFullWidthBubbles ? 'max-w-full' : 'max-w-[70%]')}
  
        {#if !caption}
       <div
