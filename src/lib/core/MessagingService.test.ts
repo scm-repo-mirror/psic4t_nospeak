@@ -416,6 +416,7 @@ describe('MessagingService - Auto-add Contacts', () => {
             });
 
             vi.spyOn(messagingService as any, 'createGiftWrap')
+                .mockResolvedValueOnce({ id: 'self-wrap', kind: 1059 } as any)
                 .mockResolvedValueOnce({ id: 'recipient-wrap', kind: 1059 } as any);
 
             await expect(messagingService.sendMessage('npub1recipient', 'hello')).rejects.toThrow('Failed to send message to any relay');
@@ -432,6 +433,7 @@ describe('MessagingService - Auto-add Contacts', () => {
 
             vi.spyOn(messagingService as any, 'uploadEncryptedMedia').mockResolvedValue('https://example.com/file');
             vi.spyOn(messagingService as any, 'createGiftWrap')
+                .mockResolvedValueOnce({ id: 'self-wrap', kind: 1059 } as any)
                 .mockResolvedValueOnce({ id: 'recipient-wrap', kind: 1059 } as any);
 
             const file = new File([new Uint8Array([1, 2, 3])], 'test.png', { type: 'image/png' });

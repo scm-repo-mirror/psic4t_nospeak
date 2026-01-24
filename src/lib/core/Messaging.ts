@@ -760,6 +760,195 @@ import type { Conversation } from '$lib/db/db';
     };
   }
 
+  // ─── Unified Send Pipeline ─────────────────────────────────────────────
+
+  /**
+   * Unified NIP-59 gift-wrap delivery pipeline.
+   * Handles: auth, relay discovery, temp connections, per-recipient gift-wrap,
+   * publishWithDeadline, retry queue, self-wrap, DB save, and post-send hooks.
+   *
+   * @param recipients - npub list (length 1 = DM, length > 1 = group)
+   * @param rumor - pre-built unsigned rumor event (kind 14, 15, or 7)
+   * @param conversationId - for group DB persistence (required when recipients > 1)
+   * @param conversation - the Conversation object (for group metadata)
+   * @param messageDbFields - extra fields merged into the DB save call
+   * @param skipDbSave - if true, skip messageRepo.saveMessage (used by reactions)
+   */
+  private async sendEnvelope(params: {
+    recipients: string[];
+    rumor: Partial<NostrEvent>;
+    conversationId?: string;
+    conversation?: Conversation;
+    messageDbFields?: Record<string, unknown>;
+    skipDbSave?: boolean;
+  }): Promise<{ rumorId: string; selfGiftWrapId: string }> {
+    const { recipients, rumor, conversationId, conversation, messageDbFields, skipDbSave } = params;
+
+    const s = get(signer);
+    if (!s) throw new Error('Not authenticated');
+
+    const senderPubkey = await s.getPublicKey();
+    const senderNpub = nip19.npubEncode(senderPubkey);
+
+    // Compute stable rumor ID
+    const rumorId = getEventHash(rumor as NostrEvent);
+
+    const isGroup = recipients.length > 1;
+
+    // Relay discovery
+    const senderRelays = await this.getMessagingRelays(senderNpub);
+
+    let recipientRelaysMap: Map<string, string[]>;
+
+    if (isGroup) {
+      // Group: discover relays per participant (excluding sender)
+      recipientRelaysMap = new Map();
+      for (const npub of recipients) {
+        if (npub !== senderNpub) {
+          const relays = await this.getMessagingRelays(npub);
+          if (relays.length > 0) {
+            recipientRelaysMap.set(npub, relays);
+          }
+        }
+      }
+    } else {
+      // DM: single recipient
+      const recipientNpub = recipients[0];
+      const relays = await this.getMessagingRelays(recipientNpub);
+      if (relays.length === 0) {
+        throw new Error('Contact has no messaging relays configured');
+      }
+      recipientRelaysMap = new Map([[recipientNpub, relays]]);
+    }
+
+    // Temporary relay connections
+    const allRelays = new Set<string>(senderRelays);
+    for (const relays of recipientRelaysMap.values()) {
+      relays.forEach(r => allRelays.add(r));
+    }
+
+    if (this.debug) {
+      console.log(`Sending ${isGroup ? 'group' : 'DM'} message to ${recipientRelaysMap.size} recipient(s)`);
+    }
+
+    for (const url of allRelays) {
+      connectionManager.addTemporaryRelay(url);
+    }
+
+    setTimeout(() => {
+      connectionManager.cleanupTemporaryConnections();
+    }, 15000);
+
+    // Create self-wrap first (used for relay status tracking ID and DB eventId)
+    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
+
+    // Calculate total desired relays for status tracking
+    let totalDesiredRelays = senderRelays.length;
+    for (const relays of recipientRelaysMap.values()) {
+      totalDesiredRelays += relays.length;
+    }
+
+    // Initialize relay send status for UI
+    if (isGroup) {
+      initRelaySendStatus(selfGiftWrap.id, totalDesiredRelays, undefined, conversationId);
+    } else {
+      const recipientNpub = recipients[0];
+      initRelaySendStatus(selfGiftWrap.id, totalDesiredRelays, recipientNpub);
+    }
+
+    let totalSuccessfulRelays = 0;
+
+    // Send gift-wrap to each recipient using publishWithDeadline
+    for (const [npub, relays] of recipientRelaysMap) {
+      const { data: recipientPubkey } = nip19.decode(npub);
+      const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
+
+      const publishResult = await publishWithDeadline({
+        connectionManager,
+        event: giftWrap,
+        relayUrls: relays,
+        deadlineMs: 5000,
+        onRelaySuccess: (url) => registerRelaySuccess(selfGiftWrap.id, url),
+      });
+
+      totalSuccessfulRelays += publishResult.successfulRelays.length;
+
+      // Enqueue failed/timed-out relays for best-effort retry
+      const successfulRelaySet = new Set(publishResult.successfulRelays);
+      for (const url of relays) {
+        if (!successfulRelaySet.has(url)) {
+          await retryQueue.enqueue(giftWrap, url);
+        }
+      }
+    }
+
+    // Send self-wrap to sender's relays
+    const selfPublishResult = await publishWithDeadline({
+      connectionManager,
+      event: selfGiftWrap,
+      relayUrls: senderRelays,
+      deadlineMs: 5000,
+      onRelaySuccess: (url) => registerRelaySuccess(selfGiftWrap.id, url),
+    });
+
+    totalSuccessfulRelays += selfPublishResult.successfulRelays.length;
+
+    const selfSuccessfulRelaySet = new Set(selfPublishResult.successfulRelays);
+    for (const url of senderRelays) {
+      if (!selfSuccessfulRelaySet.has(url)) {
+        await retryQueue.enqueue(selfGiftWrap, url);
+      }
+    }
+
+    // Check if at least one relay succeeded
+    if (totalSuccessfulRelays === 0) {
+      console.warn('Send failed to reach any relays', {
+        conversationId,
+        selfGiftWrapId: selfGiftWrap.id,
+        recipientCount: recipientRelaysMap.size,
+      });
+      throw new Error('Failed to send message to any relay');
+    }
+
+    // DB save
+    if (!skipDbSave) {
+      const recipientNpub = isGroup
+        ? (conversation?.participants.find(p => p !== senderNpub) || senderNpub)
+        : recipients[0];
+
+      const baseMessage: Record<string, unknown> = {
+        recipientNpub,
+        message: rumor.content || '',
+        sentAt: (rumor.created_at || 0) * 1000,
+        eventId: selfGiftWrap.id,
+        rumorId,
+        direction: 'sent',
+        createdAt: Date.now(),
+        rumorKind: rumor.kind,
+      };
+
+      // Add group fields
+      if (isGroup && conversation) {
+        baseMessage.conversationId = conversationId;
+        baseMessage.participants = conversation.participants;
+        baseMessage.senderNpub = senderNpub;
+      }
+
+      await messageRepo.saveMessage({ ...baseMessage, ...messageDbFields } as any);
+    }
+
+    // Post-send hooks
+    if (isGroup && conversationId) {
+      await conversationRepo.markActivity(conversationId);
+    } else if (!isGroup) {
+      await this.autoAddContact(recipients[0]);
+    }
+
+    return { rumorId, selfGiftWrapId: selfGiftWrap.id };
+  }
+
+  // ─── Public Send Methods (thin rumor-builder wrappers) ─────────────────
+
   public async sendMessage(
     recipientNpub: string | null,
     text: string,
@@ -768,7 +957,6 @@ import type { Conversation } from '$lib/db/db';
     conversationId?: string,
     subject?: string
   ): Promise<string> {
-    // If group conversation, delegate to sendGroupMessage
     if (conversationId) {
       return this.sendGroupMessage(conversationId, text, subject);
     }
@@ -779,34 +967,9 @@ import type { Conversation } from '$lib/db/db';
 
     const s = get(signer);
     if (!s) throw new Error('Not authenticated');
- 
     const senderPubkey = await s.getPublicKey();
-    const senderNpub = nip19.npubEncode(senderPubkey);
     const { data: recipientPubkey } = nip19.decode(recipientNpub);
- 
-    // 1. Get messaging relays for recipient and sender
-    const recipientRelays = await this.getMessagingRelays(recipientNpub);
-    const senderRelays = await this.getMessagingRelays(senderNpub);
- 
-    if (recipientRelays.length === 0) {
-      throw new Error('Contact has no messaging relays configured');
-    }
- 
-    const allRelays = [...new Set([...recipientRelays, ...senderRelays])];
- 
-    if (this.debug) console.log('Sending message to relays:', { recipientRelays, senderRelays });
- 
-    // Connect temporarily for message sending
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
- 
-    // Cleanup temporary relays after sending attempt
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
- 
-    // 2. Create Rumor (Kind 14)
+
     const tags: string[][] = [['p', recipientPubkey as string]];
     if (parentRumorId) {
       tags.push(['e', parentRumorId]);
@@ -820,105 +983,15 @@ import type { Conversation } from '$lib/db/db';
       tags
     };
 
-    if (this.debug && parentRumorId) {
-      console.log('Sending caption rumor', {
-        content: rumor.content,
-        tags: rumor.tags,
-        parentRumorId
-      });
-    }
- 
-    // Calculate stable rumor ID for reactions
-    const rumorId = getEventHash(rumor as NostrEvent);
-
- 
-    // 3. Create Gift Wrap for Recipient
-    const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
-
-    if (this.debug && parentRumorId) {
-      console.log('Caption giftWrap for recipient', {
-        id: giftWrap.id,
-        kind: giftWrap.kind,
-        tags: giftWrap.tags
-      });
-    }
- 
-    // Initialize ephemeral relay send status for UI (do not persist)
-    initRelaySendStatus(giftWrap.id, recipientRelays.length, recipientNpub);
- 
-    const publishResult = await publishWithDeadline({
-      connectionManager,
-      event: giftWrap,
-      relayUrls: recipientRelays,
-      deadlineMs: 5000,
-      onRelaySuccess: (url) => registerRelaySuccess(giftWrap.id, url),
+    const { rumorId } = await this.sendEnvelope({
+      recipients: [recipientNpub],
+      rumor,
+      messageDbFields: { message: text, parentRumorId },
     });
-
-    if (publishResult.successfulRelays.length === 0) {
-      console.warn('DM send failed to reach any recipient relays', {
-        recipientNpub,
-        giftWrapId: giftWrap.id,
-        failedRelays: publishResult.failedRelays,
-        timedOutRelays: publishResult.timedOutRelays,
-      });
-      throw new Error('Failed to send message to any relay');
-    }
-
-    if (publishResult.failedRelays.length > 0 || publishResult.timedOutRelays.length > 0) {
-      console.warn('DM send did not reach some recipient relays', {
-        recipientNpub,
-        giftWrapId: giftWrap.id,
-        successfulRelays: publishResult.successfulRelays,
-        failedRelays: publishResult.failedRelays,
-        timedOutRelays: publishResult.timedOutRelays,
-      });
-    }
-
-    const successfulRelaySet = new Set(publishResult.successfulRelays);
-
-    // Enqueue any remaining relays for best-effort delivery
-    for (const url of recipientRelays) {
-      if (!successfulRelaySet.has(url)) {
-        await retryQueue.enqueue(giftWrap, url);
-      }
-    }
-
-    // 5. Create Gift Wrap for Self (History)
-    // We encrypt the SAME rumor for OURSELVES.
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
-
-    // Publish self-wrap to my messaging relays (may be empty)
-    for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
-    }
-
-    // 6. Cache locally after delivery confirmation
-    await messageRepo.saveMessage({
-      recipientNpub,
-      message: text,
-      sentAt: (rumor.created_at || 0) * 1000,
-      eventId: selfGiftWrap.id, // Save SELF-WRAP ID to match incoming
-      rumorId, // Save stable rumor ID
-      direction: 'sent',
-      createdAt: Date.now(),
-      rumorKind: 14,
-      parentRumorId: parentRumorId
-    });
- 
-    // Auto-add unknown contacts when sending messages
-    await this.autoAddContact(recipientNpub);
 
     return rumorId;
   }
 
-  /**
-   * Send a message to a group conversation.
-   * Creates gift-wraps for each participant and publishes to their relays.
-   * 
-   * @param conversationId The group conversation ID (16-char hash)
-   * @param text Message text
-   * @param subject Optional subject/title for the group (typically only on first message)
-   */
   public async sendGroupMessage(
     conversationId: string,
     text: string,
@@ -927,58 +1000,22 @@ import type { Conversation } from '$lib/db/db';
     const s = get(signer);
     if (!s) throw new Error('Not authenticated');
 
-    // Get conversation to retrieve participants
     const conversation = await conversationRepo.getConversation(conversationId);
     if (!conversation || !conversation.isGroup) {
       throw new Error('Group conversation not found');
     }
 
     const senderPubkey = await s.getPublicKey();
-    const senderNpub = nip19.npubEncode(senderPubkey);
 
-    // Convert participant npubs to pubkeys
+    // Build p-tags for all participants (excluding self per NIP-17)
     const participantPubkeys = conversation.participants.map(npub => {
       const { data } = nip19.decode(npub);
       return data as string;
     });
-
-    // Ensure sender is in participants
     if (!participantPubkeys.includes(senderPubkey)) {
       participantPubkeys.push(senderPubkey);
     }
 
-    // Get relays for all participants and sender
-    const senderRelays = await this.getMessagingRelays(senderNpub);
-    const participantRelaysMap = new Map<string, string[]>();
-
-    for (const npub of conversation.participants) {
-      if (npub !== senderNpub) {
-        const relays = await this.getMessagingRelays(npub);
-        if (relays.length > 0) {
-          participantRelaysMap.set(npub, relays);
-        }
-      }
-    }
-
-    // Collect all relays for temporary connections
-    const allRelays = new Set<string>(senderRelays);
-    for (const relays of participantRelaysMap.values()) {
-      relays.forEach(r => allRelays.add(r));
-    }
-
-    if (this.debug) console.log('Sending group message to', participantRelaysMap.size, 'participants');
-
-    // Connect temporarily for message sending
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
-
-    // Cleanup temporary relays after sending attempt
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
-
-    // Create p-tags for all participants (excluding self per NIP-17)
     const pTags: string[][] = participantPubkeys
       .filter(p => p !== senderPubkey)
       .map(p => ['p', p]);
@@ -996,92 +1033,13 @@ import type { Conversation } from '$lib/db/db';
       tags
     };
 
-    const rumorId = getEventHash(rumor as NostrEvent);
-
-    // Create self-wrap first (we use its ID for relay status tracking)
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
-
-    // Calculate total desired relays for status tracking
-    let totalDesiredRelays = senderRelays.length;
-    for (const relays of participantRelaysMap.values()) {
-      totalDesiredRelays += relays.length;
-    }
-
-    // Initialize relay send status for UI
-    initRelaySendStatus(selfGiftWrap.id, totalDesiredRelays, undefined, conversationId);
-
-    let totalSuccessfulRelays = 0;
-
-    // Send gift-wrap to each participant using publishWithDeadline
-    for (const [npub, relays] of participantRelaysMap) {
-      const { data: recipientPubkey } = nip19.decode(npub);
-      const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
-
-      const publishResult = await publishWithDeadline({
-        connectionManager,
-        event: giftWrap,
-        relayUrls: relays,
-        deadlineMs: 5000,
-        onRelaySuccess: () => registerRelaySuccess(selfGiftWrap.id, ''),
-      });
-
-      totalSuccessfulRelays += publishResult.successfulRelays.length;
-
-      // Enqueue failed/timed-out relays for best-effort retry
-      const successfulRelaySet = new Set(publishResult.successfulRelays);
-      for (const url of relays) {
-        if (!successfulRelaySet.has(url)) {
-          await retryQueue.enqueue(giftWrap, url);
-        }
-      }
-    }
-
-    // Send self-wrap using publishWithDeadline
-    const selfPublishResult = await publishWithDeadline({
-      connectionManager,
-      event: selfGiftWrap,
-      relayUrls: senderRelays,
-      deadlineMs: 5000,
-      onRelaySuccess: () => registerRelaySuccess(selfGiftWrap.id, ''),
-    });
-
-    totalSuccessfulRelays += selfPublishResult.successfulRelays.length;
-
-    // Enqueue failed/timed-out self-wrap relays for best-effort retry
-    const selfSuccessfulRelaySet = new Set(selfPublishResult.successfulRelays);
-    for (const url of senderRelays) {
-      if (!selfSuccessfulRelaySet.has(url)) {
-        await retryQueue.enqueue(selfGiftWrap, url);
-      }
-    }
-
-    // Check if at least one relay succeeded (same behavior as 1-on-1 DMs)
-    if (totalSuccessfulRelays === 0) {
-      console.warn('Group message send failed to reach any relays', {
-        conversationId,
-        selfGiftWrapId: selfGiftWrap.id,
-        participantCount: participantRelaysMap.size,
-      });
-      throw new Error('Failed to send message to any relay');
-    }
-
-    // Cache locally
-    await messageRepo.saveMessage({
-      recipientNpub: conversation.participants.find(p => p !== senderNpub) || senderNpub,
-      message: text,
-      sentAt: (rumor.created_at || 0) * 1000,
-      eventId: selfGiftWrap.id,
-      rumorId,
-      direction: 'sent',
-      createdAt: Date.now(),
-      rumorKind: 14,
+    const { rumorId } = await this.sendEnvelope({
+      recipients: conversation.participants,
+      rumor,
       conversationId,
-      participants: conversation.participants,
-      senderNpub
+      conversation,
+      messageDbFields: { message: text },
     });
-
-    // Update conversation activity
-    await conversationRepo.markActivity(conversationId);
 
     return rumorId;
   }
@@ -1093,7 +1051,6 @@ import type { Conversation } from '$lib/db/db';
     createdAtSeconds?: number,
     conversationId?: string
   ): Promise<string> {
-    // If group conversation, delegate to sendGroupLocationMessage
     if (conversationId) {
       return this.sendGroupLocationMessage(conversationId, latitude, longitude, createdAtSeconds);
     }
@@ -1104,29 +1061,8 @@ import type { Conversation } from '$lib/db/db';
 
     const s = get(signer);
     if (!s) throw new Error('Not authenticated');
-
     const senderPubkey = await s.getPublicKey();
-    const senderNpub = nip19.npubEncode(senderPubkey);
     const { data: recipientPubkey } = nip19.decode(recipientNpub);
-
-    const recipientRelays = await this.getMessagingRelays(recipientNpub);
-    const senderRelays = await this.getMessagingRelays(senderNpub);
-
-    if (recipientRelays.length === 0) {
-      throw new Error('Contact has no messaging relays configured');
-    }
-
-    const allRelays = [...new Set([...recipientRelays, ...senderRelays])];
-
-    if (this.debug) console.log('Sending location message to relays:', { recipientRelays, senderRelays });
-
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
-
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
 
     const locationValue = `${latitude},${longitude}`;
 
@@ -1141,54 +1077,11 @@ import type { Conversation } from '$lib/db/db';
       ]
     };
 
-    const rumorId = getEventHash(rumor as NostrEvent);
-
-    const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
-
-    initRelaySendStatus(giftWrap.id, recipientRelays.length, recipientNpub);
-
-    const publishResult = await publishWithDeadline({
-      connectionManager,
-      event: giftWrap,
-      relayUrls: recipientRelays,
-      deadlineMs: 5000,
-      onRelaySuccess: (url) => registerRelaySuccess(giftWrap.id, url),
+    const { rumorId } = await this.sendEnvelope({
+      recipients: [recipientNpub],
+      rumor,
+      messageDbFields: { location: { latitude, longitude } },
     });
-
-    if (publishResult.successfulRelays.length === 0) {
-      throw new Error('Failed to send message to any relay');
-    }
-
-    const successfulRelaySet = new Set(publishResult.successfulRelays);
-
-    for (const url of recipientRelays) {
-      if (!successfulRelaySet.has(url)) {
-        await retryQueue.enqueue(giftWrap, url);
-      }
-    }
-
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
-
-    for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
-    }
-
-    await messageRepo.saveMessage({
-      recipientNpub,
-      message: rumor.content || '',
-      sentAt: (rumor.created_at || 0) * 1000,
-      eventId: selfGiftWrap.id,
-      rumorId,
-      direction: 'sent',
-      createdAt: Date.now(),
-      rumorKind: 14,
-      location: {
-        latitude,
-        longitude
-      }
-    });
-
-    await this.autoAddContact(recipientNpub);
 
     return rumorId;
   }
@@ -1208,51 +1101,15 @@ import type { Conversation } from '$lib/db/db';
     }
 
     const senderPubkey = await s.getPublicKey();
-    const senderNpub = nip19.npubEncode(senderPubkey);
 
-    // Convert participant npubs to pubkeys
     const participantPubkeys = conversation.participants.map(npub => {
       const { data } = nip19.decode(npub);
       return data as string;
     });
-
-    // Ensure sender is in participants
     if (!participantPubkeys.includes(senderPubkey)) {
       participantPubkeys.push(senderPubkey);
     }
 
-    // Get relays for all participants and sender
-    const senderRelays = await this.getMessagingRelays(senderNpub);
-    const participantRelaysMap = new Map<string, string[]>();
-
-    for (const npub of conversation.participants) {
-      if (npub !== senderNpub) {
-        const relays = await this.getMessagingRelays(npub);
-        if (relays.length > 0) {
-          participantRelaysMap.set(npub, relays);
-        }
-      }
-    }
-
-    // Collect all relays for temporary connections
-    const allRelays = new Set<string>(senderRelays);
-    for (const relays of participantRelaysMap.values()) {
-      relays.forEach(r => allRelays.add(r));
-    }
-
-    if (this.debug) console.log('Sending group location to', participantRelaysMap.size, 'participants');
-
-    // Connect temporarily for message sending
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
-
-    // Cleanup temporary relays after sending attempt
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
-
-    // Create p-tags for all participants (excluding self per NIP-17)
     const pTags: string[][] = participantPubkeys
       .filter(p => p !== senderPubkey)
       .map(p => ['p', p]);
@@ -1267,46 +1124,13 @@ import type { Conversation } from '$lib/db/db';
       tags: [...pTags, ['location', locationValue]]
     };
 
-    const rumorId = getEventHash(rumor as NostrEvent);
-
-    // Send gift-wrap to each participant
-    for (const [npub, relays] of participantRelaysMap) {
-      const { data: recipientPubkey } = nip19.decode(npub);
-      const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
-
-      // Best-effort delivery to each participant
-      for (const url of relays) {
-        await retryQueue.enqueue(giftWrap, url);
-      }
-    }
-
-    // Create self-wrap
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
-    for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
-    }
-
-    // Cache locally
-    await messageRepo.saveMessage({
-      recipientNpub: conversation.participants.find(p => p !== senderNpub) || senderNpub,
-      message: rumor.content || '',
-      sentAt: (rumor.created_at || 0) * 1000,
-      eventId: selfGiftWrap.id,
-      rumorId,
-      direction: 'sent',
-      createdAt: Date.now(),
-      rumorKind: 14,
-      location: {
-        latitude,
-        longitude
-      },
+    const { rumorId } = await this.sendEnvelope({
+      recipients: conversation.participants,
+      rumor,
       conversationId,
-      participants: conversation.participants,
-      senderNpub
+      conversation,
+      messageDbFields: { location: { latitude, longitude } },
     });
-
-    // Update conversation activity
-    await conversationRepo.markActivity(conversationId);
 
     return rumorId;
   }
@@ -1327,9 +1151,6 @@ import type { Conversation } from '$lib/db/db';
     mimeType: string,
     blossomServers: string[]
   ): Promise<string> {
-    // Use application/octet-stream for encrypted blobs so Blossom servers
-    // return a .bin URL, which is expected by other NIP-17 clients like Amethyst.
-    // The original mimeType is preserved in the file-type tag of the message.
     const blob = new Blob([encrypted.ciphertext.buffer as ArrayBuffer], { type: 'application/octet-stream' });
 
     if (blossomServers.length === 0) {
@@ -1353,7 +1174,6 @@ import type { Conversation } from '$lib/db/db';
     createdAtSeconds?: number,
     conversationId?: string
   ): Promise<string> {
-    // If group conversation, delegate to sendGroupFileMessage
     if (conversationId) {
       return this.sendGroupFileMessage(conversationId, file, mediaType, createdAtSeconds);
     }
@@ -1364,136 +1184,56 @@ import type { Conversation } from '$lib/db/db';
 
     const s = get(signer);
     if (!s) throw new Error('Not authenticated');
- 
     const senderPubkey = await s.getPublicKey();
     const senderNpub = nip19.npubEncode(senderPubkey);
     const { data: recipientPubkey } = nip19.decode(recipientNpub);
- 
-    // 1. Get messaging relays
-    const recipientRelays = await this.getMessagingRelays(recipientNpub);
-    const senderRelays = await this.getMessagingRelays(senderNpub);
- 
-    if (recipientRelays.length === 0) {
-      throw new Error('Contact has no messaging relays configured');
-    }
- 
-    const allRelays = [...new Set([...recipientRelays, ...senderRelays])];
- 
-    if (this.debug) console.log('Sending file message to relays:', { recipientRelays, senderRelays });
- 
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
 
-    // Cleanup temporary relays after sending attempt
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
-
-    // 2. Encrypt file with AES-GCM
+    // Encrypt file with AES-GCM
     const encrypted = await encryptFileWithAesGcm(file);
-
-    // 3. Upload encrypted blob to selected media backend
     const mimeType = file.type || this.mediaTypeToMime(mediaType);
 
     const senderProfile = await profileRepo.getProfileIgnoreTTL(senderNpub);
     const blossomServers = (senderProfile as any)?.mediaServers ?? [];
-
     const fileUrl = await this.uploadEncryptedMedia(encrypted, mediaType, mimeType, blossomServers);
 
-    // 4. Create Kind 15 rumor
     const now = createdAtSeconds ?? Math.floor(Date.now() / 1000);
+
+    const tags: string[][] = [
+      ['p', recipientPubkey as string],
+      ['file-type', mimeType],
+      ['encryption-algorithm', 'aes-gcm'],
+      ['decryption-key', encrypted.key],
+      ['decryption-nonce', encrypted.nonce],
+      ['size', encrypted.size.toString()],
+      ['x', encrypted.hashEncrypted]
+    ];
+    if (encrypted.hashPlain) {
+      tags.push(['ox', encrypted.hashPlain]);
+    }
 
     const rumor: Partial<NostrEvent> = {
       kind: 15,
       pubkey: senderPubkey,
       created_at: now,
       content: fileUrl,
-      tags: [
-        ['p', recipientPubkey as string],
-        ['file-type', mimeType],
-        ['encryption-algorithm', 'aes-gcm'],
-        ['decryption-key', encrypted.key],
-        ['decryption-nonce', encrypted.nonce],
-        ['size', encrypted.size.toString()],
-        ['x', encrypted.hashEncrypted]
-      ]
+      tags
     };
 
-    if (encrypted.hashPlain) {
-      rumor.tags!.push(['ox', encrypted.hashPlain]);
-    }
-
-    const rumorId = getEventHash(rumor as NostrEvent);
-
-    // 5. Create Gift Wraps
-    const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
- 
-    initRelaySendStatus(giftWrap.id, recipientRelays.length, recipientNpub);
-
-    const publishResult = await publishWithDeadline({
-      connectionManager,
-      event: giftWrap,
-      relayUrls: recipientRelays,
-      deadlineMs: 5000,
-      onRelaySuccess: (url) => registerRelaySuccess(giftWrap.id, url),
+    const { rumorId } = await this.sendEnvelope({
+      recipients: [recipientNpub],
+      rumor,
+      messageDbFields: {
+        message: '',
+        fileUrl,
+        fileType: mimeType,
+        fileSize: encrypted.size,
+        fileHashEncrypted: encrypted.hashEncrypted,
+        fileHashPlain: encrypted.hashPlain,
+        fileEncryptionAlgorithm: 'aes-gcm',
+        fileKey: encrypted.key,
+        fileNonce: encrypted.nonce,
+      },
     });
-
-    if (publishResult.successfulRelays.length === 0) {
-      console.warn('DM file send failed to reach any recipient relays', {
-        recipientNpub,
-        giftWrapId: giftWrap.id,
-        failedRelays: publishResult.failedRelays,
-        timedOutRelays: publishResult.timedOutRelays,
-      });
-      throw new Error('Failed to send message to any relay');
-    }
-
-    if (publishResult.failedRelays.length > 0 || publishResult.timedOutRelays.length > 0) {
-      console.warn('DM file send did not reach some recipient relays', {
-        recipientNpub,
-        giftWrapId: giftWrap.id,
-        successfulRelays: publishResult.successfulRelays,
-        failedRelays: publishResult.failedRelays,
-        timedOutRelays: publishResult.timedOutRelays,
-      });
-    }
-
-    const successfulRelaySet = new Set(publishResult.successfulRelays);
-
-    // Enqueue any remaining relays for best-effort delivery
-    for (const url of recipientRelays) {
-      if (!successfulRelaySet.has(url)) {
-        await retryQueue.enqueue(giftWrap, url);
-      }
-    }
-
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
-    for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
-    }
-
-    // 6. Cache locally after delivery confirmation
-    await messageRepo.saveMessage({
-      recipientNpub,
-      message: '',
-      sentAt: now * 1000,
-      eventId: selfGiftWrap.id,
-      rumorId,
-      direction: 'sent',
-      createdAt: Date.now(),
-      rumorKind: 15,
-      fileUrl,
-      fileType: mimeType,
-      fileSize: encrypted.size,
-      fileHashEncrypted: encrypted.hashEncrypted,
-      fileHashPlain: encrypted.hashPlain,
-      fileEncryptionAlgorithm: 'aes-gcm',
-      fileKey: encrypted.key,
-      fileNonce: encrypted.nonce
-    });
-
-    await this.autoAddContact(recipientNpub);
 
     return rumorId;
   }
@@ -1515,60 +1255,23 @@ import type { Conversation } from '$lib/db/db';
     const senderPubkey = await s.getPublicKey();
     const senderNpub = nip19.npubEncode(senderPubkey);
 
-    // Convert participant npubs to pubkeys
-    const participantPubkeys = conversation.participants.map(npub => {
-      const { data } = nip19.decode(npub);
-      return data as string;
-    });
-
-    // Ensure sender is in participants
-    if (!participantPubkeys.includes(senderPubkey)) {
-      participantPubkeys.push(senderPubkey);
-    }
-
-    // Get relays for all participants and sender
-    const senderRelays = await this.getMessagingRelays(senderNpub);
-    const participantRelaysMap = new Map<string, string[]>();
-
-    for (const npub of conversation.participants) {
-      if (npub !== senderNpub) {
-        const relays = await this.getMessagingRelays(npub);
-        if (relays.length > 0) {
-          participantRelaysMap.set(npub, relays);
-        }
-      }
-    }
-
-    // Collect all relays for temporary connections
-    const allRelays = new Set<string>(senderRelays);
-    for (const relays of participantRelaysMap.values()) {
-      relays.forEach(r => allRelays.add(r));
-    }
-
-    if (this.debug) console.log('Sending group file to', participantRelaysMap.size, 'participants');
-
-    // Connect temporarily for message sending
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
-
-    // Cleanup temporary relays after sending attempt
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
-
     // Encrypt file with AES-GCM
     const encrypted = await encryptFileWithAesGcm(file);
-
-    // Upload encrypted blob to selected media backend
     const mimeType = file.type || this.mediaTypeToMime(mediaType);
 
     const senderProfile = await profileRepo.getProfileIgnoreTTL(senderNpub);
     const blossomServers = (senderProfile as any)?.mediaServers ?? [];
-
     const fileUrl = await this.uploadEncryptedMedia(encrypted, mediaType, mimeType, blossomServers);
 
-    // Create p-tags for all participants (excluding self per NIP-17)
+    // Build p-tags for all participants (excluding self per NIP-17)
+    const participantPubkeys = conversation.participants.map(npub => {
+      const { data } = nip19.decode(npub);
+      return data as string;
+    });
+    if (!participantPubkeys.includes(senderPubkey)) {
+      participantPubkeys.push(senderPubkey);
+    }
+
     const pTags: string[][] = participantPubkeys
       .filter(p => p !== senderPubkey)
       .map(p => ['p', p]);
@@ -1584,7 +1287,6 @@ import type { Conversation } from '$lib/db/db';
       ['size', encrypted.size.toString()],
       ['x', encrypted.hashEncrypted]
     ];
-
     if (encrypted.hashPlain) {
       tags.push(['ox', encrypted.hashPlain]);
     }
@@ -1597,98 +1299,49 @@ import type { Conversation } from '$lib/db/db';
       tags
     };
 
-    const rumorId = getEventHash(rumor as NostrEvent);
-
-    // Send gift-wrap to each participant
-    for (const [npub, relays] of participantRelaysMap) {
-      const { data: recipientPubkey } = nip19.decode(npub);
-      const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
-
-      // Best-effort delivery to each participant
-      for (const url of relays) {
-        await retryQueue.enqueue(giftWrap, url);
-      }
-    }
-
-    // Create self-wrap
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
-    for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
-    }
-
-    // Cache locally
-    await messageRepo.saveMessage({
-      recipientNpub: conversation.participants.find(p => p !== senderNpub) || senderNpub,
-      message: '',
-      sentAt: now * 1000,
-      eventId: selfGiftWrap.id,
-      rumorId,
-      direction: 'sent',
-      createdAt: Date.now(),
-      rumorKind: 15,
-      fileUrl,
-      fileType: mimeType,
-      fileSize: encrypted.size,
-      fileHashEncrypted: encrypted.hashEncrypted,
-      fileHashPlain: encrypted.hashPlain,
-      fileEncryptionAlgorithm: 'aes-gcm',
-      fileKey: encrypted.key,
-      fileNonce: encrypted.nonce,
+    const { rumorId } = await this.sendEnvelope({
+      recipients: conversation.participants,
+      rumor,
       conversationId,
-      participants: conversation.participants,
-      senderNpub
+      conversation,
+      messageDbFields: {
+        message: '',
+        fileUrl,
+        fileType: mimeType,
+        fileSize: encrypted.size,
+        fileHashEncrypted: encrypted.hashEncrypted,
+        fileHashPlain: encrypted.hashPlain,
+        fileEncryptionAlgorithm: 'aes-gcm',
+        fileKey: encrypted.key,
+        fileNonce: encrypted.nonce,
+      },
     });
-
-    // Update conversation activity
-    await conversationRepo.markActivity(conversationId);
 
     return rumorId;
   }
 
   public async sendReaction(
-
     recipientNpub: string,
     targetMessage: { recipientNpub: string; eventId: string; rumorId?: string; direction: 'sent' | 'received' },
     emoji: '👍' | '👎' | '❤️' | '😂'
   ): Promise<void> {
-    const s = get(signer);
-    if (!s) throw new Error('Not authenticated');
-
-    // Reaction requires a stable rumor ID (NIP-17)
     if (!targetMessage.rumorId) {
-        console.warn('Cannot react to message without rumorId (likely old message)');
-        return;
+      console.warn('Cannot react to message without rumorId (likely old message)');
+      return;
     }
     const targetId = targetMessage.rumorId;
 
+    const s = get(signer);
+    if (!s) throw new Error('Not authenticated');
     const senderPubkey = await s.getPublicKey();
     const senderNpub = nip19.npubEncode(senderPubkey);
     const { data: recipientPubkey } = nip19.decode(recipientNpub);
- 
-    const recipientRelays = await this.getMessagingRelays(recipientNpub);
-    const senderRelays = await this.getMessagingRelays(senderNpub);
- 
-    if (recipientRelays.length === 0) {
-      throw new Error('Contact has no messaging relays configured');
-    }
- 
-    const allRelays = [...new Set([...recipientRelays, ...senderRelays])];
- 
-    if (this.debug) console.log('Sending reaction to relays:', { recipientRelays, senderRelays });
- 
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
- 
-    await new Promise((r) => setTimeout(r, 500));
 
-
-    const myPubkey = senderPubkey;
     let targetAuthorPubkey: string;
     if (targetMessage.direction === 'received') {
       targetAuthorPubkey = recipientPubkey as string;
     } else {
-      targetAuthorPubkey = myPubkey;
+      targetAuthorPubkey = senderPubkey;
     }
 
     const rumor: Partial<NostrEvent> = {
@@ -1702,26 +1355,16 @@ import type { Conversation } from '$lib/db/db';
       ]
     };
 
-    const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
- 
-    for (const url of recipientRelays) {
-      await retryQueue.enqueue(giftWrap, url);
-    }
-    for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
-    }
+    const { selfGiftWrapId } = await this.sendEnvelope({
+      recipients: [recipientNpub],
+      rumor,
+      skipDbSave: true,
+    });
 
-
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
-
-    const authorNpub = senderNpub;
     const reaction: Omit<Reaction, 'id'> = {
       targetEventId: targetId,
-      reactionEventId: selfGiftWrap.id,
-      authorNpub,
+      reactionEventId: selfGiftWrapId,
+      authorNpub: senderNpub,
       emoji,
       createdAt: Date.now()
     };
@@ -1730,30 +1373,20 @@ import type { Conversation } from '$lib/db/db';
     reactionsStore.applyReactionUpdate(reaction);
   }
 
-  /**
-   * Send a reaction to a group conversation.
-   * Creates gift-wraps for each participant and publishes to their relays.
-   * 
-   * @param conversationId The group conversation ID (16-char hash)
-   * @param targetMessage Info about the message being reacted to
-   * @param emoji The reaction emoji
-   */
   public async sendGroupReaction(
     conversationId: string,
     targetMessage: { eventId: string; rumorId?: string; direction: 'sent' | 'received'; senderNpub?: string },
     emoji: '👍' | '👎' | '❤️' | '😂'
   ): Promise<void> {
-    const s = get(signer);
-    if (!s) throw new Error('Not authenticated');
-
-    // Reaction requires a stable rumor ID (NIP-17)
     if (!targetMessage.rumorId) {
       console.warn('Cannot react to message without rumorId (likely old message)');
       return;
     }
     const targetId = targetMessage.rumorId;
 
-    // Get conversation to retrieve participants
+    const s = get(signer);
+    if (!s) throw new Error('Not authenticated');
+
     const conversation = await conversationRepo.getConversation(conversationId);
     if (!conversation || !conversation.isGroup) {
       throw new Error('Group conversation not found');
@@ -1762,44 +1395,14 @@ import type { Conversation } from '$lib/db/db';
     const senderPubkey = await s.getPublicKey();
     const senderNpub = nip19.npubEncode(senderPubkey);
 
-    // Determine the target message author
     let targetAuthorPubkey: string;
     if (targetMessage.direction === 'received' && targetMessage.senderNpub) {
-      // Message was received from someone else in the group
       const { data } = nip19.decode(targetMessage.senderNpub);
       targetAuthorPubkey = data as string;
     } else {
-      // Message was sent by us
       targetAuthorPubkey = senderPubkey;
     }
 
-    // Get relays for all participants and sender
-    const senderRelays = await this.getMessagingRelays(senderNpub);
-    const participantRelaysMap = new Map<string, string[]>();
-
-    for (const npub of conversation.participants) {
-      if (npub !== senderNpub) {
-        const relays = await this.getMessagingRelays(npub);
-        if (relays.length > 0) {
-          participantRelaysMap.set(npub, relays);
-        }
-      }
-    }
-
-    // Collect all relays for temporary connections
-    const allRelays = new Set<string>(senderRelays);
-    for (const relays of participantRelaysMap.values()) {
-      relays.forEach(r => allRelays.add(r));
-    }
-
-    if (this.debug) console.log('Sending group reaction to', participantRelaysMap.size, 'participants');
-
-    // Connect temporarily for reaction sending
-    for (const url of allRelays) {
-      connectionManager.addTemporaryRelay(url);
-    }
-
-    // Create the reaction rumor (kind 7)
     const rumor: Partial<NostrEvent> = {
       kind: 7,
       pubkey: senderPubkey,
@@ -1811,33 +1414,17 @@ import type { Conversation } from '$lib/db/db';
       ]
     };
 
-    // Create self-wrap first
-    const selfGiftWrap = await this.createGiftWrap(rumor, senderPubkey, s);
+    const { selfGiftWrapId } = await this.sendEnvelope({
+      recipients: conversation.participants,
+      rumor,
+      conversationId,
+      conversation,
+      skipDbSave: true,
+    });
 
-    // Send gift-wrap to each participant
-    for (const [npub, relays] of participantRelaysMap) {
-      const { data: recipientPubkey } = nip19.decode(npub);
-      const giftWrap = await this.createGiftWrap(rumor, recipientPubkey as string, s);
-
-      for (const url of relays) {
-        await retryQueue.enqueue(giftWrap, url);
-      }
-    }
-
-    // Send self-wrap to sender's relays
-    for (const url of senderRelays) {
-      await retryQueue.enqueue(selfGiftWrap, url);
-    }
-
-    // Cleanup temporary relays after sending attempt
-    setTimeout(() => {
-      connectionManager.cleanupTemporaryConnections();
-    }, 15000);
-
-    // Store reaction locally
     const reaction: Omit<Reaction, 'id'> = {
       targetEventId: targetId,
-      reactionEventId: selfGiftWrap.id,
+      reactionEventId: selfGiftWrapId,
       authorNpub: senderNpub,
       emoji,
       createdAt: Date.now()
