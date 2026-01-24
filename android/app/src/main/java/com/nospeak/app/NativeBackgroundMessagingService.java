@@ -934,9 +934,6 @@ public class NativeBackgroundMessagingService extends Service {
                 shortcutAvailable ? shortcutConversationId : null
         );
 
-        // Refreshes should never re-alert (vibrate/sound).
-        builder.setOnlyAlertOnce(true);
-  
         manager.notify(notificationId, builder.build());
     }
 
@@ -1233,9 +1230,6 @@ public class NativeBackgroundMessagingService extends Service {
                 shortcutAvailable ? shortcutConversationId : null
         );
 
-        // Refreshes should never re-alert (vibrate/sound).
-        builder.setOnlyAlertOnce(true);
- 
         manager.notify(notificationId, builder.build());
     }
 
