@@ -56,6 +56,14 @@ public class AndroidShareTargetPlugin extends Plugin {
             return null;
         }
 
+        // Extract target conversation ID from Direct Share shortcut (if present)
+        // The shortcut ID contains the conversation ID (full for groups, truncated for 1-on-1)
+        String targetConversationId = null;
+        String shortcutId = intent.getStringExtra(Intent.EXTRA_SHORTCUT_ID);
+        if (shortcutId != null && shortcutId.startsWith("chat_")) {
+            targetConversationId = shortcutId.substring(5); // Remove "chat_" prefix
+        }
+
         if (type.startsWith("text/")) {
             CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
             if (text == null || text.length() == 0) {
@@ -64,6 +72,9 @@ public class AndroidShareTargetPlugin extends Plugin {
             JSObject payload = new JSObject();
             payload.put("kind", "text");
             payload.put("text", text.toString());
+            if (targetConversationId != null) {
+                payload.put("targetConversationId", targetConversationId);
+            }
             return payload;
         }
 
@@ -94,6 +105,9 @@ public class AndroidShareTargetPlugin extends Plugin {
                 payload.put("mimeType", data.mimeType);
                 payload.put("fileName", data.fileName);
                 payload.put("base64", data.base64);
+                if (targetConversationId != null) {
+                    payload.put("targetConversationId", targetConversationId);
+                }
                 return payload;
             } catch (IOException e) {
                 // Best-effort: log and ignore; web side will not see a payload

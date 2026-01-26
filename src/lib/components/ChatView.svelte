@@ -872,7 +872,7 @@
 
    // Apply any initial shared media or text once the chat is ready
    $effect(() => {
-     if (!partnerNpub) {
+     if (!partnerNpub && !isGroup) {
        return;
      }
 

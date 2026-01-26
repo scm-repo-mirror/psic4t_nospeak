@@ -189,28 +189,49 @@
              return;
          }
  
-         if (payload.kind === 'media') {
-             const file = fileFromAndroidMediaPayload(payload);
-             setPendingAndroidMediaShare({
-                 file,
-                 mediaType: payload.mediaType,
-                 requiresContactSelection: true
-             });
-             setPendingAndroidTextShare(null);
-         } else if (payload.kind === 'text') {
-             if (!payload.text || payload.text.trim().length === 0) {
-                 return;
-             }
-             setPendingAndroidTextShare({
-                 text: payload.text,
-                 requiresContactSelection: true
-             });
-             setPendingAndroidMediaShare(null);
-         }
+         // Check if this is a Direct Share with a target conversation
+          let targetConversationId = payload.targetConversationId;
+          
+          // If targetConversationId is a truncated npub (starts with npub1 but < 63 chars),
+          // find the full npub from contacts
+          if (targetConversationId && targetConversationId.startsWith('npub1') && targetConversationId.length < 63) {
+              const { contactRepo } = await import('$lib/db/ContactRepository');
+              const contacts = await contactRepo.getContacts();
+              const match = contacts.find(c => c.npub.startsWith(targetConversationId as string));
+              if (match) {
+                  targetConversationId = match.npub;
+              }
+          }
+          
+          const hasDirectTarget = !!targetConversationId;
+
+          if (payload.kind === 'media') {
+              const file = fileFromAndroidMediaPayload(payload);
+              setPendingAndroidMediaShare({
+                  file,
+                  mediaType: payload.mediaType,
+                  requiresContactSelection: !hasDirectTarget,
+                  targetConversationId
+              });
+              setPendingAndroidTextShare(null);
+          } else if (payload.kind === 'text') {
+              if (!payload.text || payload.text.trim().length === 0) {
+                  return;
+              }
+              setPendingAndroidTextShare({
+                  text: payload.text,
+                  requiresContactSelection: !hasDirectTarget,
+                  targetConversationId
+              });
+              setPendingAndroidMediaShare(null);
+          }
  
-         if (location.pathname !== '/chat') {
-             await goto('/chat');
-         }
+          // Navigate to target conversation directly if Direct Share, otherwise to contact list
+          if (hasDirectTarget && targetConversationId) {
+              await goto(`/chat/${encodeURIComponent(targetConversationId)}`);
+          } else if (location.pathname !== '/chat') {
+              await goto('/chat');
+          }
        };
  
        try {
@@ -225,6 +246,86 @@
        void AndroidShareTarget.addListener('shareReceived', (payload) => {
          void handleSharePayload(payload);
        });
+     }
+
+     // Publish Android sharing shortcuts for recent contacts (1-on-1 + groups)
+     if (isAndroidNative() && restored && $currentUser) {
+       void (async () => {
+         try {
+           const { publishSharingShortcuts } = await import('$lib/core/AndroidSharingShortcuts');
+           const { conversationRepo } = await import('$lib/db/ConversationRepository');
+           const { contactRepo } = await import('$lib/db/ContactRepository');
+           const { profileRepo } = await import('$lib/db/ProfileRepository');
+           const { messageRepo } = await import('$lib/db/MessageRepository');
+
+           // 1. Get 1-on-1 contacts and their actual last message time
+           const dbContacts = await contactRepo.getContacts();
+           const contactItemsWithMsgTime = await Promise.all(
+             dbContacts.map(async (c) => {
+               // Get last message to determine actual last activity (like ChatList does)
+               const recentMsgs = await messageRepo.getMessages(c.npub, 1);
+               const lastMsg = recentMsgs[recentMsgs.length - 1];
+               const lastMsgTime = lastMsg ? lastMsg.sentAt : 0;
+               return {
+                 id: c.npub,
+                 isGroup: false as const,
+                 lastMessageTime: lastMsgTime,
+                 subject: undefined as string | undefined
+               };
+             })
+           );
+           // Filter out contacts with no messages
+           const contactItems = contactItemsWithMsgTime.filter(c => c.lastMessageTime > 0);
+
+           // 2. Get group conversations and their last message time
+           const groupConversations = await conversationRepo.getGroupConversations();
+           const groupItems = await Promise.all(
+             groupConversations.map(async (g) => {
+               const lastMsg = await messageRepo.getLastMessageForConversation(g.id);
+               const lastMsgTime = lastMsg ? lastMsg.sentAt : g.lastActivityAt;
+               return {
+                 id: g.id,
+                 isGroup: true as const,
+                 lastMessageTime: lastMsgTime,
+                 subject: g.subject
+               };
+             })
+           );
+
+           // 3. Combine, sort by lastMessageTime descending, take top 4
+           const allChats = [...contactItems, ...groupItems]
+             .sort((a, b) => b.lastMessageTime - a.lastMessageTime)
+             .slice(0, 4);
+
+           // 4. Map to shortcut format with profile lookup for 1-on-1
+           const shortcutContacts = await Promise.all(
+             allChats.map(async (chat) => {
+               let displayName: string;
+               let avatarUrl: string | undefined;
+
+               if (chat.isGroup) {
+                 displayName = chat.subject || 'Group Chat';
+                 avatarUrl = 'group_default'; // Signal Android to use default group icon
+               } else {
+                 const profile = await profileRepo.getProfileIgnoreTTL(chat.id);
+                 const metadata = profile?.metadata;
+                 displayName = metadata?.display_name || metadata?.name || chat.id.slice(0, 12) + '...';
+                 avatarUrl = metadata?.picture;
+               }
+
+               return {
+                 conversationId: chat.id,
+                 displayName,
+                 avatarUrl
+               };
+             })
+           );
+
+           await publishSharingShortcuts(shortcutContacts);
+         } catch (e) {
+           console.error('Failed to publish sharing shortcuts:', e);
+         }
+       })();
      }
  
      if (restored && location.pathname !== "/") {

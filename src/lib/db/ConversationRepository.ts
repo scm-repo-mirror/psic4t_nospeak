@@ -219,6 +219,21 @@ export class ConversationRepository {
         const count = await db.conversations.where('id').equals(id).count();
         return count > 0;
     }
+
+    /**
+     * Get the most recent conversations, limited to a specific count.
+     * Useful for Android sharing shortcuts.
+     * 
+     * @param limit Maximum number of conversations to return (default 4)
+     * @returns Array of conversations ordered by most recent activity
+     */
+    public async getRecentConversations(limit: number = 4): Promise<Conversation[]> {
+        return await db.conversations
+            .orderBy('lastActivityAt')
+            .reverse()
+            .limit(limit)
+            .toArray();
+    }
 }
 
 export const conversationRepo = new ConversationRepository();

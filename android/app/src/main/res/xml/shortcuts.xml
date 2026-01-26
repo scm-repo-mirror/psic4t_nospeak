@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 
+        Direct Share targets configuration.
+        Allows nospeak contacts to appear in Android's share sheet.
+        Dynamic shortcuts with the matching category will be shown as share targets.
+    -->
+    <share-target android:targetClass="com.nospeak.app.MainActivity">
+        <data android:mimeType="text/*" />
+        <data android:mimeType="image/*" />
+        <data android:mimeType="video/*" />
+        <data android:mimeType="audio/*" />
+        <category android:name="com.nospeak.app.category.SHARE_TARGET" />
+    </share-target>
+</shortcuts>

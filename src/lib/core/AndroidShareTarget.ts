@@ -9,11 +9,15 @@ export interface AndroidShareMediaPayload {
     mimeType: string;
     fileName: string;
     base64: string;
+    /** Target conversation ID from Direct Share (if user selected a contact from share sheet) */
+    targetConversationId?: string;
 }
 
 export interface AndroidShareTextPayload {
     kind: 'text';
     text: string;
+    /** Target conversation ID from Direct Share (if user selected a contact from share sheet) */
+    targetConversationId?: string;
 }
 
 export type AndroidSharePayload = AndroidShareMediaPayload | AndroidShareTextPayload;

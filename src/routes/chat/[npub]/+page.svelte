@@ -225,19 +225,19 @@
          initialLoadDone = true;
      });
 
-     // Consume any pending Android inbound share after contact selection
-     $effect(() => {
-         const partner = currentPartner;
-         if (!partner || !isAndroidNative()) {
-             return;
-         }
+    // Consume any pending Android inbound share after contact selection
+    $effect(() => {
+        const convId = conversationId;
+        if (!convId || !isAndroidNative()) {
+            return;
+        }
 
-         const media = consumePendingAndroidMediaShare();
-         const text = consumePendingAndroidTextShare();
+        const media = consumePendingAndroidMediaShare();
+        const text = consumePendingAndroidTextShare();
 
-         initialSharedMedia = media ? { file: media.file, mediaType: media.mediaType } : null;
-         initialSharedText = text ? text.text : null;
-     });
+        initialSharedMedia = media ? { file: media.file, mediaType: media.mediaType } : null;
+        initialSharedText = text ? text.text : null;
+    });
 
 
     onMount(() => {

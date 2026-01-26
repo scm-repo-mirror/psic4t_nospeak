@@ -66,6 +66,7 @@ import org.bouncycastle.crypto.params.ParametersWithIV;
 import org.bouncycastle.math.ec.ECPoint;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -938,12 +939,18 @@ public class NativeBackgroundMessagingService extends Service {
     }
 
     private static String buildShortcutConversationId(String conversationId) {
-        return "chat_" + conversationId;
+        // Use truncated ID to stay within Android's ~65 char limit
+        // Groups: full 16-char ID, 1-on-1: first 50 chars of npub
+        if (conversationId.length() > 50) {
+            return "chat_" + conversationId.substring(0, 50);
+        } else {
+            return "chat_" + conversationId;
+        }
     }
 
     private Intent buildChatIntent(String conversationId) {
         Intent intent = new Intent(this, MainActivity.class);
-        intent.setAction(Intent.ACTION_VIEW);
+        intent.setAction(Intent.ACTION_SEND);
         intent.addCategory(Intent.CATEGORY_DEFAULT);
         intent.setData(Uri.parse("nospeak://chat/" + conversationId));
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -994,7 +1001,10 @@ public class NativeBackgroundMessagingService extends Service {
                 .setShortLabel(title)
                 .setIntent(buildChatIntent(conversationId))
                 .setLongLived(true)
-                .setPerson(senderPerson);
+                .setPerson(senderPerson)
+                // Add sharing category so this shortcut appears in the Android share sheet
+                .setCategories(new HashSet<>(Collections.singletonList(
+                        "com.nospeak.app.category.SHARE_TARGET")));
 
         if (avatar != null) {
             shortcutBuilder.setIcon(IconCompat.createWithBitmap(avatar));
