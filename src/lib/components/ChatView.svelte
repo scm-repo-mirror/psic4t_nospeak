@@ -35,6 +35,7 @@
   import { nativeDialogService, isAndroidNative, isMobileWeb } from '$lib/core/NativeDialogs';
   import { t } from '$lib/i18n';
   import { get } from 'svelte/store';
+  import { tick } from 'svelte';
   import { isCaptionMessage, getCaptionForParent } from '$lib/core/captionGrouping';
   import { buildChatHistorySearchResults } from '$lib/core/chatHistorySearch';
   import { getCurrentPosition } from '$lib/core/LocationService';
@@ -754,17 +755,6 @@
       }
   }
 
-  function handleMediaLoad() {
-    if (!chatContainer) return;
-    // If we are reasonably close to the bottom, keep scrolling down as media loads
-    // This fixes the issue where loading images push the content up
-    const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
-
-    if (distanceFromBottom < 1000) {
-      scrollToBottom();
-    }
-  }
-
   function isPageKey(key: string): boolean {
     return key === 'PageDown' || key === 'PageUp' || key === 'End' || key === 'Home';
   }
@@ -906,10 +896,21 @@
 
   function scrollToBottom() {
     if (chatContainer) {
-      // Use timeout to ensure DOM has updated height
-      setTimeout(() => {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-      }, 0);
+      // Wait for Svelte to finish DOM updates, then wait for browser layout
+      tick().then(() => {
+        requestAnimationFrame(() => {
+          if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Scroll again after delay to catch late layout calculations
+            // from async components (LocationMap, AudioWaveformPlayer)
+            setTimeout(() => {
+              if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+              }
+            }, 300);
+          }
+        });
+      });
     }
   }
 
@@ -1773,6 +1774,7 @@
   <div
     bind:this={chatContainer}
     tabindex="-1"
+    style="overflow-anchor: none;"
     class="flex-1 overflow-x-hidden overflow-y-auto px-4 pb-safe-offset-28 pt-[calc(5rem+env(safe-area-inset-top))] space-y-4 custom-scrollbar native-scroll focus:outline-none focus:ring-0"
     onscroll={handleScroll}
     onpointerdown={activateMessageWindow}
@@ -1949,7 +1951,6 @@
                fileKey={msg.fileKey}
                fileNonce={msg.fileNonce}
                 authorNpub={msg.direction === "sent" ? $currentUser?.npub : partnerNpub}
-                onMediaLoad={handleMediaLoad}
                 location={msg.location}
                 forceEagerLoad={i >= displayMessages.length - 3}
                 fileWidth={msg.fileWidth}
