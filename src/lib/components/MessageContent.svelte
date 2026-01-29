@@ -91,11 +91,7 @@
         return !!mime && mime.startsWith('audio/');
     }
  
-    function parseMarkdown(text: string) {
-
-        // Process citations (> text)
-        text = text.replace(/^> (.+)$/gm, '<div class="border-l-2 border-gray-300 pl-3 italic">$1</div>');
-        
+    function parseInlineMarkdown(text: string): string {
         // Process strikethrough first (~~text~~)
         text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
         
@@ -108,6 +104,58 @@
         text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
         
         return text;
+    }
+
+    function parseMarkdown(text: string): string {
+        const lines = text.split('\n');
+        const result: string[] = [];
+        let i = 0;
+
+        while (i < lines.length) {
+            const line = lines[i];
+
+            // Check for citation block (> text or > or >)
+            if (/^>( .*)?$/.test(line)) {
+                const citeLines: string[] = [];
+                while (i < lines.length && /^>( .*)?$/.test(lines[i])) {
+                    citeLines.push(lines[i].replace(/^> ?/, '')); // Remove "> " or ">"
+                    i++;
+                }
+                const citeContent = citeLines.map(l => parseInlineMarkdown(l)).join('<br>');
+                result.push(`<blockquote class="border-l-2 border-gray-400 dark:border-slate-500 bg-gray-100/50 dark:bg-slate-800/50 pl-3 pr-3 py-1 my-1 rounded-r text-gray-700 dark:text-slate-300">${citeContent}</blockquote>`);
+                continue;
+            }
+
+            // Check for unordered list (- item or * item)
+            if (/^[-*] .+/.test(line)) {
+                const listItems: string[] = [];
+                while (i < lines.length && /^[-*] .+/.test(lines[i])) {
+                    listItems.push(lines[i].substring(2)); // Remove "- " or "* "
+                    i++;
+                }
+                const listContent = listItems.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('');
+                result.push(`<ul class="list-disc pl-5 my-1">${listContent}</ul>`);
+                continue;
+            }
+
+            // Check for ordered list (1. item, 2. item, etc.)
+            if (/^\d+\. .+/.test(line)) {
+                const listItems: string[] = [];
+                while (i < lines.length && /^\d+\. .+/.test(lines[i])) {
+                    listItems.push(lines[i].replace(/^\d+\. /, '')); // Remove "N. "
+                    i++;
+                }
+                const listContent = listItems.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('');
+                result.push(`<ol class="list-decimal pl-5 my-1">${listContent}</ol>`);
+                continue;
+            }
+
+            // Regular line - apply inline markdown
+            result.push(parseInlineMarkdown(line));
+            i++;
+        }
+
+        return result.join('\n');
     }
 
     const highlightNeedle = $derived((highlight ?? '').trim());

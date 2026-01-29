@@ -71,6 +71,11 @@
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+    // Strip citation markers for preview
+    text = text.replace(/^&gt; /gm, "");
+    // Strip list markers for preview (- item, * item, 1. item)
+    text = text.replace(/^[-*] /gm, "");
+    text = text.replace(/^\d+\. /gm, "");
     // Bold (**text**)
     text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     // Italic (*text*)

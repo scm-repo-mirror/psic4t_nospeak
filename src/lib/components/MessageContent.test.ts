@@ -1,87 +1,192 @@
 import { describe, it, expect } from 'vitest';
 
-describe('MessageContent Markdown parsing', () => {
-    it('should parse bold text correctly', () => {
-        const parseMarkdown = (text: string) => {
-            text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-            return text;
-        };
+// Helper functions that mirror the component implementation
+function parseInlineMarkdown(text: string): string {
+    text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
+    return text;
+}
 
-        expect(parseMarkdown('**bold text**')).toBe('<strong>bold text</strong>');
-        expect(parseMarkdown('__bold text__')).toBe('<strong>bold text</strong>');
+function parseMarkdown(text: string): string {
+    const lines = text.split('\n');
+    const result: string[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+
+        // Check for citation block (> text or > or >)
+        if (/^>( .*)?$/.test(line)) {
+            const citeLines: string[] = [];
+            while (i < lines.length && /^>( .*)?$/.test(lines[i])) {
+                citeLines.push(lines[i].replace(/^> ?/, '')); // Remove "> " or ">"
+                i++;
+            }
+            const citeContent = citeLines.map(l => parseInlineMarkdown(l)).join('<br>');
+            result.push(`<blockquote class="border-l-2 border-gray-400 dark:border-slate-500 bg-gray-100/50 dark:bg-slate-800/50 pl-3 pr-3 py-1 my-1 rounded-r text-gray-700 dark:text-slate-300">${citeContent}</blockquote>`);
+            continue;
+        }
+
+        // Check for unordered list (- item or * item)
+        if (/^[-*] .+/.test(line)) {
+            const listItems: string[] = [];
+            while (i < lines.length && /^[-*] .+/.test(lines[i])) {
+                listItems.push(lines[i].substring(2));
+                i++;
+            }
+            const listContent = listItems.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('');
+            result.push(`<ul class="list-disc pl-5 my-1">${listContent}</ul>`);
+            continue;
+        }
+
+        // Check for ordered list (1. item, 2. item, etc.)
+        if (/^\d+\. .+/.test(line)) {
+            const listItems: string[] = [];
+            while (i < lines.length && /^\d+\. .+/.test(lines[i])) {
+                listItems.push(lines[i].replace(/^\d+\. /, ''));
+                i++;
+            }
+            const listContent = listItems.map(item => `<li>${parseInlineMarkdown(item)}</li>`).join('');
+            result.push(`<ol class="list-decimal pl-5 my-1">${listContent}</ol>`);
+            continue;
+        }
+
+        result.push(parseInlineMarkdown(line));
+        i++;
+    }
+
+    return result.join('\n');
+}
+
+describe('MessageContent Inline Markdown parsing', () => {
+    it('should parse bold text correctly', () => {
+        expect(parseInlineMarkdown('**bold text**')).toBe('<strong>bold text</strong>');
+        expect(parseInlineMarkdown('__bold text__')).toBe('<strong>bold text</strong>');
     });
 
     it('should parse italic text correctly', () => {
-        const parseMarkdown = (text: string) => {
-            text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-            return text;
-        };
-
-        expect(parseMarkdown('*italic text*')).toBe('<em>italic text</em>');
-        expect(parseMarkdown('_italic text_')).toBe('<em>italic text</em>');
+        expect(parseInlineMarkdown('*italic text*')).toBe('<em>italic text</em>');
+        expect(parseInlineMarkdown('_italic text_')).toBe('<em>italic text</em>');
     });
 
     it('should parse strikethrough text correctly', () => {
-        const parseMarkdown = (text: string) => {
-            text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-            return text;
-        };
-
-        expect(parseMarkdown('~~strikethrough text~~')).toBe('<del>strikethrough text</del>');
+        expect(parseInlineMarkdown('~~strikethrough text~~')).toBe('<del>strikethrough text</del>');
     });
 
-    it('should parse mixed markdown correctly', () => {
-        const parseMarkdown = (text: string) => {
-            text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-            return text;
-        };
-
-        expect(parseMarkdown('**bold** and *italic* and ~~strikethrough~~'))
+    it('should parse mixed inline markdown correctly', () => {
+        expect(parseInlineMarkdown('**bold** and *italic* and ~~strikethrough~~'))
             .toBe('<strong>bold</strong> and <em>italic</em> and <del>strikethrough</del>');
     });
 
-    it('should handle simple markdown patterns', () => {
-        const parseMarkdown = (text: string) => {
-            text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-            return text;
-        };
+    it('should leave plain text unchanged', () => {
+        expect(parseInlineMarkdown('plain text')).toBe('plain text');
+    });
+});
 
-        // Simple patterns work, nested patterns are not supported in this basic implementation
-        expect(parseMarkdown('**bold text**')).toBe('<strong>bold text</strong>');
-        expect(parseMarkdown('*italic text*')).toBe('<em>italic text</em>');
+describe('MessageContent Block Markdown parsing', () => {
+    it('should parse single-line citation correctly', () => {
+        const result = parseMarkdown('> quoted text');
+        expect(result).toContain('<blockquote');
+        expect(result).toContain('quoted text');
+        expect(result).toContain('border-l-2');
+        expect(result).toContain('bg-gray-100/50');
     });
 
-    it('should leave plain text unchanged', () => {
-        const parseMarkdown = (text: string) => {
-            text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-            return text;
-        };
+    it('should group multi-line citations into single blockquote', () => {
+        const result = parseMarkdown('> line one\n> line two\n> line three');
+        // Should have only one blockquote
+        expect((result.match(/<blockquote/g) || []).length).toBe(1);
+        // Should contain all lines separated by <br>
+        expect(result).toContain('line one<br>line two<br>line three');
+    });
 
-        expect(parseMarkdown('plain text')).toBe('plain text');
+    it('should handle multi-line citations with empty lines', () => {
+        const result = parseMarkdown('> line one\n> \n> line three');
+        // Should have only one blockquote (empty line should not break the block)
+        expect((result.match(/<blockquote/g) || []).length).toBe(1);
+        // Should contain all lines including empty one
+        expect(result).toContain('line one<br><br>line three');
+        // Should NOT contain a literal ">" character outside the blockquote
+        expect(result).not.toMatch(/>\s*\n[^<]/);
+    });
+
+    it('should handle citation with bare > marker', () => {
+        const result = parseMarkdown('> line one\n>\n> line three');
+        // Should have only one blockquote
+        expect((result.match(/<blockquote/g) || []).length).toBe(1);
+    });
+
+    it('should apply inline markdown within citations', () => {
+        const result = parseMarkdown('> **bold** and *italic*');
+        expect(result).toContain('<strong>bold</strong>');
+        expect(result).toContain('<em>italic</em>');
+    });
+
+    it('should parse unordered list with dash', () => {
+        const result = parseMarkdown('- item one\n- item two\n- item three');
+        expect(result).toContain('<ul class="list-disc pl-5 my-1">');
+        expect(result).toContain('<li>item one</li>');
+        expect(result).toContain('<li>item two</li>');
+        expect(result).toContain('<li>item three</li>');
+    });
+
+    it('should parse unordered list with asterisk', () => {
+        const result = parseMarkdown('* item one\n* item two');
+        expect(result).toContain('<ul class="list-disc pl-5 my-1">');
+        expect(result).toContain('<li>item one</li>');
+        expect(result).toContain('<li>item two</li>');
+    });
+
+    it('should parse ordered list', () => {
+        const result = parseMarkdown('1. first\n2. second\n3. third');
+        expect(result).toContain('<ol class="list-decimal pl-5 my-1">');
+        expect(result).toContain('<li>first</li>');
+        expect(result).toContain('<li>second</li>');
+        expect(result).toContain('<li>third</li>');
+    });
+
+    it('should apply inline markdown within list items', () => {
+        const result = parseMarkdown('- **bold item**\n- *italic item*');
+        expect(result).toContain('<li><strong>bold item</strong></li>');
+        expect(result).toContain('<li><em>italic item</em></li>');
+    });
+
+    it('should handle mixed content: text + list + text', () => {
+        const result = parseMarkdown('intro text\n- item one\n- item two\noutro text');
+        expect(result).toContain('intro text');
+        expect(result).toContain('<ul');
+        expect(result).toContain('outro text');
+    });
+
+    it('should handle citation followed by regular text', () => {
+        const result = parseMarkdown('> quoted\nmy response');
+        expect(result).toContain('<blockquote');
+        expect(result).toContain('quoted');
+        expect(result).toContain('my response');
+        // blockquote and response should be separate
+        expect(result).toContain('</blockquote>\nmy response');
+    });
+
+    it('should handle empty lines between blocks', () => {
+        const result = parseMarkdown('text before\n\n- list item\n\ntext after');
+        expect(result).toContain('text before');
+        expect(result).toContain('<ul');
+        expect(result).toContain('text after');
+    });
+
+    it('should not treat dash without space as list item', () => {
+        const result = parseMarkdown('-not a list');
+        expect(result).not.toContain('<ul');
+        expect(result).toBe('-not a list');
+    });
+
+    it('should not treat number without proper format as ordered list', () => {
+        const result = parseMarkdown('1.not a list');
+        expect(result).not.toContain('<ol');
+        expect(result).toBe('1.not a list');
     });
 });
 
