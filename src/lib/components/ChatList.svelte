@@ -420,12 +420,12 @@
         </svg>
       </Button>
     </div>
-    <div class="px-2 pb-3 flex justify-between items-center">
+    <div class="hidden md:flex px-2 pb-3 justify-between items-center">
       <div class="typ-section dark:text-white">{$t("chats.title")}</div>
     </div>
   </div>
 
-  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[calc(120px+env(safe-area-inset-top))] pb-safe-offset-16" use:overscroll>
+  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[calc(85px+env(safe-area-inset-top))] md:pt-[calc(120px+env(safe-area-inset-top))] pb-safe-offset-16" use:overscroll>
     {#if chatItems.length === 0}
       <div class="space-y-3 p-3 animate-pulse">
         {#each Array(5) as _}
