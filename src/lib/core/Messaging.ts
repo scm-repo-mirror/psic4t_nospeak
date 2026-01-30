@@ -27,11 +27,6 @@ import type { Conversation } from '$lib/db/db';
     private lastHistoryFetch: number = 0;
     private readonly HISTORY_FETCH_DEBOUNCE = 5000; // 5 seconds
 
-    // First-time login history sync is intentionally capped.
-    // Note: gift-wrap (NIP-59) `created_at` timestamps can be randomized by clients,
-    // so the cutoff is approximate and should be treated as a best-effort window.
-    private readonly FIRST_SYNC_BACKFILL_DAYS = 30;
-
     private liveSeenEventIds: Set<string> = new Set();
  
     private activeSubscriptionUnsub: (() => void) | null = null;
@@ -559,7 +554,10 @@ import type { Conversation } from '$lib/db/db';
   }
 
   // Explicitly fetch history to fill gaps
-  public async fetchHistory() {
+  // When skipSyncStateManagement is true, caller is responsible for managing sync state
+  // (used by AuthService which manages its own login sync flow)
+  public async fetchHistory(options?: { skipSyncStateManagement?: boolean }) {
+    const skipSyncState = options?.skipSyncStateManagement ?? false;
     const s = get(signer);
     if (!s) return { totalFetched: 0, processed: 0, messagesSaved: 0 };
 
@@ -579,8 +577,10 @@ import type { Conversation } from '$lib/db/db';
       // Check if this is first-time sync (empty cache)
       const isFirstSync = await this.isFirstTimeSync();
 
-      // Start sync state for UI
-      startSync(isFirstSync);
+      // Start sync state for UI (unless caller manages it)
+      if (!skipSyncState) {
+        startSync(isFirstSync);
+      }
 
       // 1. Wait for relays to be connected before fetching
       const relays = await this.getMessagingRelays(nip19.npubEncode(myPubkey));
@@ -592,14 +592,13 @@ import type { Conversation } from '$lib/db/db';
       await this.waitForRelayConnection(relays);
 
       // 2. Fetch messages based on sync type
-      // First-time sync: fetch ~last 30 days (approx; see FIRST_SYNC_BACKFILL_DAYS)
+      // First-time sync: fetch all history until relays return 0 events
       // Returning user: 1 batch of 50 messages to fill gaps
       const nowSeconds = Math.floor(Date.now() / 1000);
       const result = await this.fetchMessages({
         until: nowSeconds,
         limit: 50,
         maxBatches: isFirstSync ? 10000 : 1,
-        minUntil: isFirstSync ? nowSeconds - (this.FIRST_SYNC_BACKFILL_DAYS * 86400) : undefined,
         abortOnDuplicates: !isFirstSync, // Only abort on duplicates for returning users
         markUnread: !isFirstSync
       });
@@ -608,7 +607,9 @@ import type { Conversation } from '$lib/db/db';
       return result;
     } finally {
       this.isFetchingHistory = false;
-      endSync();
+      if (!skipSyncState) {
+        endSync();
+      }
     }
   }
 

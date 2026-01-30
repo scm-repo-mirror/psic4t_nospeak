@@ -411,7 +411,8 @@ export class AuthService {
         setLoginSyncActiveStep('fetch-history');
         messagingService.setDeferContactPublish(true);
         try {
-            await messagingService.fetchHistory();
+            // Skip sync state management - AuthService controls sync state via beginLoginSyncFlow/completeLoginSyncFlow
+            await messagingService.fetchHistory({ skipSyncStateManagement: true });
         } catch (error) {
             console.error(`${context} history fetch failed:`, error);
             // Track as generic relay error

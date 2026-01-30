@@ -175,7 +175,7 @@ describe('MessagingService - Auto-add Contacts', () => {
             expect(result).toEqual({ totalFetched: 0, processed: 0, messagesSaved: 0 });
         });
 
-        it('stops first-time sync paging once cutoff is reached', async () => {
+        it('first-time sync pages until relays return 0 events', async () => {
             const nowSeconds = 2_000_000_000;
             const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(nowSeconds * 1000);
 
@@ -198,27 +198,26 @@ describe('MessagingService - Auto-add Contacts', () => {
                     tags: [],
                 })) as any[];
 
-            const minUntil = nowSeconds - (30 * 86400);
-
-            // Batch 1: entirely above cutoff.
+            // Batch 1: 50 events
             const batch1 = makeEvents('b1', nowSeconds);
-            // Batch 2: crosses below cutoff so next until would be < minUntil.
-            const batch2 = makeEvents('b2', minUntil + 25);
-            batch2[49].created_at = minUntil - 24;
+            // Batch 2: 50 more events
+            const batch2 = makeEvents('b2', nowSeconds - 50);
+            // Batch 3: empty - signals end of history
 
             let callCount = 0;
             vi.mocked(connectionManager.fetchEvents).mockImplementation(async () => {
                 callCount += 1;
                 if (callCount === 1) return batch1;
                 if (callCount === 2) return batch2;
-                return [];
+                return []; // Batch 3: empty, stops pagination
             });
 
             vi.spyOn(messagingService as any, 'processGiftWrapToMessage').mockResolvedValue(null);
 
             await messagingService.fetchHistory();
 
-            expect(connectionManager.fetchEvents).toHaveBeenCalledTimes(2);
+            // Should fetch 3 batches: 2 with events, 1 empty to signal end
+            expect(connectionManager.fetchEvents).toHaveBeenCalledTimes(3);
             dateSpy.mockRestore();
         });
 
