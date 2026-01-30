@@ -154,6 +154,141 @@ export class ProfileResolver {
         });
     }
 
+    /**
+     * Resolve profiles for multiple npubs in a single batch request.
+     * Uses a multi-author filter for efficiency.
+     */
+    public async resolveProfilesBatch(npubs: string[]): Promise<void> {
+        if (npubs.length === 0) {
+            return;
+        }
+
+        // Convert npubs to pubkeys
+        const pubkeyToNpub = new Map<string, string>();
+        for (const npub of npubs) {
+            try {
+                const { data } = nip19.decode(npub);
+                pubkeyToNpub.set(data as string, npub);
+            } catch (e) {
+                console.warn(`[ProfileResolver] Failed to decode npub: ${npub}`, e);
+            }
+        }
+
+        if (pubkeyToNpub.size === 0) {
+            return;
+        }
+
+        const pubkeys = Array.from(pubkeyToNpub.keys());
+        console.log(`[ProfileResolver] Batch resolving ${pubkeys.length} profiles...`);
+
+        // Multi-author filter for kinds 0, 10050, 10002, 10063
+        const filters = [
+            {
+                kinds: [0, 10050, 10002, 10063],
+                authors: pubkeys,
+                limit: pubkeys.length * 4 // Up to 4 events per author
+            }
+        ];
+
+        // Track data per npub
+        interface ProfileData {
+            metadata: any;
+            messagingRelays: string[];
+            mediaServers: string[];
+            foundProfile: boolean;
+            foundMessagingRelays: boolean;
+            foundMediaServers: boolean;
+            foundNip65Relays: boolean;
+        }
+
+        const profileDataMap = new Map<string, ProfileData>();
+        for (const npub of pubkeyToNpub.values()) {
+            profileDataMap.set(npub, {
+                metadata: null,
+                messagingRelays: [],
+                mediaServers: [],
+                foundProfile: false,
+                foundMessagingRelays: false,
+                foundMediaServers: false,
+                foundNip65Relays: false
+            });
+        }
+
+        return new Promise<void>((resolve) => {
+            const finalize = async () => {
+                // Cache all profiles that we found
+                let cached = 0;
+                for (const [npub, data] of profileDataMap.entries()) {
+                    try {
+                        const { data: pubkey } = nip19.decode(npub);
+                        await profileRepo.cacheProfile(
+                            npub,
+                            data.metadata,
+                            {
+                                messagingRelays: (data.foundMessagingRelays || data.foundNip65Relays) ? data.messagingRelays : undefined,
+                                mediaServers: data.foundMediaServers ? data.mediaServers : undefined
+                            }
+                        );
+
+                        // Cache Android profile identity if we have metadata
+                        const username = extractKind0Username(data.metadata);
+                        if (username) {
+                            await cacheAndroidProfileIdentity({
+                                pubkeyHex: pubkey as string,
+                                username,
+                                picture: extractKind0Picture(data.metadata) ?? undefined,
+                                updatedAt: Date.now()
+                            });
+                        }
+
+                        if (data.foundProfile) {
+                            cached++;
+                        }
+                    } catch (e) {
+                        console.warn(`[ProfileResolver] Failed to cache profile for ${npub}:`, e);
+                    }
+                }
+                console.log(`[ProfileResolver] Batch resolution complete: ${cached}/${pubkeyToNpub.size} profiles cached`);
+                resolve();
+            };
+
+            // 5-second timeout for batch resolution
+            const timeout = setTimeout(() => {
+                cleanup();
+                void finalize();
+            }, 5000);
+
+            const cleanup = connectionManager.subscribe(filters, (event) => {
+                const npub = pubkeyToNpub.get(event.pubkey);
+                if (!npub) return;
+
+                const data = profileDataMap.get(npub);
+                if (!data) return;
+
+                if (event.kind === 0 && !data.foundProfile) {
+                    try {
+                        data.metadata = JSON.parse(event.content);
+                        data.foundProfile = true;
+                    } catch (e) {
+                        console.error(`[ProfileResolver] Failed to parse profile metadata for ${npub}`, e);
+                    }
+                } else if (event.kind === 10050 && !data.foundMessagingRelays) {
+                    data.messagingRelays = this.parseMessagingRelayList(event);
+                    data.foundMessagingRelays = true;
+                } else if (event.kind === 10063 && !data.foundMediaServers) {
+                    data.mediaServers = parseBlossomServerListEvent(event);
+                    data.foundMediaServers = true;
+                } else if (event.kind === 10002 && !data.foundNip65Relays && !data.foundMessagingRelays) {
+                    const parsed = this.parseNIP65RelayList(event);
+                    data.messagingRelays = Array.from(new Set([...(parsed.read || []), ...(parsed.write || [])]));
+                    data.foundNip65Relays = true;
+                }
+            }, {
+                extraRelays: getDiscoveryRelays()
+            });
+        });
+    }
+
     private parseMessagingRelayList(event: any): string[] {
         const urls: string[] = [];
         const seen = new Set<string>();

@@ -6,6 +6,7 @@ import { getBlasterRelayUrl, getDiscoveryRelays } from '$lib/core/runtimeConfig'
 
 import { connectionManager } from './connection/instance';
 import { contactRepo } from '$lib/db/ContactRepository';
+import { profileResolver } from './ProfileResolver';
 
 const D_TAG = 'dm-contacts';
 const KIND_FOLLOW_SET = 30000;
@@ -202,6 +203,7 @@ export class ContactSyncService {
 
             // Union merge: add any remote contacts not in local
             let added = 0;
+            const newContactNpubs: string[] = [];
             for (const pubkey of remotePubkeys) {
                 try {
                     const npub = nip19.npubEncode(pubkey);
@@ -209,6 +211,7 @@ export class ContactSyncService {
                         // Add with lastReadAt=now so they don't appear as unread
                         const now = Date.now();
                         await contactRepo.addContact(npub, now, now);
+                        newContactNpubs.push(npub);
                         added++;
                         console.log(`[ContactSyncService] Added contact from relay: ${npub.substring(0, 12)}...`);
                     }
@@ -218,6 +221,17 @@ export class ContactSyncService {
             }
 
             console.log(`[ContactSyncService] Union merge complete: ${added} new contacts added`);
+
+            // Batch resolve profiles for newly added contacts
+            if (newContactNpubs.length > 0) {
+                console.log(`[ContactSyncService] Resolving profiles for ${newContactNpubs.length} new contacts...`);
+                try {
+                    await profileResolver.resolveProfilesBatch(newContactNpubs);
+                } catch (e) {
+                    console.warn('[ContactSyncService] Batch profile resolution failed:', e);
+                    // Non-fatal - contacts are added, profiles can be resolved later
+                }
+            }
         } catch (e) {
             console.error('[ContactSyncService] Failed to fetch and merge contacts:', e);
         }
