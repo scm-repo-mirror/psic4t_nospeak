@@ -11,6 +11,7 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 
+import com.getcapacitor.FileUtils;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -20,6 +21,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
+import java.io.InputStream;
 import java.io.OutputStream;
 
 @CapacitorPlugin(
@@ -109,6 +111,72 @@ public class AndroidMediaCachePlugin extends Plugin {
             result.put("success", false);
             call.resolve(result);
         }
+    }
+
+    @PluginMethod
+    public void loadFromCache(PluginCall call) {
+        String sha256 = call.getString("sha256");
+        String mimeType = call.getString("mimeType");
+
+        if (sha256 == null || sha256.trim().isEmpty()) {
+            JSObject result = new JSObject();
+            result.put("found", false);
+            call.resolve(result);
+            return;
+        }
+
+        try {
+            Uri cachedUri = findCachedUri(sha256, mimeType);
+            if (cachedUri == null) {
+                JSObject result = new JSObject();
+                result.put("found", false);
+                call.resolve(result);
+                return;
+            }
+
+            // Convert content:// URI to Capacitor-accessible URL
+            String webUrl = FileUtils.getPortablePath(getContext(), getBridge().getLocalUrl(), cachedUri);
+            
+            JSObject result = new JSObject();
+            result.put("found", true);
+            result.put("url", webUrl);
+            call.resolve(result);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading from cache", e);
+            JSObject result = new JSObject();
+            result.put("found", false);
+            call.resolve(result);
+        }
+    }
+
+    /**
+     * Find a cached file by SHA256 prefix and return its content URI.
+     * Returns null if not found.
+     */
+    private Uri findCachedUri(String sha256, String mimeType) {
+        ContentResolver resolver = getContext().getContentResolver();
+        String hashPrefix = sha256.substring(0, Math.min(12, sha256.length()));
+        
+        Uri collection = getMediaCollectionUri(mimeType);
+        if (collection == null) {
+            return null;
+        }
+
+        String[] projection = { MediaStore.MediaColumns._ID };
+        String selection = MediaStore.MediaColumns.DISPLAY_NAME + " LIKE ?";
+        String[] selectionArgs = { hashPrefix + "_%" };
+
+        try (Cursor cursor = resolver.query(collection, projection, selection, selectionArgs, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID));
+                return Uri.withAppendedPath(collection, String.valueOf(id));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error querying MediaStore for cached file", e);
+        }
+
+        return null;
     }
 
     private PluginCall savedCall = null;

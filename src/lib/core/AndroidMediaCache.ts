@@ -10,6 +10,16 @@ export interface MediaCacheSaveResult {
     success: boolean;
 }
 
+/**
+ * Result of loading a file from the media cache.
+ */
+export interface MediaCacheLoadResult {
+    /** Whether the file was found in the cache */
+    found: boolean;
+    /** Capacitor-converted URL ready for use in <img>/<video> src (only present if found) */
+    url?: string;
+}
+
 interface AndroidMediaCachePlugin {
     /**
      * Save a file to the media cache (MediaStore).
@@ -22,6 +32,15 @@ interface AndroidMediaCachePlugin {
         base64Data: string;
         filename?: string;
     }): Promise<MediaCacheSaveResult>;
+
+    /**
+     * Load a file from the media cache (MediaStore) by SHA256 hash.
+     * Returns a Capacitor-accessible URL if found.
+     */
+    loadFromCache(options: {
+        sha256: string;
+        mimeType: string;
+    }): Promise<MediaCacheLoadResult>;
 }
 
 const AndroidMediaCache = ((): AndroidMediaCachePlugin | null => {
@@ -87,6 +106,35 @@ export function isMediaCacheEnabled(): boolean {
     }
 
     return false;
+}
+
+/**
+ * Load decrypted media from the local cache (MediaStore).
+ * Returns a Capacitor-accessible URL if found, which can be used directly in <img>/<video> src.
+ */
+export async function loadFromMediaCache(
+    sha256: string,
+    mimeType: string
+): Promise<MediaCacheLoadResult> {
+    if (!isAndroidNative() || !AndroidMediaCache) {
+        return { found: false };
+    }
+
+    if (!sha256 || sha256.trim().length === 0) {
+        return { found: false };
+    }
+
+    try {
+        const result = await AndroidMediaCache.loadFromCache({
+            sha256,
+            mimeType
+        });
+
+        return result;
+    } catch (e) {
+        console.error('Failed to load from media cache:', e);
+        return { found: false };
+    }
 }
 
 /**

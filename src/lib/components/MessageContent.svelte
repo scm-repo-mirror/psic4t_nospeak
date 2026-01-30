@@ -10,7 +10,7 @@
     import { profileRepo } from '$lib/db/ProfileRepository';
     import { profileResolver } from '$lib/core/ProfileResolver';
     import { buildBlossomCandidateUrls, extractBlossomSha256FromUrl } from '$lib/core/BlossomRetrieval';
-    import { saveToMediaCache, isMediaCacheEnabled } from '$lib/core/AndroidMediaCache';
+    import { saveToMediaCache, loadFromMediaCache, isMediaCacheEnabled } from '$lib/core/AndroidMediaCache';
     import { decode as decodeBlurhash } from 'blurhash';
     import { t } from '$lib/i18n';
 
@@ -561,6 +561,20 @@
             isDecrypting = true;
             decryptError = null;
 
+            // Check Android gallery cache first (if enabled)
+            if (isMediaCacheEnabled()) {
+                const extracted = extractBlossomSha256FromUrl(fileUrl);
+                if (extracted?.sha256) {
+                    const cached = await loadFromMediaCache(extracted.sha256, mimeType);
+                    if (cached.found && cached.url) {
+                        // Cache hit - use the cached URL directly, skip network + decryption
+                        decryptedUrl = cached.url;
+                        return;
+                    }
+                }
+            }
+
+            // Cache miss - fetch and decrypt
             const ciphertextBuffer = await fetchCiphertextWithBlossomFallback(fileUrl);
             const plainBytes = await decryptAesGcmToBytes(ciphertextBuffer, fileKey, fileNonce);
 
