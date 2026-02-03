@@ -86,6 +86,15 @@ import okio.ByteString;
 
 public class NativeBackgroundMessagingService extends Service {
 
+    private static volatile NativeBackgroundMessagingService sInstance = null;
+
+    /**
+     * Returns the currently running service instance, or null if the service is not running.
+     * Used by the plugin to trigger avatar pre-fetches when profiles are cached.
+     */
+    public static NativeBackgroundMessagingService getInstance() {
+        return sInstance;
+    }
 
     private static final String LOG_TAG = "NativeBgMsgService";
 
@@ -301,6 +310,7 @@ public class NativeBackgroundMessagingService extends Service {
 
         handler = new Handler(Looper.getMainLooper());
         serviceRunning = true;
+        sInstance = this;
 
         createNotificationChannel();
         loadPersistedSeenEventIds();
@@ -471,6 +481,7 @@ public class NativeBackgroundMessagingService extends Service {
     @Override
     public void onDestroy() {
         serviceRunning = false;
+        sInstance = null;
 
         cancelLockGraceTimer();
         lockGraceRunnable = null;
@@ -1365,6 +1376,120 @@ public class NativeBackgroundMessagingService extends Service {
                 } finally {
                     synchronized (avatarFetchInFlight) {
                         avatarFetchInFlight.remove(partnerPubkeyHex);
+                    }
+                    response.close();
+                }
+            }
+        });
+    }
+
+    /**
+     * Pre-fetches an avatar for a pubkey, caching it to disk for future notifications.
+     * Unlike notification-time fetches, this ignores lockedProfileActive to ensure
+     * avatars are ready when notifications arrive.
+     * 
+     * Called from the plugin when a profile is cached via cacheProfile().
+     */
+    public void prefetchAvatar(final String pubkeyHex, final String pictureUrl) {
+        if (pictureUrl == null || pictureUrl.trim().isEmpty()) {
+            return;
+        }
+
+        if (!serviceRunning) {
+            return;
+        }
+
+        final String trimmedUrl = pictureUrl.trim();
+        final String key = computeAvatarKey(trimmedUrl);
+        if (key == null) {
+            return;
+        }
+
+        // Check if already cached on disk
+        final File targetFile = new File(getAvatarCacheDir(), key + ".png");
+        if (targetFile.exists()) {
+            // Already have it cached - load into memory if not present
+            synchronized (avatarBitmaps) {
+                if (!avatarBitmaps.containsKey(pubkeyHex)) {
+                    Bitmap decoded = BitmapFactory.decodeFile(targetFile.getAbsolutePath());
+                    if (decoded != null) {
+                        avatarBitmaps.put(pubkeyHex, decoded);
+                        avatarBitmapKeys.put(pubkeyHex, key);
+                    }
+                }
+            }
+            return;
+        }
+
+        // Check if fetch already in flight
+        synchronized (avatarFetchInFlight) {
+            if (avatarFetchInFlight.contains(pubkeyHex)) {
+                return;
+            }
+            avatarFetchInFlight.add(pubkeyHex);
+        }
+
+        if (isDebugBuild()) {
+            Log.d(LOG_TAG, "Prefetching avatar for " + pubkeyHex);
+        }
+
+        // Fetch the avatar
+        Request request = new Request.Builder().url(trimmedUrl).build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                synchronized (avatarFetchInFlight) {
+                    avatarFetchInFlight.remove(pubkeyHex);
+                }
+                if (isDebugBuild()) {
+                    Log.d(LOG_TAG, "Avatar prefetch failed for " + pubkeyHex + ": " + e.getMessage());
+                }
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    if (!response.isSuccessful()) {
+                        if (isDebugBuild()) {
+                            Log.d(LOG_TAG, "Avatar prefetch HTTP error for " + pubkeyHex + ": " + response.code());
+                        }
+                        return;
+                    }
+
+                    ResponseBody body = response.body();
+                    if (body == null) {
+                        return;
+                    }
+
+                    byte[] bytes = body.bytes();
+                    Bitmap decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                    if (decoded == null) {
+                        if (isDebugBuild()) {
+                            Log.d(LOG_TAG, "Avatar prefetch decode failed for " + pubkeyHex);
+                        }
+                        return;
+                    }
+
+                    Bitmap normalized = normalizeAvatarBitmap(decoded, AVATAR_TARGET_PX);
+                    if (normalized == null) {
+                        return;
+                    }
+
+                    if (!writeAvatarBitmap(targetFile, normalized)) {
+                        return;
+                    }
+
+                    synchronized (avatarBitmaps) {
+                        avatarBitmaps.put(pubkeyHex, normalized);
+                        avatarBitmapKeys.put(pubkeyHex, key);
+                    }
+
+                    if (isDebugBuild()) {
+                        Log.d(LOG_TAG, "Avatar prefetched successfully for " + pubkeyHex);
+                    }
+                } finally {
+                    synchronized (avatarFetchInFlight) {
+                        avatarFetchInFlight.remove(pubkeyHex);
                     }
                     response.close();
                 }

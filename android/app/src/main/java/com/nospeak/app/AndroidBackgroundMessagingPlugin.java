@@ -104,6 +104,17 @@ public class AndroidBackgroundMessagingPlugin extends Plugin {
         }
 
         AndroidProfileCachePrefs.upsert(getContext(), pubkeyHex, username, picture, updatedAt);
+
+        // Trigger avatar pre-fetch if picture URL is provided and service is running.
+        // This ensures avatars are cached before notifications arrive, avoiding the
+        // identicon fallback on first message.
+        if (picture != null && !picture.trim().isEmpty()) {
+            NativeBackgroundMessagingService service = NativeBackgroundMessagingService.getInstance();
+            if (service != null) {
+                service.prefetchAvatar(pubkeyHex, picture);
+            }
+        }
+
         call.resolve();
     }
 
