@@ -657,4 +657,78 @@ describe('MessagingService - Auto-add Contacts', () => {
             expect(msg.rumorId).toBe('0000000000000000000000000000000000000000000000000000000000000000');
         });
     });
+
+    describe('NIP-17 relay hints in p-tags', () => {
+        it('sendEnvelope adds relay hints to p-tags from discovered relays', async () => {
+            const recipientPubkey = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+            const recipientNpub = 'npub1recipient';
+            const senderPubkey = '79dff8f426826fdd7c32deb1d9e1f9c01234567890abcdef1234567890abcdef';
+            const discoveredRelay = 'wss://recipient-relay.example.com';
+
+            const mockSigner = {
+                getPublicKey: vi.fn().mockResolvedValue(senderPubkey),
+                decrypt: vi.fn(),
+                encrypt: vi.fn().mockResolvedValue('ciphertext'),
+                signEvent: vi.fn().mockResolvedValue({}),
+            };
+
+            vi.mocked(get).mockReturnValue(mockSigner);
+
+            // Mock nip19.decode to return correct pubkeys
+            const { nip19 } = await import('nostr-tools');
+            vi.mocked(nip19.decode).mockImplementation((input: string) => {
+                if (input === recipientNpub) {
+                    return { type: 'npub', data: recipientPubkey } as any;
+                }
+                return { type: 'npub', data: senderPubkey } as any;
+            });
+
+            // Mock profile repo to return messaging relays
+            const { profileRepo } = await import('$lib/db/ProfileRepository');
+            vi.mocked(profileRepo.getProfile).mockImplementation(async (npub: string) => {
+                if (npub === recipientNpub) {
+                    return { messagingRelays: [discoveredRelay] } as any;
+                }
+                return { messagingRelays: ['wss://sender-relay.example.com'] } as any;
+            });
+
+            const { publishWithDeadline } = await import('./connection/publishWithDeadline');
+            vi.mocked(publishWithDeadline as any).mockResolvedValue({
+                successfulRelays: [discoveredRelay],
+                failedRelays: [],
+                timedOutRelays: [],
+            });
+
+            const messaging = new MessagingService();
+
+            // Capture the rumor passed to createGiftWrap
+            let capturedRumor: any = null;
+            vi.spyOn(messaging as any, 'createGiftWrap').mockImplementation(async (rumor: any) => {
+                capturedRumor = rumor;
+                return { id: 'gift-wrap-id', kind: 1059 } as any;
+            });
+
+            // Create a rumor with a p-tag without relay hint
+            const rumor = {
+                kind: 14,
+                pubkey: senderPubkey,
+                created_at: 1600000000,
+                content: 'test message',
+                tags: [['p', recipientPubkey]], // No relay hint initially
+            };
+
+            await (messaging as any).sendEnvelope({
+                recipients: [recipientNpub],
+                rumor,
+                messageDbFields: { message: 'test' },
+            });
+
+            // Verify the rumor's p-tag was updated with relay hint
+            expect(capturedRumor).not.toBeNull();
+            const pTag = capturedRumor.tags.find((t: string[]) => t[0] === 'p');
+            expect(pTag).toBeDefined();
+            expect(pTag.length).toBe(3); // ['p', pubkey, relay_hint]
+            expect(pTag[2]).toBe(discoveredRelay);
+        });
+    });
 });
