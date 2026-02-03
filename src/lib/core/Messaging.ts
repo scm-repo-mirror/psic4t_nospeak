@@ -813,12 +813,9 @@ import type { Conversation } from '$lib/db/db';
     const senderPubkey = await s.getPublicKey();
     const senderNpub = nip19.npubEncode(senderPubkey);
 
-    // Compute stable rumor ID
-    const rumorId = getEventHash(rumor as NostrEvent);
-
     const isGroup = recipients.length > 1;
 
-    // Relay discovery
+    // Relay discovery (must happen before rumorId computation for NIP-17 relay hints)
     const senderRelays = await this.getMessagingRelays(senderNpub);
 
     let recipientRelaysMap: Map<string, string[]>;
@@ -843,6 +840,32 @@ import type { Conversation } from '$lib/db/db';
       }
       recipientRelaysMap = new Map([[recipientNpub, relays]]);
     }
+
+    // NIP-17: Add relay hints to p-tags
+    // Convert npub -> pubkey map for relay hints lookup
+    const pubkeyToRelayHint = new Map<string, string>();
+    for (const [npub, relays] of recipientRelaysMap) {
+      const { data: pubkey } = nip19.decode(npub);
+      if (relays.length > 0) {
+        pubkeyToRelayHint.set(pubkey as string, relays[0]);
+      }
+    }
+
+    // Update rumor p-tags with relay hints
+    if (rumor.tags) {
+      rumor.tags = rumor.tags.map(tag => {
+        if (tag[0] === 'p' && tag.length === 2) {
+          const relayHint = pubkeyToRelayHint.get(tag[1]);
+          if (relayHint) {
+            return ['p', tag[1], relayHint];
+          }
+        }
+        return tag;
+      });
+    }
+
+    // Compute stable rumor ID (after relay hints are added to tags)
+    const rumorId = getEventHash(rumor as NostrEvent);
 
     // Temporary relay connections
     const allRelays = new Set<string>(senderRelays);
