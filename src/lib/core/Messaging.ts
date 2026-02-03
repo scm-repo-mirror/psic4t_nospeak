@@ -1,6 +1,6 @@
 import { connectionManager } from './connection/instance';
 import { messageRepo } from '$lib/db/MessageRepository';
-import { nip19, type NostrEvent, generateSecretKey, getPublicKey, finalizeEvent, nip44, getEventHash } from 'nostr-tools';
+import { nip19, type NostrEvent, generateSecretKey, getPublicKey, finalizeEvent, nip44, getEventHash, verifyEvent } from 'nostr-tools';
 import { signer, currentUser } from '$lib/stores/auth';
 import { get } from 'svelte/store';
 import { profileRepo } from '$lib/db/ProfileRepository';
@@ -144,6 +144,12 @@ import type { Conversation } from '$lib/db/db';
 
       if (seal.kind !== 13) throw new Error(`Expected Seal (Kind 13), got ${seal.kind}`);
 
+      // NIP-17: Verify seal signature to prevent impersonation attacks
+      if (!verifyEvent(seal)) {
+        throw new Error('Invalid seal signature - possible forgery attempt');
+      }
+      if (this.debug) console.log('[NIP-17] Seal signature verified successfully');
+
       // Step 2: Decrypt Seal
       const decryptedSeal = await s.decrypt(seal.pubkey, seal.content);
       const rumor = JSON.parse(decryptedSeal) as NostrEvent;
@@ -153,12 +159,18 @@ import type { Conversation } from '$lib/db/db';
         throw new Error(`Expected Rumor (Kind 14, 15, or 7), got ${rumor.kind}`);
       }
 
+      // NIP-17: Verify seal pubkey matches rumor pubkey to prevent sender impersonation
+      if (seal.pubkey !== rumor.pubkey) {
+        throw new Error('Seal pubkey does not match rumor pubkey - possible impersonation attempt');
+      }
+      if (this.debug) console.log('[NIP-17] Seal/rumor pubkey match verified:', seal.pubkey.substring(0, 8) + '...');
+
       // Validate p tags in rumor - for group messages, my pubkey must be in at least one p-tag
       // For self-sent messages, sender pubkey equals my pubkey
       const myPubkey = await s.getPublicKey();
       const pTags = rumor.tags.filter(t => t[0] === 'p');
       const myPubkeyInPTags = pTags.some(t => t[1] === myPubkey);
-      
+
       if (!myPubkeyInPTags && rumor.pubkey !== myPubkey) {
         throw new Error('Received rumor does not include my public key in p-tags');
       }
@@ -188,6 +200,12 @@ import type { Conversation } from '$lib/db/db';
 
       if (seal.kind !== 13) throw new Error(`Expected Seal (Kind 13), got ${seal.kind}`);
 
+      // NIP-17: Verify seal signature to prevent impersonation attacks
+      if (!verifyEvent(seal)) {
+        throw new Error('Invalid seal signature - possible forgery attempt');
+      }
+      if (this.debug) console.log('[NIP-17] Seal signature verified successfully (processGiftWrap)');
+
       // Step 2: Decrypt Seal
       const decryptedSeal = await s.decrypt(seal.pubkey, seal.content);
       const rumor = JSON.parse(decryptedSeal) as NostrEvent;
@@ -197,12 +215,18 @@ import type { Conversation } from '$lib/db/db';
         throw new Error(`Expected Rumor (Kind 14, 15, or 7), got ${rumor.kind}`);
       }
 
+      // NIP-17: Verify seal pubkey matches rumor pubkey to prevent sender impersonation
+      if (seal.pubkey !== rumor.pubkey) {
+        throw new Error('Seal pubkey does not match rumor pubkey - possible impersonation attempt');
+      }
+      if (this.debug) console.log('[NIP-17] Seal/rumor pubkey match verified (processGiftWrap):', seal.pubkey.substring(0, 8) + '...');
+
       // Validate p tags in rumor - for group messages, my pubkey must be in at least one p-tag
       // For self-sent messages, sender pubkey equals my pubkey
       const myPubkey = await s.getPublicKey();
       const pTags = rumor.tags.filter(t => t[0] === 'p');
       const myPubkeyInPTags = pTags.some(t => t[1] === myPubkey);
-      
+
       if (!myPubkeyInPTags && rumor.pubkey !== myPubkey) {
         throw new Error('Received rumor does not include my public key in p-tags');
       }
@@ -813,12 +837,9 @@ import type { Conversation } from '$lib/db/db';
     const senderPubkey = await s.getPublicKey();
     const senderNpub = nip19.npubEncode(senderPubkey);
 
-    // Compute stable rumor ID
-    const rumorId = getEventHash(rumor as NostrEvent);
-
     const isGroup = recipients.length > 1;
 
-    // Relay discovery
+    // Relay discovery (must happen before rumorId computation for NIP-17 relay hints)
     const senderRelays = await this.getMessagingRelays(senderNpub);
 
     let recipientRelaysMap: Map<string, string[]>;
@@ -844,6 +865,40 @@ import type { Conversation } from '$lib/db/db';
       recipientRelaysMap = new Map([[recipientNpub, relays]]);
     }
 
+    // NIP-17: Add relay hints to p-tags
+    // Convert npub -> pubkey map for relay hints lookup
+    const pubkeyToRelayHint = new Map<string, string>();
+    for (const [npub, relays] of recipientRelaysMap) {
+      const { data: pubkey } = nip19.decode(npub);
+      if (relays.length > 0) {
+        pubkeyToRelayHint.set(pubkey as string, relays[0]);
+      }
+    }
+
+    // Update rumor p-tags with relay hints
+    let hintsAdded = 0;
+    if (rumor.tags) {
+      rumor.tags = rumor.tags.map(tag => {
+        if (tag[0] === 'p' && tag.length === 2) {
+          const relayHint = pubkeyToRelayHint.get(tag[1]);
+          if (relayHint) {
+            hintsAdded++;
+            return ['p', tag[1], relayHint];
+          }
+        }
+        return tag;
+      });
+    }
+    if (this.debug && hintsAdded > 0) {
+      console.log(`[NIP-17] Added relay hints to ${hintsAdded} p-tag(s):`,
+        rumor.tags?.filter(t => t[0] === 'p' && t.length === 3).map(t => `${t[1].substring(0,8)}...@${t[2]}`));
+    }
+
+    // Compute stable rumor ID (after relay hints are added to tags)
+    // CRITICAL: Must assign id to rumor before serialization - 0xchat/nostr-dart requires it
+    const rumorId = getEventHash(rumor as NostrEvent);
+    rumor.id = rumorId;
+
     // Temporary relay connections
     const allRelays = new Set<string>(senderRelays);
     for (const relays of recipientRelaysMap.values()) {
@@ -852,6 +907,10 @@ import type { Conversation } from '$lib/db/db';
 
     if (this.debug) {
       console.log(`Sending ${isGroup ? 'group' : 'DM'} message to ${recipientRelaysMap.size} recipient(s)`);
+      console.log('[NIP-17] Sender relays:', senderRelays);
+      for (const [npub, relays] of recipientRelaysMap) {
+        console.log(`[NIP-17] Recipient ${npub.substring(0, 15)}... relays:`, relays);
+      }
     }
 
     for (const url of allRelays) {
@@ -893,6 +952,14 @@ import type { Conversation } from '$lib/db/db';
         deadlineMs: 5000,
         onRelaySuccess: (url) => registerRelaySuccess(selfGiftWrap.id, url),
       });
+
+      if (this.debug) {
+        console.log(`[NIP-17] Publish to ${npub.substring(0, 15)}...:`, {
+          success: publishResult.successfulRelays,
+          failed: publishResult.failedRelays,
+          timedOut: publishResult.timedOutRelays
+        });
+      }
 
       totalSuccessfulRelays += publishResult.successfulRelays.length;
 
@@ -1483,15 +1550,35 @@ import type { Conversation } from '$lib/db/db';
    private async createGiftWrap(rumor: Partial<NostrEvent>, recipientPubkey: string, s: any): Promise<NostrEvent> {
     // 1. Encrypt Rumor -> Seal
     const rumorJson = JSON.stringify(rumor);
+    if (this.debug) {
+      console.log('[NIP-17] Rumor structure:', rumor);
+    }
     const encryptedRumor = await s.encrypt(recipientPubkey, rumorJson);
+    if (this.debug) {
+      console.log('[NIP-17] Seal content (encrypted rumor) format:', {
+        contentStart: encryptedRumor.substring(0, 30) + '...',
+        hasV2Prefix: encryptedRumor.startsWith('v2:'),
+        firstChar: encryptedRumor[0],
+        usesUrlSafeBase64: encryptedRumor.includes('_') || encryptedRumor.includes('-')
+      });
+    }
 
+    const sealPubkey = await s.getPublicKey();
     const seal: Partial<NostrEvent> = {
       kind: 13,
-      pubkey: await s.getPublicKey(),
+      pubkey: sealPubkey,
       created_at: Math.floor(Date.now() / 1000) - Math.floor(Math.random() * 172800), // Randomize up to 2 days in past per NIP-17
       content: encryptedRumor,
       tags: []
     };
+
+    if (this.debug) {
+      console.log('[NIP-17] createGiftWrap pubkey check:', {
+        rumorPubkey: rumor.pubkey?.substring(0, 8) + '...',
+        sealPubkey: sealPubkey.substring(0, 8) + '...',
+        match: rumor.pubkey === sealPubkey
+      });
+    }
 
     const signedSeal = await s.signEvent(seal);
     const sealJson = JSON.stringify(signedSeal);
@@ -1502,6 +1589,16 @@ import type { Conversation } from '$lib/db/db';
 
     const conversationKey = nip44.v2.utils.getConversationKey(ephemeralPrivKey, recipientPubkey);
     const encryptedSeal = nip44.v2.encrypt(sealJson, conversationKey);
+
+    if (this.debug) {
+      console.log('[NIP-17] Gift wrap content format:', {
+        contentStart: encryptedSeal.substring(0, 30) + '...',
+        contentLength: encryptedSeal.length,
+        hasV2Prefix: encryptedSeal.startsWith('v2:'),
+        firstChar: encryptedSeal[0],
+        usesUrlSafeBase64: encryptedSeal.includes('_') || encryptedSeal.includes('-')
+      });
+    }
 
     const giftWrap: Partial<NostrEvent> = {
       kind: 1059,
