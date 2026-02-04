@@ -2,6 +2,10 @@
 
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { clientsClaim } from 'workbox-core';
+import { registerRoute } from 'workbox-routing';
+import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 type PrecacheManifestEntry = {
     url: string;
@@ -23,6 +27,76 @@ cleanupOutdatedCaches();
 // If the manifest injection fails for any reason, avoid crashing.
 const wbManifest = self.__WB_MANIFEST;
 precacheAndRoute(Array.isArray(wbManifest) ? wbManifest : []);
+
+// Runtime caching for API responses
+// Use NetworkFirst with timeout - try network, fall back to cache
+registerRoute(
+    ({ url }) => url.pathname.startsWith('/api/'),
+    new NetworkFirst({
+        cacheName: 'api-cache',
+        networkTimeoutSeconds: 3,
+        plugins: [
+            new CacheableResponsePlugin({
+                statuses: [0, 200]
+            }),
+            new ExpirationPlugin({
+                maxEntries: 50,
+                maxAgeSeconds: 5 * 60 // 5 minutes
+            })
+        ]
+    })
+);
+
+// Cache external profile images (nostr.build, imgproxy, etc.)
+// Use CacheFirst since profile images rarely change
+registerRoute(
+    ({ request, url }) =>
+        request.destination === 'image' &&
+        (url.hostname.includes('nostr.build') ||
+            url.hostname.includes('imgproxy') ||
+            url.hostname.includes('primal.b-cdn.net') ||
+            url.hostname.includes('image.nostr.build') ||
+            url.hostname.includes('cdn.satellite.earth') ||
+            url.hostname.includes('void.cat') ||
+            url.hostname.includes('blossom')),
+    new CacheFirst({
+        cacheName: 'external-images',
+        plugins: [
+            new CacheableResponsePlugin({
+                statuses: [0, 200]
+            }),
+            new ExpirationPlugin({
+                maxEntries: 200,
+                maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+            })
+        ]
+    })
+);
+
+// Cache Google Fonts stylesheets with StaleWhileRevalidate
+registerRoute(
+    ({ url }) => url.origin === 'https://fonts.googleapis.com',
+    new StaleWhileRevalidate({
+        cacheName: 'google-fonts-stylesheets'
+    })
+);
+
+// Cache Google Fonts webfont files with CacheFirst (long-lived)
+registerRoute(
+    ({ url }) => url.origin === 'https://fonts.gstatic.com',
+    new CacheFirst({
+        cacheName: 'google-fonts-webfonts',
+        plugins: [
+            new CacheableResponsePlugin({
+                statuses: [0, 200]
+            }),
+            new ExpirationPlugin({
+                maxEntries: 30,
+                maxAgeSeconds: 365 * 24 * 60 * 60 // 1 year
+            })
+        ]
+    })
+);
 
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
