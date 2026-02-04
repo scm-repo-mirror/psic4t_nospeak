@@ -3,7 +3,7 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { clientsClaim } from 'workbox-core';
 import { registerRoute } from 'workbox-routing';
-import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -47,7 +47,7 @@ registerRoute(
     })
 );
 
-// Cache external profile images (nostr.build, imgproxy, etc.)
+// Cache external profile images (nostr.build, blossom servers, etc.)
 // Use CacheFirst since profile images rarely change
 registerRoute(
     ({ request, url }) =>
@@ -55,9 +55,7 @@ registerRoute(
         (url.hostname.includes('nostr.build') ||
             url.hostname.includes('imgproxy') ||
             url.hostname.includes('primal.b-cdn.net') ||
-            url.hostname.includes('image.nostr.build') ||
             url.hostname.includes('cdn.satellite.earth') ||
-            url.hostname.includes('void.cat') ||
             url.hostname.includes('blossom')),
     new CacheFirst({
         cacheName: 'external-images',
@@ -68,31 +66,6 @@ registerRoute(
             new ExpirationPlugin({
                 maxEntries: 200,
                 maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-            })
-        ]
-    })
-);
-
-// Cache Google Fonts stylesheets with StaleWhileRevalidate
-registerRoute(
-    ({ url }) => url.origin === 'https://fonts.googleapis.com',
-    new StaleWhileRevalidate({
-        cacheName: 'google-fonts-stylesheets'
-    })
-);
-
-// Cache Google Fonts webfont files with CacheFirst (long-lived)
-registerRoute(
-    ({ url }) => url.origin === 'https://fonts.gstatic.com',
-    new CacheFirst({
-        cacheName: 'google-fonts-webfonts',
-        plugins: [
-            new CacheableResponsePlugin({
-                statuses: [0, 200]
-            }),
-            new ExpirationPlugin({
-                maxEntries: 30,
-                maxAgeSeconds: 365 * 24 * 60 * 60 // 1 year
             })
         ]
     })
