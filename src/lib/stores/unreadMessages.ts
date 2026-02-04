@@ -254,8 +254,11 @@ export function clearChatUnread(currentUserNpub: string, partnerNpub: string) {
     if (state.byChat[partnerNpub]) {
         delete state.byChat[partnerNpub];
         writeState(currentUserNpub, state);
-        syncAppBadge(currentUserNpub);
     }
+
+    // Always sync badge after attempting to clear, even if there was no state.
+    // This ensures the PWA badge reflects the current unread count.
+    syncAppBadge(currentUserNpub);
 }
 
 export function getTotalUnreadCount(currentUserNpub: string): number {

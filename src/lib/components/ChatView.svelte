@@ -480,7 +480,13 @@
       };
 
       const handleVisibilityChange = () => {
-        if (document.visibilityState !== 'visible') {
+        if (document.visibilityState === 'visible') {
+          // Clear unread state when app becomes visible while viewing a chat
+          // This handles the case where messages arrive while the window is minimized
+          if ($currentUser && partnerNpub) {
+            clearChatUnread($currentUser.npub, partnerNpub);
+          }
+        } else {
           clearEphemeralHighlights();
         }
       };
