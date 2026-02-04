@@ -479,6 +479,14 @@
         clearEphemeralHighlights();
       };
 
+      const handleFocus = () => {
+        // Clear unread state when window regains focus while viewing a chat
+        // This handles the case where messages arrive while the window is in background
+        if ($currentUser && partnerNpub) {
+          clearChatUnread($currentUser.npub, partnerNpub);
+        }
+      };
+
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
           // Clear unread state when app becomes visible while viewing a chat
@@ -518,12 +526,14 @@
       };
 
       window.addEventListener('blur', handleBlur);
+      window.addEventListener('focus', handleFocus);
       window.addEventListener('nospeak:new-message', handleNewMessage);
       window.addEventListener('nospeak:profiles-updated', handleProfilesUpdated);
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
       return () => {
         window.removeEventListener('blur', handleBlur);
+        window.removeEventListener('focus', handleFocus);
         window.removeEventListener('nospeak:new-message', handleNewMessage);
         window.removeEventListener('nospeak:profiles-updated', handleProfilesUpdated);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
