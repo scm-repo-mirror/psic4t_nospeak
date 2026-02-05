@@ -1238,7 +1238,7 @@
     const optimisticUrl = URL.createObjectURL(file);
     const optimistic: Message = {
       recipientNpub: isGroup ? groupConversation!.participants[0] : partnerNpub!,
-      message: '',
+      message: caption,
       sentAt: sentAtMs,
       eventId: optimisticEventId,
       direction: 'sent',
