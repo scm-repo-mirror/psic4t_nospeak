@@ -1452,7 +1452,7 @@ import type { Conversation } from '$lib/db/db';
   public async sendReaction(
     recipientNpub: string,
     targetMessage: { recipientNpub: string; eventId: string; rumorId?: string; direction: 'sent' | 'received' },
-    emoji: '👍' | '👎' | '❤️' | '😂'
+    emoji: '👍' | '❤️' | '😂' | '🙏'
   ): Promise<void> {
     if (!targetMessage.rumorId) {
       console.warn('Cannot react to message without rumorId (likely old message)');
@@ -1505,7 +1505,7 @@ import type { Conversation } from '$lib/db/db';
   public async sendGroupReaction(
     conversationId: string,
     targetMessage: { eventId: string; rumorId?: string; direction: 'sent' | 'received'; senderNpub?: string },
-    emoji: '👍' | '👎' | '❤️' | '😂'
+    emoji: '👍' | '❤️' | '😂' | '🙏'
   ): Promise<void> {
     if (!targetMessage.rumorId) {
       console.warn('Cannot react to message without rumorId (likely old message)');

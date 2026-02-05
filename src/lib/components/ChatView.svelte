@@ -1410,7 +1410,7 @@
     };
   }
 
-  async function reactToMessage(emoji: '👍' | '👎' | '❤️' | '😂') {
+  async function reactToMessage(emoji: '👍' | '❤️' | '😂' | '🙏') {
     if (!contextMenu.message) return;
     // For 1-on-1 chats, need partnerNpub; for groups, need groupConversation
     if (!isGroup && !partnerNpub) return;

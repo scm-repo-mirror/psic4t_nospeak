@@ -7,7 +7,7 @@
         isOpen: boolean;
         onClose: () => void;
         onCite: () => void;
-        onReact: (emoji: '👍' | '👎' | '❤️' | '😂') => void;
+        onReact: (emoji: '👍' | '❤️' | '😂' | '🙏') => void;
         onCopy: () => void;
         message?: { sentAt: number } | null;
     }>();
@@ -89,11 +89,11 @@
         class="context-menu fixed bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl py-1 z-[9999] min-w-[140px] outline-none"
     >
         <div class="flex px-2 pt-1 pb-1 gap-1 border-b border-gray-200/70 dark:border-slate-700/70">
-            {#each ['👍','👎','❤️','😂'] as emoji}
+            {#each ['👍','❤️','😂','🙏'] as emoji}
                 <button
                     type="button"
                     class="flex-1 px-1 py-1 rounded-md hover:bg-gray-100/70 dark:hover:bg-slate-700/70 text-lg text-center"
-                    onclick={() => { onReact(emoji as '👍' | '👎' | '❤️' | '😂'); onClose(); }}
+                    onclick={() => { onReact(emoji as '👍' | '❤️' | '😂' | '🙏'); onClose(); }}
                 >
                     {emoji}
                 </button>
