@@ -485,6 +485,11 @@ import type { Conversation } from '$lib/db/db';
     if (!s || !user) return;
 
     try {
+      // Skip if this reaction has already been processed (prevents duplicates from relays)
+      if (await reactionRepo.hasReaction(originalEventId)) {
+        return;
+      }
+
       const myPubkey = await s.getPublicKey();
       const pTag = rumor.tags.find(t => t[0] === 'p');
       if (!pTag || (pTag[1] !== myPubkey && rumor.pubkey !== myPubkey)) {
