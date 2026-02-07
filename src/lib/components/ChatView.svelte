@@ -446,19 +446,39 @@
     let unreadSnapshotMessageSet = $derived(new Set(unreadSnapshotMessageIds));
     let activeHighlightMessageSet = $derived(new Set(activeHighlightMessageIds));
 
+    // Track whether we have a pending highlight scroll (suppresses auto-scroll-to-bottom)
+    let highlightPending = $state(false);
+    let highlightCompleted = $state(false);
+
+    // Reset highlight tracking when highlightEventId changes
+    $effect(() => {
+      if (highlightEventId) {
+        highlightPending = true;
+        highlightCompleted = false;
+      } else {
+        highlightPending = false;
+        highlightCompleted = false;
+      }
+    });
 
     function clearEphemeralHighlights() {
       activeHighlightMessageIds = [];
     }
 
     // Scroll to and highlight a specific message by eventId (used by favorites navigation)
+    // This effect re-runs whenever displayMessages changes, retrying until the element is in the DOM
     $effect(() => {
-      if (!highlightEventId || !chatContainer || displayMessages.length === 0) return;
+      if (!highlightEventId || highlightCompleted || !chatContainer) return;
+      // Track displayMessages.length so we re-run when messages load
+      if (displayMessages.length === 0) return;
       
-      // Wait for DOM to render
+      // Wait for DOM to render the new messages
       tick().then(() => {
-        const el = chatContainer?.querySelector(`[data-event-id="${highlightEventId}"]`);
+        if (!chatContainer || highlightCompleted) return;
+        const el = chatContainer.querySelector(`[data-event-id="${highlightEventId}"]`);
         if (el) {
+          highlightCompleted = true;
+          highlightPending = false;
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
           // Add temporary highlight
           activeHighlightMessageIds = [highlightEventId];
@@ -771,6 +791,11 @@
      isSearchActive;
 
      if (isSearchActive) {
+       return;
+     }
+
+     // Skip auto-scroll when navigating to a specific highlighted message
+     if (highlightPending || highlightCompleted) {
        return;
      }
 

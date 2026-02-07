@@ -186,7 +186,21 @@
             cacheExhausted = false;
         } else {
             if (oldestLoadedTimestamp === null || isNewConversation) {
-                const startIndex = Math.max(0, msgs.length - PAGE_SIZE);
+                // When navigating to a specific message (e.g. from favorites),
+                // load from that message's position instead of the tail
+                const hEventId = highlightEventId;
+                const highlightIndex = hEventId
+                    ? msgs.findIndex((m) => m.eventId === hEventId)
+                    : -1;
+
+                let startIndex: number;
+                if (highlightIndex >= 0) {
+                    // Load a window around the highlighted message
+                    const halfPage = Math.floor(PAGE_SIZE / 2);
+                    startIndex = Math.max(0, highlightIndex - halfPage);
+                } else {
+                    startIndex = Math.max(0, msgs.length - PAGE_SIZE);
+                }
                 messages = msgs.slice(startIndex);
                 oldestLoadedTimestamp = messages[0].sentAt;
             } else {
