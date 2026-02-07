@@ -499,27 +499,31 @@
         {/if}
       </div>
     {/if}
-    {#if favoritesCount > 0}
+    {#if favoritesCount > 0 && filter === 'all'}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         onclick={() => goto('/chat/favorites')}
-        class={`p-3 mx-2 my-1.5 rounded-full cursor-pointer flex items-center gap-3 transition-all duration-200 ease-out group active:scale-[0.98] ${
+        class={`mx-2 my-0.5 cursor-pointer transition-all duration-200 ease-out group active:scale-[0.98] ${
           page.url.pathname === '/chat/favorites'
-            ? "bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)] text-gray-900 dark:text-[rgb(var(--color-text-rgb)/0.92)] shadow-sm"
-            : "bg-transparent text-gray-700 dark:text-gray-400 hover:bg-[rgb(var(--color-lavender-rgb)/0.12)] dark:hover:bg-[rgb(var(--color-lavender-rgb)/0.16)] hover:text-gray-900 dark:hover:text-white"
+            ? "text-gray-900 dark:text-[rgb(var(--color-text-rgb)/0.92)]"
+            : "text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
         }`}
       >
-        <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-          <svg class="w-6 h-6 text-blue-500 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-          </svg>
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="font-semibold text-sm">{$t('chats.favorites')}</div>
-          <div class="text-xs text-gray-500 dark:text-slate-400 truncate">
-            {favoritesCount} {favoritesCount === 1 ? $t('chats.favoriteMessage') : $t('chats.favoriteMessages')}
+        <div class="flex items-center gap-3">
+          <div class="flex-1 h-px bg-gray-200 dark:bg-slate-700"></div>
+          <div class={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors ${
+            page.url.pathname === '/chat/favorites'
+              ? "bg-[rgb(var(--color-lavender-rgb)/0.20)] dark:bg-[rgb(var(--color-lavender-rgb)/0.24)] shadow-sm"
+              : "bg-transparent group-hover:bg-[rgb(var(--color-lavender-rgb)/0.12)] dark:group-hover:bg-[rgb(var(--color-lavender-rgb)/0.16)]"
+          }`}>
+            <svg class="w-3 h-3 text-[rgb(var(--color-lavender-rgb))] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+            </svg>
+            <span class="font-semibold text-sm">{$t('chats.favorites')}</span>
+            <span class="text-xs text-gray-400 dark:text-slate-500">{favoritesCount}</span>
           </div>
+          <div class="flex-1 h-px bg-gray-200 dark:bg-slate-700"></div>
         </div>
       </div>
     {/if}
