@@ -360,7 +360,7 @@
         </div>
 
         <div
-            class={isAndroidNativeEnv ? 'flex-1 flex items-center justify-center overflow-hidden' : 'flex-1 flex items-center justify-center overflow-auto'}
+            class={isAndroidNativeEnv ? 'flex-1 flex items-center justify-center overflow-hidden' : `flex-1 overflow-auto ${imageViewerFitToScreen ? 'flex items-center justify-center' : ''}`}
             bind:this={viewerContainer}
             ontouchstart={handleTouchStart}
             ontouchmove={handleTouchMove}
