@@ -65,13 +65,14 @@ The message context menu SHALL include a Favorite/Unfavorite toggle button. When
 
 ### Requirement: Favorited Message Star Indicator
 
-Favorited messages SHALL display a star icon badge overlay in the top-right corner of the message bubble. The badge SHALL use a yellow circular background with a white star SVG icon. The badge SHALL appear on both sent and received messages.
+Favorited messages SHALL display a star icon badge overlay in the top-right corner of the message bubble. The badge SHALL use the app's lavender accent color (`--color-lavender-rgb`) for the circular background with a white star SVG icon. The badge SHALL appear on both sent and received messages.
 
 #### Scenario: Star icon displayed on favorited message
 - **GIVEN** a message in the conversation view has been favorited
 - **WHEN** the message bubble is rendered
-- **THEN** a small circular yellow badge with a white star icon SHALL appear in the top-right corner of the bubble
-- **AND** the badge SHALL be absolutely positioned and SHALL NOT affect the message content layout
+- **THEN** a small circular lavender badge with a white star icon SHALL appear in the top-right corner of the bubble
+- **AND** the badge SHALL be absolutely positioned outside the bubble's overflow-hidden container to prevent clipping
+- **AND** the badge SHALL NOT affect the message content layout
 
 #### Scenario: Star icon removed when unfavorited
 - **GIVEN** a message in the conversation view has a star icon badge
@@ -80,18 +81,25 @@ Favorited messages SHALL display a star icon badge overlay in the top-right corn
 
 ### Requirement: Favorites Entry in Chat List
 
-The ChatList SHALL display a dedicated "Favorites" entry at the top of the chat list when the user has at least one favorited message. The entry SHALL show a star icon as its avatar, the label "Favorites", and the count of favorited messages. Tapping the entry SHALL navigate to the `/favorites` route. The Favorites entry SHALL appear above regular chat items regardless of the active filter tab.
+The ChatList SHALL display a dedicated "Favorites" entry at the top of the chat list when the user has at least one favorited message AND the "All" filter is active. The entry SHALL be visually separated by horizontal lines extending from both sides of the content. The entry SHALL show a small lavender-colored star icon (without circular background), the label "Favorites", and the count of favorited messages displayed inline. Tapping the entry SHALL navigate to the `/favorites` route.
 
-#### Scenario: Favorites entry displayed when favorites exist
+#### Scenario: Favorites entry displayed when favorites exist on All filter
 - **GIVEN** the user has at least one favorited message
+- **AND** the "All" filter tab is active
 - **WHEN** the ChatList is rendered
 - **THEN** a "Favorites" entry SHALL appear at the top of the list above regular chats
-- **AND** the entry SHALL display a star icon as its avatar placeholder
-- **AND** the entry SHALL show the text "Favorites" as its name
-- **AND** the entry SHALL show the count of favorited messages as subtitle text
+- **AND** the entry SHALL have horizontal divider lines on both sides of the content
+- **AND** the entry SHALL display a small lavender star icon (no circular background)
+- **AND** the entry SHALL show the text "Favorites" as its name with the count inline
 
 #### Scenario: Favorites entry hidden when no favorites
 - **GIVEN** the user has no favorited messages
+- **WHEN** the ChatList is rendered
+- **THEN** no Favorites entry SHALL appear
+
+#### Scenario: Favorites entry hidden on Unread or Groups filter
+- **GIVEN** the user has at least one favorited message
+- **AND** either the "Unread" or "Groups" filter tab is active
 - **WHEN** the ChatList is rendered
 - **THEN** no Favorites entry SHALL appear
 

@@ -59,9 +59,19 @@ Create a new SvelteKit route at `/favorites` that displays all favorited message
 
 ### 5. Star Icon as Absolute Overlay
 
-Display a small star icon badge in the top-right corner of favorited message bubbles using CSS absolute positioning. The badge uses a yellow circular background with a white star SVG.
+Display a small star icon badge in the top-right corner of favorited message bubbles using CSS absolute positioning. The badge uses the app's lavender accent color (`--color-lavender-rgb`) for the circular background with a white star SVG. The badge is positioned outside the message bubble's `overflow-hidden` container using a relative wrapper to prevent clipping.
 
-**Rationale:** Top-right overlay is visually distinct without affecting message layout or content flow. It's consistent with common "pinned/starred" patterns in messaging apps.
+**Rationale:** Top-right overlay is visually distinct without affecting message layout or content flow. Using the app's lavender color maintains visual consistency with the overall design theme. Positioning outside the overflow container ensures the badge renders fully without being clipped.
+
+### 6. ChatList Favorites Entry Styling
+
+The ChatList favorites entry uses a minimalist design with horizontal divider lines extending from both sides of the centered content. The entry displays a small lavender star icon (without circular background), the "Favorites" label, and the count inline. The entry is only visible when the "All" filter is active, maintaining a clean interface when viewing filtered subsets (Unread/Groups).
+
+**Rationale:** The horizontal lines create visual separation without adding UI chrome. The inline count and lack of subtitle text make the entry compact. Limiting visibility to the "All" filter avoids clutter when users are focusing on specific subsets of conversations.
+
+**Alternatives considered:**
+- Full avatar with circle background: Rejected as too heavy for a secondary navigation element.
+- Always visible regardless of filter: Rejected to reduce cognitive load when viewing filtered lists.
 
 ## Risks / Trade-offs
 
