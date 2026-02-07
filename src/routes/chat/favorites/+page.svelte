@@ -322,6 +322,7 @@
                                                 fileEncryptionAlgorithm={message.fileEncryptionAlgorithm}
                                                 fileKey={message.fileKey}
                                                 fileNonce={message.fileNonce}
+                                                authorNpub={isSent ? $currentUser?.npub : (group.isGroup && message.senderNpub ? message.senderNpub : group.conversationId)}
                                                 location={message.location}
                                                 fileWidth={message.fileWidth}
                                                 fileHeight={message.fileHeight}
