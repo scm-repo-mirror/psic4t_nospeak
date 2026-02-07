@@ -862,6 +862,7 @@
           <button
             class={getCategoryCardClasses("General")}
             onclick={() => {
+              hapticSelection();
               activeCategory = "General";
               showMobileContent = true;
             }}
@@ -903,6 +904,7 @@
           <button
             class={getCategoryCardClasses("Profile")}
             onclick={() => {
+              hapticSelection();
               activeCategory = "Profile";
               showMobileContent = true;
             }}
@@ -942,6 +944,7 @@
           <button
             class={getCategoryCardClasses("Messaging Relays")}
             onclick={() => {
+              hapticSelection();
               activeCategory = "Messaging Relays";
               showMobileContent = true;
             }}
@@ -983,6 +986,7 @@
           <button
             class={getCategoryCardClasses("Media Servers")}
             onclick={() => {
+              hapticSelection();
               activeCategory = "Media Servers";
               showMobileContent = true;
             }}
@@ -1021,6 +1025,7 @@
           <button
             class={getCategoryCardClasses("Security")}
             onclick={() => {
+              hapticSelection();
               activeCategory = "Security";
               showMobileContent = true;
             }}
@@ -1060,6 +1065,7 @@
           <button
             class={getCategoryCardClasses("About")}
             onclick={() => {
+              hapticSelection();
               activeCategory = "About";
               showMobileContent = true;
             }}
@@ -1111,7 +1117,7 @@
               variant="ghost"
               size="icon"
               class="md:hidden"
-              onclick={() => (showMobileContent = false)}
+              onclick={() => { hapticSelection(); showMobileContent = false; }}
               aria-label="Back to categories"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
