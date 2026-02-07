@@ -39,7 +39,11 @@ const en = {
         filterUnread: 'Unread',
         filterGroups: 'Groups',
         emptyUnread: 'No unread chats',
-        emptyGroups: 'No groups'
+        emptyGroups: 'No groups',
+        favorites: 'Favorites',
+        favoriteMessage: 'message',
+        favoriteMessages: 'messages',
+        emptyFavorites: 'No favorited messages yet'
     },
     contacts: {
         title: 'Contacts',
@@ -281,7 +285,9 @@ const en = {
         contextMenu: {
             cite: 'Cite',
             copy: 'Copy',
-            sentAt: 'Sent'
+            sentAt: 'Sent',
+            favorite: 'Favorite',
+            unfavorite: 'Unfavorite'
         },
         reactions: {
             cannotReactTitle: 'Cannot React',

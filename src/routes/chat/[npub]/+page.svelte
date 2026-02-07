@@ -18,6 +18,8 @@
      let messages = $state<Message[]>([]);
       // The URL param is called 'npub' but can also be a group conversationId
       let conversationId = $derived(page.params.npub);
+      // Optional highlight param from favorites navigation
+      let highlightEventId = $derived(page.url?.searchParams?.get('highlight') ?? undefined);
       // Detect if this is a group conversation
       let isGroup = $derived(conversationId ? isGroupConversationId(conversationId) : false);
       // For backward compatibility, keep currentPartner for 1-on-1 chats
@@ -360,8 +362,9 @@
           onRequestNetworkHistory={handleRequestNetworkHistory}
           networkHistoryStatus={networkHistoryStatus}
           networkHistorySummary={networkHistorySummary}
-          {initialSharedMedia}
+           {initialSharedMedia}
          {initialSharedText}
+         {highlightEventId}
      />
 {/key}
 

@@ -1,7 +1,7 @@
 <script lang="ts">
     import { t } from '$lib/i18n';
 
-    let { x = 0, y = 0, isOpen = false, onClose, onCite, onReact, onCopy, message } = $props<{
+    let { x = 0, y = 0, isOpen = false, onClose, onCite, onReact, onCopy, onFavorite, isFavorited = false, message } = $props<{
         x: number;
         y: number;
         isOpen: boolean;
@@ -9,6 +9,8 @@
         onCite: () => void;
         onReact: (emoji: '👍' | '❤️' | '😂' | '🙏') => void;
         onCopy: () => void;
+        onFavorite: () => void;
+        isFavorited?: boolean;
         message?: { sentAt: number } | null;
     }>();
 
@@ -115,6 +117,12 @@
             onclick={() => { onCopy(); onClose(); }}
         >
             {$t('chat.contextMenu.copy')}
+        </button>
+        <button 
+            class="w-full text-left px-4 py-2 hover:bg-gray-100/50 dark:hover:bg-slate-700/50 text-sm dark:text-white transition-colors"
+            onclick={() => { onFavorite(); onClose(); }}
+        >
+            {isFavorited ? $t('chat.contextMenu.unfavorite') : $t('chat.contextMenu.favorite')}
         </button>
     </div>
 {/if}

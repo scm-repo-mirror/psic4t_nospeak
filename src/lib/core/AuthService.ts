@@ -32,6 +32,8 @@ import { isAndroidNative } from './NativeDialogs';
 import { notificationService } from './NotificationService';
 import { clearAndroidLocalSecretKey, getAndroidLocalSecretKeyHex, setAndroidLocalSecretKeyHex } from './AndroidLocalSecretKey';
 import { contactSyncService } from './ContactSyncService';
+import { favoriteSyncService } from './FavoriteSyncService';
+import { loadFavorites } from '$lib/stores/favorites';
 import { showToast } from '$lib/stores/toast';
 import { get } from 'svelte/store';
 import { signerVerificationService } from './SignerVerification';
@@ -402,6 +404,15 @@ export class AuthService {
             await contactSyncService.fetchAndMergeContacts();
         } catch (error) {
             console.error(`${context} contact sync failed:`, error);
+            // Non-fatal - continue with flow
+        }
+
+        // 4b. Fetch and merge favorites from Kind 30000 event
+        try {
+            await favoriteSyncService.fetchAndMergeFavorites();
+            await loadFavorites();
+        } catch (error) {
+            console.error(`${context} favorites sync failed:`, error);
             // Non-fatal - continue with flow
         }
 

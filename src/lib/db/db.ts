@@ -87,6 +87,12 @@ export interface Reaction {
     emoji: string;
     createdAt: number;
 }
+
+export interface FavoriteItem {
+    eventId: string;
+    conversationId: string;
+    createdAt: number;
+}
  
 export class NospeakDB extends Dexie {
     messages!: Table<Message, number>;
@@ -95,6 +101,7 @@ export class NospeakDB extends Dexie {
     retryQueue!: Table<RetryItem, number>;
     reactions!: Table<Reaction, number>;
     conversations!: Table<Conversation, string>; // conversationId as primary key
+    favorites!: Table<FavoriteItem, string>; // eventId as primary key
  
     constructor() {
         super('NospeakDB');
@@ -180,6 +187,11 @@ export class NospeakDB extends Dexie {
             if (updates.length > 0) {
                 await trans.table('messages').bulkPut(updates);
             }
+        });
+
+        // Version 11: Add favorites table for message favorites
+        this.version(11).stores({
+            favorites: 'eventId, conversationId, createdAt'
         });
     }
 

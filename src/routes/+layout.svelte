@@ -364,6 +364,13 @@
        })();
      }
  
+     // Load favorites store on startup (from local DB)
+     if (restored && $currentUser) {
+       import("$lib/stores/favorites").then(({ loadFavorites }) => {
+         loadFavorites().catch(e => console.error('Failed to load favorites:', e));
+       });
+     }
+
      if (restored && location.pathname !== "/") {
       // Wait 5 seconds then refresh all contact profiles and relay information
       setTimeout(async () => {
@@ -392,8 +399,12 @@
 
             try {
               await discoverUserRelays(user.npub, true);
-              // Also refresh contact list when profile TTL expired
+              // Also refresh contact list and favorites when profile TTL expired
               await contactSyncService.fetchAndMergeContacts();
+              const { favoriteSyncService } = await import("$lib/core/FavoriteSyncService");
+              const { loadFavorites } = await import("$lib/stores/favorites");
+              await favoriteSyncService.fetchAndMergeFavorites();
+              await loadFavorites();
               profileRefreshMessage = "Profile refresh completed";
             } catch (error) {
               console.error("Failed to refresh current user profile:", error);

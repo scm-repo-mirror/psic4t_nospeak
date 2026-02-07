@@ -1,5 +1,7 @@
 <script lang="ts">
     import { contactSyncService } from '$lib/core/ContactSyncService';
+    import { favoriteSyncService } from '$lib/core/FavoriteSyncService';
+    import { loadFavorites } from '$lib/stores/favorites';
     import { discoverUserRelays } from '$lib/core/connection/Discovery';
     import { getDisplayedNip05 } from '$lib/core/Nip05Display';
     import type { Profile } from '$lib/db/db';
@@ -85,9 +87,11 @@
             const isOwn = $currentUser?.npub === npub;
             await discoverUserRelays(npub, isOwn);
 
-            // Also refresh contact list when refreshing own profile
+            // Also refresh contact list and favorites when refreshing own profile
             if (isOwn) {
                 await contactSyncService.fetchAndMergeContacts();
+                await favoriteSyncService.fetchAndMergeFavorites();
+                await loadFavorites();
             }
 
             await loadProfile({ showLoading: false });

@@ -38,6 +38,7 @@
   import { tick } from 'svelte';
   import { buildChatHistorySearchResults } from '$lib/core/chatHistorySearch';
   import { getRelativeTime as getRelativeTimeUtil } from '$lib/utils/time';
+  import { favoriteEventIds, toggleFavorite } from '$lib/stores/favorites';
   import { getCurrentPosition } from '$lib/core/LocationService';
   import { isVoiceRecordingSupported } from '$lib/core/VoiceRecorder';
   import { generateGroupTitle } from '$lib/db/ConversationRepository';
@@ -56,8 +57,9 @@
       onRequestNetworkHistory,
       networkHistoryStatus = 'idle',
       networkHistorySummary = null,
-      initialSharedMedia = null,
-      initialSharedText = null
+       initialSharedMedia = null,
+       initialSharedText = null,
+       highlightEventId = undefined
    } = $props<{
      messages: Message[];
      partnerNpub?: string;
@@ -69,8 +71,9 @@
      onRequestNetworkHistory?: () => void;
       networkHistoryStatus?: 'idle' | 'loading' | 'no-more' | 'error';
       networkHistorySummary?: { eventsFetched: number; messagesSaved: number; messagesForChat: number } | null;
-      initialSharedMedia?: { file: File; mediaType: 'image' | 'video' | 'audio' } | null;
-      initialSharedText?: string | null;
+       initialSharedMedia?: { file: File; mediaType: 'image' | 'video' | 'audio' } | null;
+       initialSharedText?: string | null;
+       highlightEventId?: string;
    }>();
    
    // Group chat display state
@@ -447,6 +450,24 @@
     function clearEphemeralHighlights() {
       activeHighlightMessageIds = [];
     }
+
+    // Scroll to and highlight a specific message by eventId (used by favorites navigation)
+    $effect(() => {
+      if (!highlightEventId || !chatContainer || displayMessages.length === 0) return;
+      
+      // Wait for DOM to render
+      tick().then(() => {
+        const el = chatContainer?.querySelector(`[data-event-id="${highlightEventId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add temporary highlight
+          activeHighlightMessageIds = [highlightEventId];
+          setTimeout(() => {
+            activeHighlightMessageIds = activeHighlightMessageIds.filter(id => id !== highlightEventId);
+          }, 3000);
+        }
+      });
+    });
 
     function clearUnreadMarkersForChat() {
       if (!$currentUser) return;
@@ -1305,6 +1326,14 @@
     contextMenu.isOpen = false;
   }
 
+  function handleFavorite() {
+    if (!contextMenu.message) return;
+    const msg = contextMenu.message;
+    const convId = isGroup ? groupConversation?.id : partnerNpub;
+    if (!convId || !msg.eventId) return;
+    toggleFavorite(msg.eventId, convId);
+  }
+
   function citeMessage() {
     if (!contextMenu.message) return;
     const citedContent = contextMenu.message.message
@@ -1850,6 +1879,7 @@
           : (useFullWidthBubbles ? 'max-w-full' : 'max-w-[70%]')}
  
       <div
+        data-event-id={msg.eventId}
         class={`flex ${msg.direction === "sent" ? "justify-end" : "justify-start"} items-end gap-2`}
         in:fly={isAndroidShell ? { duration: 0 } : { y: 20, duration: 300, easing: cubicOut }}
       >
@@ -1896,9 +1926,16 @@
             oncontextmenu={(e) => handleContextMenu(e, msg)}
            onmousedown={(e) => handleMouseDown(e, msg)}
 
-          onmouseup={handleMouseUp}
+           onmouseup={handleMouseUp}
           onmouseleave={handleMouseUp}
            >
+            {#if $favoriteEventIds.has(msg.eventId)}
+              <div class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm z-10">
+                <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+              </div>
+            {/if}
             {#if hasUnreadMarker}
               <div class="absolute left-0 top-2 bottom-2 w-1 rounded-r bg-emerald-400/70"></div>
             {/if}
@@ -2111,5 +2148,7 @@
   onCite={citeMessage}
   onReact={reactToMessage}
   onCopy={copyMessage}
+  onFavorite={handleFavorite}
+  isFavorited={contextMenu.message?.eventId ? $favoriteEventIds.has(contextMenu.message.eventId) : false}
   message={contextMenu.message}
 />
