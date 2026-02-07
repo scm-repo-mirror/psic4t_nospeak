@@ -20,6 +20,7 @@
   import { get } from "svelte/store";
   import { isAndroidNative } from "$lib/core/NativeDialogs";
   import Button from "$lib/components/ui/Button.svelte";
+  import Tab from "$lib/components/ui/Tab.svelte";
   import { getMediaPreviewLabel, getLocationPreviewLabel } from "$lib/utils/mediaPreview";
   import { overscroll } from "$lib/utils/overscroll";
 
@@ -38,6 +39,13 @@
   }
 
   let chatItems = $state<ChatListItem[]>([]);
+  let filter = $state<'all' | 'unread' | 'groups'>('all');
+
+  let filteredChatItems = $derived(
+    filter === 'all' ? chatItems :
+    filter === 'unread' ? chatItems.filter(item => item.hasUnread) :
+    chatItems.filter(item => item.isGroup)
+  );
 
   const isAndroidApp = isAndroidNative();
   let myPicture = $state<string | undefined>(undefined);
@@ -426,12 +434,19 @@
         </svg>
       </Button>
     </div>
-    <div class="hidden md:flex px-2 pb-3 justify-between items-center">
-      <div class="typ-section dark:text-white">{$t("chats.title")}</div>
-    </div>
+    <Tab
+      bind:value={filter}
+      tabs={[
+        { value: 'all', label: $t('chats.filterAll') },
+        { value: 'unread', label: $t('chats.filterUnread') },
+        { value: 'groups', label: $t('chats.filterGroups') }
+      ]}
+      ariaLabel="Filter chats"
+      class="px-2"
+    />
   </div>
 
-  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[calc(85px+env(safe-area-inset-top))] md:pt-[calc(120px+env(safe-area-inset-top))] pb-safe-offset-16" use:overscroll>
+  <div class="flex-1 overflow-y-auto custom-scrollbar native-scroll pt-[calc(120px+env(safe-area-inset-top))] pb-safe-offset-16" use:overscroll>
     {#if chatItems.length === 0}
       <div class="space-y-3 p-3 animate-pulse">
         {#each Array(5) as _}
@@ -455,8 +470,16 @@
           {$t("chats.emptyHint")}
         </div>
       </div>
+    {:else if filteredChatItems.length === 0}
+      <div class="text-center text-sm text-gray-500 dark:text-slate-400 mt-8 px-4">
+        {#if filter === 'unread'}
+          {$t("chats.emptyUnread")}
+        {:else if filter === 'groups'}
+          {$t("chats.emptyGroups")}
+        {/if}
+      </div>
     {/if}
-    {#each chatItems as item}
+    {#each filteredChatItems as item}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div

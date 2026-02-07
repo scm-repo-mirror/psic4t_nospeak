@@ -34,7 +34,12 @@ const de = {
         title: 'Chats',
         emptyHint: 'Noch keine Chats. Tippe auf +, um einen Kontakt hinzuzufügen.',
         selectPrompt: 'Wähle einen Chat aus, um zu schreiben',
-        addContact: 'Kontakt hinzufügen'
+        addContact: 'Kontakt hinzufügen',
+        filterAll: 'Alle',
+        filterUnread: 'Ungelesen',
+        filterGroups: 'Gruppen',
+        emptyUnread: 'Keine ungelesenen Chats',
+        emptyGroups: 'Keine Gruppen'
     },
     contacts: {
         title: 'Kontakte',

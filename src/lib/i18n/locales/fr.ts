@@ -34,7 +34,12 @@ const fr = {
         title: 'Discussions',
         emptyHint: 'Aucune discussion pour le moment. Appuyez sur + pour ajouter un contact.',
         selectPrompt: 'Sélectionnez une discussion pour commencer à envoyer des messages',
-        addContact: 'Ajouter un contact'
+        addContact: 'Ajouter un contact',
+        filterAll: 'Tous',
+        filterUnread: 'Non lus',
+        filterGroups: 'Groupes',
+        emptyUnread: 'Aucun chat non lu',
+        emptyGroups: 'Aucun groupe'
     },
     contacts: {
         title: 'Contacts',

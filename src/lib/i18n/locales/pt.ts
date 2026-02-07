@@ -34,7 +34,12 @@ const pt = {
         title: 'Conversas',
         emptyHint: 'Ainda não há conversas. Toque em + para adicionar um contacto.',
         selectPrompt: 'Selecione uma conversa para começar a enviar mensagens',
-        addContact: 'Adicionar contacto'
+        addContact: 'Adicionar contacto',
+        filterAll: 'Todos',
+        filterUnread: 'Não lidos',
+        filterGroups: 'Grupos',
+        emptyUnread: 'Nenhum chat não lido',
+        emptyGroups: 'Nenhum grupo'
     },
     contacts: {
         title: 'Contactos',

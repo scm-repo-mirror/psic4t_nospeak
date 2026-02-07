@@ -34,7 +34,12 @@ const en = {
         title: 'Chats',
         emptyHint: 'No chats yet. Tap + to add a contact.',
         selectPrompt: 'Select a chat to start messaging',
-        addContact: 'Add contact'
+        addContact: 'Add contact',
+        filterAll: 'All',
+        filterUnread: 'Unread',
+        filterGroups: 'Groups',
+        emptyUnread: 'No unread chats',
+        emptyGroups: 'No groups'
     },
     contacts: {
         title: 'Contacts',
