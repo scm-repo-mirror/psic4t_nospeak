@@ -409,7 +409,7 @@ export class AuthService {
             // Non-fatal - continue with flow
         }
 
-        // 4b. Fetch and merge favorites from Kind 30000 event
+        // 4b. Fetch and merge favorites from Kind 30003 event
         try {
             await favoriteSyncService.fetchAndMergeFavorites();
             await loadFavorites();

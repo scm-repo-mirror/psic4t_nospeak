@@ -5,15 +5,15 @@ Enable users to mark messages as favorites for quick access, with encrypted cros
 
 ## Requirements
 
-### Requirement: Favorite Message Storage via Kind 30000 Encrypted List
+### Requirement: Favorite Message Storage via Kind 30003 Bookmark Set
 
-The system SHALL store the user's favorited messages as a Kind 30000 parameterized replaceable event with `d` tag value `dm-favorites`. Favorited message references SHALL be stored privately in the encrypted content field using NIP-44 self-encryption as a JSON array of `[["e", "<eventId>", "<conversationId>"], ...]` tags. The event SHALL be published to both messaging relays and discovery relays when favorites change. When favorites are fetched from relays and merged into local storage, the system SHALL use union merge (never delete local favorites).
+The system SHALL store the user's favorited messages as a Kind 30003 (NIP-51 Bookmark Set) parameterized replaceable event with `d` tag value `dm-favorites`. Favorited message references SHALL be stored privately in the encrypted content field using NIP-44 self-encryption as a JSON array of `[["e", "<eventId>", "<conversationId>"], ...]` tags. The event SHALL be published to both messaging relays and discovery relays when favorites change. When favorites are fetched from relays and merged into local storage, the system SHALL use union merge (never delete local favorites).
 
 #### Scenario: Favorites list published on favorite add
 - **GIVEN** the user opens the context menu on a message that is not favorited
 - **WHEN** the user taps the "Favorite" button
 - **THEN** the message SHALL be added to the local favorites table with its eventId and conversationId
-- **AND** the system SHALL publish an updated Kind 30000 event with `d: "dm-favorites"`
+- **AND** the system SHALL publish an updated Kind 30003 event with `d: "dm-favorites"`
 - **AND** the content field SHALL contain NIP-44 encrypted JSON array of `[["e", "<eventId>", "<conversationId>"], ...]` tags
 - **AND** the event SHALL be published to the user's messaging relays and discovery relays
 
@@ -21,12 +21,12 @@ The system SHALL store the user's favorited messages as a Kind 30000 parameteriz
 - **GIVEN** the user opens the context menu on a message that is already favorited
 - **WHEN** the user taps the "Unfavorite" button
 - **THEN** the message SHALL be removed from the local favorites table
-- **AND** the system SHALL publish an updated Kind 30000 event reflecting the removal
+- **AND** the system SHALL publish an updated Kind 30003 event reflecting the removal
 
 #### Scenario: Favorites list fetched on login
 - **GIVEN** the user authenticates and the login sync flow begins
 - **WHEN** the system reaches the favorites sync step (after contact sync)
-- **THEN** it SHALL fetch the user's Kind 30000 event with `d: "dm-favorites"`
+- **THEN** it SHALL fetch the user's Kind 30003 event with `d: "dm-favorites"`
 - **AND** decrypt the content using NIP-44
 - **AND** merge any remote favorites not in local storage using union merge (never delete)
 

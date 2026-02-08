@@ -8,7 +8,7 @@ import { connectionManager } from './connection/instance';
 import { favoriteRepo } from '$lib/db/FavoriteRepository';
 
 const D_TAG = 'dm-favorites';
-const KIND_FOLLOW_SET = 30000;
+const KIND_BOOKMARK_SET = 30003;
 
 export interface FavoriteSyncResult {
     attempted: number;
@@ -17,16 +17,16 @@ export interface FavoriteSyncResult {
 }
 
 /**
- * Service for syncing message favorites to/from Nostr as Kind 30000 encrypted list.
+ * Service for syncing message favorites to/from Nostr as Kind 30003 bookmark set.
  * 
  * Event structure:
- * - kind: 30000
+ * - kind: 30003
  * - tags: [["d", "dm-favorites"]]
  * - content: NIP-44 encrypted JSON array of [["e", "<eventId>", "<conversationId>"], ...]
  */
 export class FavoriteSyncService {
     /**
-     * Publish current local favorites to relays as an encrypted Kind 30000 event.
+     * Publish current local favorites to relays as an encrypted Kind 30003 event.
      */
     async publishFavorites(): Promise<FavoriteSyncResult> {
         const currentSigner = get(signer);
@@ -54,9 +54,9 @@ export class FavoriteSyncService {
             const tagsJson = JSON.stringify(tags);
             const encryptedContent = await currentSigner.encrypt(userPubkey as string, tagsJson);
 
-            // Build the Kind 30000 event
+            // Build the Kind 30003 event
             const event = {
-                kind: KIND_FOLLOW_SET,
+                kind: KIND_BOOKMARK_SET,
                 tags: [['d', D_TAG]],
                 content: encryptedContent,
                 created_at: Math.floor(Date.now() / 1000)
@@ -133,7 +133,7 @@ export class FavoriteSyncService {
     }
 
     /**
-     * Fetch Kind 30000 dm-favorites from relays and merge into local DB using union merge.
+     * Fetch Kind 30003 dm-favorites from relays and merge into local DB using union merge.
      */
     async fetchAndMergeFavorites(): Promise<void> {
         const currentSigner = get(signer);
@@ -147,9 +147,9 @@ export class FavoriteSyncService {
         try {
             const { data: userPubkey } = nip19.decode(currentUserData.npub);
 
-            // Fetch Kind 30000 with d=dm-favorites from connected relays
+            // Fetch Kind 30003 with d=dm-favorites from connected relays
             const filter = {
-                kinds: [KIND_FOLLOW_SET],
+                kinds: [KIND_BOOKMARK_SET],
                 authors: [userPubkey as string],
                 '#d': [D_TAG],
                 limit: 1
