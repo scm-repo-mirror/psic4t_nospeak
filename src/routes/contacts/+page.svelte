@@ -175,6 +175,7 @@
                 </svg>
             </button>
             <h1 class="typ-title dark:text-white">{$t('modals.manageContacts.title')}</h1>
+            <span class="typ-meta text-gray-400 dark:text-slate-500 ml-3 self-center">{ctrl.contacts.length}</span>
         </div>
 
         <div class="px-4 pb-4">

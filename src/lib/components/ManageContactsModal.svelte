@@ -170,6 +170,7 @@
 
             <div class="flex items-center mb-4 px-1">
                 <h2 class="typ-title dark:text-white">{$t('modals.manageContacts.title')}</h2>
+                <span class="typ-meta text-gray-400 dark:text-slate-500 ml-3 self-center">{ctrl.contacts.length}</span>
             </div>
 
             <div class="mb-4">
