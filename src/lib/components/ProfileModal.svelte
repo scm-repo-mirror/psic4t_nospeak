@@ -184,7 +184,7 @@
 
                     <!-- Profile Header -->
                     <div class="px-6 relative">
-                        <div class="-mt-16 mb-3 inline-flex items-center gap-2">
+                        <div class="-mt-16 mb-3 inline-flex items-end gap-2">
                             <div class="rounded-full p-1 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
                                 {#if canRefresh}
                                     <button
@@ -202,7 +202,7 @@
                             </div>
 
                             {#if isRefreshing}
-                                <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400">
+                                <div class="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400 pb-4">
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         width="14"
