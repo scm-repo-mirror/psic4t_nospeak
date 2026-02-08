@@ -43,7 +43,11 @@ const en = {
         favorites: 'Favorites',
         favoriteMessage: 'message',
         favoriteMessages: 'messages',
-        emptyFavorites: 'No favorited messages yet'
+        emptyFavorites: 'No favorited messages yet',
+        archive: 'Archive',
+        unarchive: 'Unarchive',
+        archived: 'Archived',
+        emptyArchive: 'No archived chats'
     },
     contacts: {
         title: 'Contacts',

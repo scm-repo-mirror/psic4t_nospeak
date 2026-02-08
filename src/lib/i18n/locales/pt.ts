@@ -39,7 +39,11 @@ const pt = {
         filterUnread: 'Não lidos',
         filterGroups: 'Grupos',
         emptyUnread: 'Nenhum chat não lido',
-        emptyGroups: 'Nenhum grupo'
+        emptyGroups: 'Nenhum grupo',
+        archive: 'Arquivar',
+        unarchive: 'Desarquivar',
+        archived: 'Arquivados',
+        emptyArchive: 'Nenhuma conversa arquivada'
     },
     contacts: {
         title: 'Contactos',

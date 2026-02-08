@@ -43,7 +43,11 @@ const de = {
         favorites: 'Favoriten',
         favoriteMessage: 'Nachricht',
         favoriteMessages: 'Nachrichten',
-        emptyFavorites: 'Noch keine Favoriten'
+        emptyFavorites: 'Noch keine Favoriten',
+        archive: 'Archivieren',
+        unarchive: 'Dearchivieren',
+        archived: 'Archiviert',
+        emptyArchive: 'Keine archivierten Chats'
     },
     contacts: {
         title: 'Kontakte',

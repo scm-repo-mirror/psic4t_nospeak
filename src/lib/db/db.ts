@@ -93,6 +93,11 @@ export interface FavoriteItem {
     conversationId: string;
     createdAt: number;
 }
+
+export interface ArchiveItem {
+    conversationId: string;
+    archivedAt: number;
+}
  
 export class NospeakDB extends Dexie {
     messages!: Table<Message, number>;
@@ -102,6 +107,7 @@ export class NospeakDB extends Dexie {
     reactions!: Table<Reaction, number>;
     conversations!: Table<Conversation, string>; // conversationId as primary key
     favorites!: Table<FavoriteItem, string>; // eventId as primary key
+    archives!: Table<ArchiveItem, string>; // conversationId as primary key
  
     constructor() {
         super('NospeakDB');
@@ -192,6 +198,11 @@ export class NospeakDB extends Dexie {
         // Version 11: Add favorites table for message favorites
         this.version(11).stores({
             favorites: 'eventId, conversationId, createdAt'
+        });
+
+        // Version 12: Add archives table for chat archiving
+        this.version(12).stores({
+            archives: 'conversationId, archivedAt'
         });
     }
 

@@ -34,6 +34,8 @@ import { clearAndroidLocalSecretKey, getAndroidLocalSecretKeyHex, setAndroidLoca
 import { contactSyncService } from './ContactSyncService';
 import { favoriteSyncService } from './FavoriteSyncService';
 import { loadFavorites } from '$lib/stores/favorites';
+import { archiveSyncService } from './ArchiveSyncService';
+import { loadArchives } from '$lib/stores/archive';
 import { showToast } from '$lib/stores/toast';
 import { get } from 'svelte/store';
 import { signerVerificationService } from './SignerVerification';
@@ -413,6 +415,15 @@ export class AuthService {
             await loadFavorites();
         } catch (error) {
             console.error(`${context} favorites sync failed:`, error);
+            // Non-fatal - continue with flow
+        }
+
+        // 4c. Fetch and merge archives from Kind 30000 event
+        try {
+            await archiveSyncService.fetchAndMergeArchives();
+            await loadArchives();
+        } catch (error) {
+            console.error(`${context} archives sync failed:`, error);
             // Non-fatal - continue with flow
         }
 

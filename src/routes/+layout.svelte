@@ -364,10 +364,13 @@
        })();
      }
  
-     // Load favorites store on startup (from local DB)
+     // Load favorites and archives stores on startup (from local DB)
      if (restored && $currentUser) {
        import("$lib/stores/favorites").then(({ loadFavorites }) => {
          loadFavorites().catch(e => console.error('Failed to load favorites:', e));
+       });
+       import("$lib/stores/archive").then(({ loadArchives }) => {
+         loadArchives().catch(e => console.error('Failed to load archives:', e));
        });
      }
 
@@ -405,6 +408,10 @@
               const { loadFavorites } = await import("$lib/stores/favorites");
               await favoriteSyncService.fetchAndMergeFavorites();
               await loadFavorites();
+              const { archiveSyncService } = await import("$lib/core/ArchiveSyncService");
+              const { loadArchives } = await import("$lib/stores/archive");
+              await archiveSyncService.fetchAndMergeArchives();
+              await loadArchives();
               profileRefreshMessage = "Profile refresh completed";
             } catch (error) {
               console.error("Failed to refresh current user profile:", error);

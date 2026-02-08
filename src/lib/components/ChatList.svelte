@@ -25,6 +25,8 @@
   import { getRelativeTime } from "$lib/utils/time";
   import { overscroll } from "$lib/utils/overscroll";
   import { db } from "$lib/db/db";
+  import { archivedConversationIds, toggleArchive } from "$lib/stores/archive";
+  import ChatContextMenu from "./ChatContextMenu.svelte";
 
   // Extended contact type that includes group chats
   interface ChatListItem {
@@ -41,12 +43,22 @@
   }
 
   let chatItems = $state<ChatListItem[]>([]);
-  let filter = $state<'all' | 'unread' | 'groups'>('all');
+  let filter = $state<'all' | 'unread' | 'groups' | 'archive'>('all');
+  let archivesCount = $state(0);
+
+  // Subscribe to archives count
+  $effect(() => {
+    const sub = liveQuery(() => db.archives.count()).subscribe((count) => {
+      archivesCount = count;
+    });
+    return () => sub.unsubscribe();
+  });
 
   let filteredChatItems = $derived(
-    filter === 'all' ? chatItems :
-    filter === 'unread' ? chatItems.filter(item => item.hasUnread) :
-    chatItems.filter(item => item.isGroup)
+    filter === 'all' ? chatItems.filter(item => !$archivedConversationIds.has(item.id)) :
+    filter === 'unread' ? chatItems.filter(item => item.hasUnread && !$archivedConversationIds.has(item.id)) :
+    filter === 'groups' ? chatItems.filter(item => item.isGroup && !$archivedConversationIds.has(item.id)) :
+    chatItems.filter(item => $archivedConversationIds.has(item.id))
   );
 
   const isAndroidApp = isAndroidNative();
@@ -355,6 +367,60 @@
     hapticSelection();
     goto(`/chat/${id}`, { invalidateAll: true });
   }
+
+  // Context menu state
+  let contextMenu = $state<{
+    isOpen: boolean;
+    x: number;
+    y: number;
+    conversationId: string;
+  }>({ isOpen: false, x: 0, y: 0, conversationId: '' });
+
+  let longPressTimer: number | null = null;
+
+  function openContextMenuAt(x: number, y: number, conversationId: string) {
+    contextMenu = { isOpen: true, x, y, conversationId };
+  }
+
+  function handleMouseDown(e: MouseEvent, conversationId: string) {
+    if (window.innerWidth >= 768) return;
+    longPressTimer = window.setTimeout(() => {
+      openContextMenuAt(e.clientX, e.clientY, conversationId);
+      longPressTimer = null;
+    }, 500);
+  }
+
+  function handleMouseUp() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  function handleContextMenu(e: MouseEvent, conversationId: string) {
+    if (window.innerWidth >= 768) return;
+    e.preventDefault();
+    openContextMenuAt(e.clientX, e.clientY, conversationId);
+  }
+
+  function handleDotClick(e: MouseEvent, conversationId: string) {
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.bottom + 4;
+    contextMenu = { isOpen: true, x, y, conversationId };
+  }
+
+  function closeContextMenu() {
+    contextMenu.isOpen = false;
+  }
+
+  async function handleArchiveToggle() {
+    if (!contextMenu.conversationId) return;
+    await toggleArchive(contextMenu.conversationId);
+    contextMenu.isOpen = false;
+  }
 </script>
 
 <div
@@ -459,7 +525,8 @@
       tabs={[
         { value: 'all', label: $t('chats.filterAll') },
         { value: 'unread', label: $t('chats.filterUnread') },
-        { value: 'groups', label: $t('chats.filterGroups') }
+        { value: 'groups', label: $t('chats.filterGroups') },
+        { value: 'archive', label: $t('chats.archived') }
       ]}
       ariaLabel="Filter chats"
       class="px-2"
@@ -496,6 +563,8 @@
           {$t("chats.emptyUnread")}
         {:else if filter === 'groups'}
           {$t("chats.emptyGroups")}
+        {:else if filter === 'archive'}
+          {$t("chats.emptyArchive")}
         {/if}
       </div>
     {/if}
@@ -532,11 +601,10 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         onclick={() => selectChat(item.id)}
-        oncontextmenu={(e) => {
-          if (!isAndroidApp) return;
-          e.preventDefault();
-          e.stopPropagation();
-        }}
+        oncontextmenu={(e) => handleContextMenu(e, item.id)}
+        onmousedown={(e) => handleMouseDown(e, item.id)}
+        onmouseup={handleMouseUp}
+        onmouseleave={handleMouseUp}
         onselectstart={(e) => {
           if (!isAndroidApp) return;
           e.preventDefault();
@@ -618,6 +686,18 @@
                 {getRelativeTime(item.lastMessageTime, currentTime)}
               </span>
             {/if}
+            <button
+              type="button"
+              class="hidden md:inline-flex py-1 pr-0 pl-px rounded-l hover:bg-gray-100/50 dark:hover:bg-slate-700/50 transition-colors opacity-0 group-hover:opacity-100"
+              onclick={(e) => handleDotClick(e, item.id)}
+              aria-label="Chat options"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="2"/>
+                <circle cx="12" cy="12" r="2"/>
+                <circle cx="12" cy="19" r="2"/>
+              </svg>
+            </button>
           </div>
           {#if item.lastMessageText}
             <div
@@ -660,6 +740,15 @@
     </svg>
   </button>
 </div>
+
+<ChatContextMenu
+  isOpen={contextMenu.isOpen}
+  x={contextMenu.x}
+  y={contextMenu.y}
+  onClose={closeContextMenu}
+  onArchive={handleArchiveToggle}
+  isArchived={$archivedConversationIds.has(contextMenu.conversationId)}
+/>
 
 <style>
   .androidNoCallout :global(*) {

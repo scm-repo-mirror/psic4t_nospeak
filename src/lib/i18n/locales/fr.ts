@@ -39,7 +39,11 @@ const fr = {
         filterUnread: 'Non lus',
         filterGroups: 'Groupes',
         emptyUnread: 'Aucun chat non lu',
-        emptyGroups: 'Aucun groupe'
+        emptyGroups: 'Aucun groupe',
+        archive: 'Archiver',
+        unarchive: 'Désarchiver',
+        archived: 'Archivés',
+        emptyArchive: 'Aucune discussion archivée'
     },
     contacts: {
         title: 'Contacts',

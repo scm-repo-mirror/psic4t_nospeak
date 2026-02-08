@@ -1,7 +1,9 @@
 <script lang="ts">
     import { contactSyncService } from '$lib/core/ContactSyncService';
     import { favoriteSyncService } from '$lib/core/FavoriteSyncService';
+    import { archiveSyncService } from '$lib/core/ArchiveSyncService';
     import { loadFavorites } from '$lib/stores/favorites';
+    import { loadArchives } from '$lib/stores/archive';
     import { discoverUserRelays } from '$lib/core/connection/Discovery';
     import { getDisplayedNip05 } from '$lib/core/Nip05Display';
     import type { Profile } from '$lib/db/db';
@@ -92,6 +94,8 @@
                 await contactSyncService.fetchAndMergeContacts();
                 await favoriteSyncService.fetchAndMergeFavorites();
                 await loadFavorites();
+                await archiveSyncService.fetchAndMergeArchives();
+                await loadArchives();
             }
 
             await loadProfile({ showLoading: false });

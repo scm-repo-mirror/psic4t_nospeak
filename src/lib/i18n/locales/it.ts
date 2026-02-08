@@ -39,7 +39,11 @@ const it = {
         filterUnread: 'Non letti',
         filterGroups: 'Gruppi',
         emptyUnread: 'Nessuna chat non letta',
-        emptyGroups: 'Nessun gruppo'
+        emptyGroups: 'Nessun gruppo',
+        archive: 'Archivia',
+        unarchive: 'Ripristina',
+        archived: 'Archiviati',
+        emptyArchive: 'Nessuna chat archiviata'
     },
     contacts: {
         title: 'Contatti',
