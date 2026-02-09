@@ -26,6 +26,7 @@
   import { overscroll } from "$lib/utils/overscroll";
   import { db } from "$lib/db/db";
   import { archivedConversationIds, toggleArchive } from "$lib/stores/archive";
+  import { archiveRepo } from "$lib/db/ArchiveRepository";
   import ChatContextMenu from "./ChatContextMenu.svelte";
 
   // Extended contact type that includes group chats
@@ -144,79 +145,82 @@
     return result;
   }
 
+  /**
+   * Build a ChatListItem for a 1-on-1 chat from an npub.
+   * Used for both active contacts and orphaned archived chats.
+   */
+  async function buildContactChatItem(
+    npub: string,
+    lastReadAt: number | undefined,
+    lastActivityAt: number | undefined,
+  ): Promise<ChatListItem> {
+    const profile = await profileRepo.getProfileIgnoreTTL(npub);
+    const recentMsgs = await messageRepo.getMessages(npub, 10);
+    const lastMsg = recentMsgs[recentMsgs.length - 1];
+    const lastMsgTime = lastMsg ? lastMsg.sentAt : 0;
+    const lastReceivedMsg = recentMsgs
+      .filter((m) => m.direction === "received")
+      .pop();
+    const lastReceivedTime = lastReceivedMsg ? lastReceivedMsg.sentAt : 0;
+    const lastActivityTime = Math.max(
+      lastReceivedTime,
+      lastActivityAt || 0,
+    );
+
+    let lastMessageText = "";
+    if (lastMsg) {
+      if (lastMsg.fileUrl && lastMsg.fileType) {
+        lastMessageText = getMediaPreviewLabel(lastMsg.fileType);
+      } else if (lastMsg.location) {
+        lastMessageText = getLocationPreviewLabel();
+      } else {
+        lastMessageText = (lastMsg.message || "").replace(/\s+/g, " ").trim();
+      }
+
+      if (lastMessageText && lastMsg.direction === "sent") {
+        lastMessageText = `${get(t)("contacts.youPrefix") || "You"}: ${lastMessageText}`;
+      }
+    }
+
+    if (lastMessageText) {
+      lastMessageText = await replaceNpubMentionsInPreview(lastMessageText);
+    }
+
+    let name = npub.slice(0, 10) + "...";
+    let picture = undefined;
+    let nip05: string | undefined = undefined;
+    let nip05Status: "valid" | "invalid" | "unknown" | undefined = undefined;
+
+    if (profile && profile.metadata) {
+      name =
+        profile.metadata.name ||
+        profile.metadata.display_name ||
+        profile.metadata.displayName ||
+        name;
+      picture = profile.metadata.picture;
+      nip05 = profile.metadata.nip05 || undefined;
+      nip05Status = profile.nip05Status;
+    }
+
+    return {
+      id: npub,
+      isGroup: false,
+      name,
+      picture,
+      hasUnread: lastActivityTime > (lastReadAt || 0),
+      lastMessageTime: lastMsgTime,
+      nip05,
+      nip05Status,
+      lastMessageText: lastMessageText || undefined,
+    };
+  }
+
   async function refreshChatList(dbContacts: ContactItem[]): Promise<void> {
     console.log("ChatList: Processing contacts from DB:", dbContacts.length);
 
     // 1. Process regular 1-on-1 contacts
     const contactItems: ChatListItem[] = await Promise.all(
-      dbContacts.map(async (c) => {
-        const profile = await profileRepo.getProfileIgnoreTTL(c.npub);
-        // Fetch recent messages for display and unread calculation
-        const recentMsgs = await messageRepo.getMessages(c.npub, 10);
-        const lastMsg = recentMsgs[recentMsgs.length - 1]; // Most recent for display
-        const lastMsgTime = lastMsg ? lastMsg.sentAt : 0;
-        // For unread indicator, only consider received messages (not sent from other clients)
-        const lastReceivedMsg = recentMsgs
-          .filter((m) => m.direction === "received")
-          .pop();
-        const lastReceivedTime = lastReceivedMsg ? lastReceivedMsg.sentAt : 0;
-        const lastActivityTime = Math.max(
-          lastReceivedTime,
-          c.lastActivityAt || 0,
-        );
-
-        let lastMessageText = "";
-        if (lastMsg) {
-          if (lastMsg.fileUrl && lastMsg.fileType) {
-            // Media attachment - show friendly label only (message field contains URL, not caption)
-            lastMessageText = getMediaPreviewLabel(lastMsg.fileType);
-          } else if (lastMsg.location) {
-            // Location message - show friendly label instead of raw geo: string
-            lastMessageText = getLocationPreviewLabel();
-          } else {
-            // Regular text message
-            lastMessageText = (lastMsg.message || "").replace(/\s+/g, " ").trim();
-          }
-
-          if (lastMessageText && lastMsg.direction === "sent") {
-            lastMessageText = `${get(t)("contacts.youPrefix") || "You"}: ${lastMessageText}`;
-          }
-        }
-
-        // Replace nostr:npub mentions with @displayName
-        if (lastMessageText) {
-          lastMessageText = await replaceNpubMentionsInPreview(lastMessageText);
-        }
-
-        let name = c.npub.slice(0, 10) + "...";
-        let picture = undefined;
-        let nip05: string | undefined = undefined;
-        let nip05Status: "valid" | "invalid" | "unknown" | undefined =
-          undefined;
-
-        if (profile && profile.metadata) {
-          // Prioritize name fields
-          name =
-            profile.metadata.name ||
-            profile.metadata.display_name ||
-            profile.metadata.displayName ||
-            name;
-          picture = profile.metadata.picture;
-          nip05 = profile.metadata.nip05 || undefined;
-          nip05Status = profile.nip05Status;
-        }
-        return {
-          id: c.npub,
-          isGroup: false,
-          name: name,
-          picture: picture,
-          hasUnread: lastActivityTime > (c.lastReadAt || 0),
-          lastMessageTime: lastMsgTime,
-          nip05,
-          nip05Status,
-          lastMessageText: lastMessageText || undefined,
-        };
-      }),
+      dbContacts.map((c) => buildContactChatItem(c.npub, c.lastReadAt, c.lastActivityAt)),
     );
 
     // 2. Process group conversations
@@ -295,8 +299,21 @@
       }),
     );
 
-    // 3. Combine and sort all chat items
-    const allItems = [...contactItems, ...groupItems];
+    // 3. Build items for orphaned archived 1-on-1 chats (contact deleted but archive exists)
+    const contactNpubs = new Set(dbContacts.map(c => c.npub));
+    const groupIds = new Set(groupConversations.map(conv => conv.id));
+    const archivedIds = get(archivedConversationIds);
+
+    const orphanedArchiveNpubs = [...archivedIds].filter(
+      id => !contactNpubs.has(id) && !groupIds.has(id) && !isGroupConversationId(id)
+    );
+
+    const orphanedArchiveItems: ChatListItem[] = await Promise.all(
+      orphanedArchiveNpubs.map(npub => buildContactChatItem(npub, undefined, undefined)),
+    );
+
+    // 4. Combine and sort all chat items
+    const allItems = [...contactItems, ...groupItems, ...orphanedArchiveItems];
     
     // Filter out items with no messages
     const itemsWithMessages = allItems.filter(item => item.lastMessageTime > 0);
@@ -313,6 +330,8 @@
       contactItems.filter(c => c.lastMessageTime > 0).length,
       ", groups:",
       groupItems.length,
+      ", orphaned archives:",
+      orphanedArchiveItems.filter(a => a.lastMessageTime > 0).length,
       ")",
     );
     

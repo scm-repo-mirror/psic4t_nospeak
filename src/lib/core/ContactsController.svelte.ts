@@ -1,9 +1,11 @@
 import { liveQuery } from 'dexie';
 import { nip19 } from 'nostr-tools';
+import { get } from 'svelte/store';
 
 import type { ContactItem } from '$lib/db/db';
 import { contactRepo } from '$lib/db/ContactRepository';
 import { profileRepo } from '$lib/db/ProfileRepository';
+import { messageRepo } from '$lib/db/MessageRepository';
 import { addContactByNpub } from '$lib/core/ContactService';
 import { searchProfiles, type UserSearchResult } from '$lib/core/SearchProfiles';
 import { verifyNip05ForNpub, resolveNip05ToNpub, type Nip05Status } from '$lib/core/Nip05Verifier';
@@ -12,6 +14,11 @@ import { profileResolver } from '$lib/core/ProfileResolver';
 import { contactSyncService } from '$lib/core/ContactSyncService';
 import { connectionManager } from '$lib/core/connection/instance';
 import { getDiscoveryRelays } from '$lib/core/runtimeConfig';
+import { archiveRepo } from '$lib/db/ArchiveRepository';
+import { archivedConversationIds } from '$lib/stores/archive';
+import { archiveSyncService } from '$lib/core/ArchiveSyncService';
+import { showToast } from '$lib/stores/toast';
+import { t } from '$lib/i18n';
 
 export { getDisplayedNip05 };
 
@@ -364,6 +371,29 @@ export function createContactsController() {
     }
 
     async function remove(npub: string): Promise<void> {
+        // Auto-archive the 1-on-1 chat if messages exist
+        try {
+            const messages = await messageRepo.getMessages(npub, 1);
+            if (messages.length > 0) {
+                const alreadyArchived = await archiveRepo.isArchived(npub);
+                if (!alreadyArchived) {
+                    await archiveRepo.addArchive(npub);
+                    archivedConversationIds.update(set => {
+                        const next = new Set(set);
+                        next.add(npub);
+                        return next;
+                    });
+                    archiveSyncService.publishArchives().catch((e) => {
+                        console.warn('[ContactsController] Background archive sync failed:', e);
+                    });
+                    const message = get(t)('chats.chatArchived') as string;
+                    showToast(message, 'info');
+                }
+            }
+        } catch (e) {
+            console.warn('[ContactsController] Failed to auto-archive chat:', e);
+        }
+
         await contactRepo.removeContact(npub);
         contactSyncService.publishContacts().catch((e) => {
             console.warn('[ContactsController] Background contact sync failed:', e);

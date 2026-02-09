@@ -43,7 +43,8 @@ const it = {
         archive: 'Archivia',
         unarchive: 'Ripristina',
         archived: 'Archiviati',
-        emptyArchive: 'Nessuna chat archiviata'
+        emptyArchive: 'Nessuna chat archiviata',
+        chatArchived: 'Chat archiviata'
     },
     contacts: {
         title: 'Contatti',

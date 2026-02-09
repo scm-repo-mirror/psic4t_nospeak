@@ -47,7 +47,8 @@ const en = {
         archive: 'Archive',
         unarchive: 'Unarchive',
         archived: 'Archived',
-        emptyArchive: 'No archived chats'
+        emptyArchive: 'No archived chats',
+        chatArchived: 'Chat archived'
     },
     contacts: {
         title: 'Contacts',

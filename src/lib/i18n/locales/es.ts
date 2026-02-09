@@ -43,7 +43,8 @@ const es = {
         archive: 'Archivar',
         unarchive: 'Desarchivar',
         archived: 'Archivados',
-        emptyArchive: 'No hay chats archivados'
+        emptyArchive: 'No hay chats archivados',
+        chatArchived: 'Chat archivado'
     },
     contacts: {
         title: 'Contactos',

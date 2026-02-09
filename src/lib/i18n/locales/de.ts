@@ -47,7 +47,8 @@ const de = {
         archive: 'Archivieren',
         unarchive: 'Dearchivieren',
         archived: 'Archiviert',
-        emptyArchive: 'Keine archivierten Chats'
+        emptyArchive: 'Keine archivierten Chats',
+        chatArchived: 'Chat archiviert'
     },
     contacts: {
         title: 'Kontakte',

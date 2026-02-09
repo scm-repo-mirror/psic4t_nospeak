@@ -43,7 +43,8 @@ const fr = {
         archive: 'Archiver',
         unarchive: 'Désarchiver',
         archived: 'Archivés',
-        emptyArchive: 'Aucune discussion archivée'
+        emptyArchive: 'Aucune discussion archivée',
+        chatArchived: 'Discussion archivée'
     },
     contacts: {
         title: 'Contacts',

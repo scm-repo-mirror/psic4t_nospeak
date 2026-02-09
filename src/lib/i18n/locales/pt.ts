@@ -43,7 +43,8 @@ const pt = {
         archive: 'Arquivar',
         unarchive: 'Desarquivar',
         archived: 'Arquivados',
-        emptyArchive: 'Nenhuma conversa arquivada'
+        emptyArchive: 'Nenhuma conversa arquivada',
+        chatArchived: 'Conversa arquivada'
     },
     contacts: {
         title: 'Contactos',
