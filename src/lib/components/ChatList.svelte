@@ -107,20 +107,19 @@
   });
 
   function parseMarkdownPreview(text: string): string {
-    // Escape HTML entities first for security
-    text = text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
     // Strip citation markers for preview
-    text = text.replace(/^&gt; /gm, "");
+    text = text.replace(/^> /gm, "");
     // Strip list markers for preview (- item, * item, 1. item)
     text = text.replace(/^[-*] /gm, "");
     text = text.replace(/^\d+\. /gm, "");
-    // Bold (**text**)
-    text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    // Italic (*text*)
-    text = text.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    // Strip bold markers (**text** → text)
+    text = text.replace(/\*\*([^*]+)\*\*/g, "$1");
+    // Strip italic markers (*text* → text)
+    text = text.replace(/\*([^*]+)\*/g, "$1");
+    // Strip strikethrough markers (~~text~~ → text)
+    text = text.replace(/~~([^~]+)~~/g, "$1");
+    // Strip inline code backticks (`code` → code)
+    text = text.replace(/`([^`]+)`/g, "$1");
     return text;
   }
 
@@ -743,7 +742,7 @@
             <div
               class="typ-body text-gray-800 dark:text-slate-300 truncate"
             >
-              {@html parseMarkdownPreview(item.lastMessageText)}
+              {parseMarkdownPreview(item.lastMessageText)}
             </div>
           {/if}
         </div>
