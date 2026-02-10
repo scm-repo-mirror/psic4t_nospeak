@@ -805,7 +805,7 @@
       style:will-change={isBottomSheetDragging ? 'transform' : undefined}
     >
       {#if isAndroidApp}
-        <div class="absolute top-0 left-0 right-0 h-16 z-20 pointer-events-none">
+        <div class="absolute top-0 left-0 right-0 h-20 z-20 pointer-events-none">
           <div
             class="mx-auto w-32 h-full pointer-events-auto touch-none"
             onpointerdown={handleBottomSheetPointerDown}
