@@ -4,7 +4,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 export interface MetricsSnapshot {
     uptime_seconds: number;
     total_requests: number;
-    unique_visitors_today: number;
+    unique_visitors: number;
     requests_by_path: Record<string, number>;
 }
 
@@ -15,18 +15,14 @@ const serverStartedAt = Date.now();
 let totalRequests = 0;
 let uniqueVisitors = new Set<string>();
 let requestsByPath = new Map<string, number>();
-let currentDay = getCurrentDay();
 
-function getCurrentDay(): string {
-    return new Date().toISOString().slice(0, 10);
-}
-
-function resetDailyIfNeeded(): void {
-    const today = getCurrentDay();
-    if (today !== currentDay) {
-        uniqueVisitors = new Set<string>();
-        currentDay = today;
+function getClientIp(event: RequestEvent): string {
+    const xff = event.request.headers.get('x-forwarded-for');
+    if (xff) {
+        const first = xff.split(',')[0].trim();
+        if (first) return first;
     }
+    return event.getClientAddress();
 }
 
 function hashIp(ip: string): string {
@@ -55,11 +51,9 @@ export function recordRequest(event: RequestEvent): void {
         return;
     }
 
-    resetDailyIfNeeded();
-
     totalRequests++;
 
-    const ip = event.getClientAddress();
+    const ip = getClientIp(event);
     uniqueVisitors.add(hashIp(ip));
 
     const count = requestsByPath.get(normalized) ?? 0;
@@ -67,8 +61,6 @@ export function recordRequest(event: RequestEvent): void {
 }
 
 export function getMetrics(): MetricsSnapshot {
-    resetDailyIfNeeded();
-
     const pathEntries: Record<string, number> = {};
     for (const [path, count] of requestsByPath) {
         pathEntries[path] = count;
@@ -77,7 +69,7 @@ export function getMetrics(): MetricsSnapshot {
     return {
         uptime_seconds: Math.floor((Date.now() - serverStartedAt) / 1000),
         total_requests: totalRequests,
-        unique_visitors_today: uniqueVisitors.size,
+        unique_visitors: uniqueVisitors.size,
         requests_by_path: pathEntries
     };
 }
