@@ -223,6 +223,12 @@
         const currentIndex = SPEEDS.indexOf(playbackRate as (typeof SPEEDS)[number]);
         const nextIndex = (currentIndex + 1) % SPEEDS.length;
         playbackRate = SPEEDS[nextIndex];
+        // Apply immediately so active playback reflects the change without
+        // waiting for Svelte's effect scheduling.
+        if (audioElement && audioElement.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            audioElement.playbackRate = playbackRate;
+            audioElement.preservesPitch = true;
+        }
     }
 
     function formatTime(seconds: number): string {
