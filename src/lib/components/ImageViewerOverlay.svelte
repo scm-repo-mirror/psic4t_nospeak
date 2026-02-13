@@ -371,7 +371,7 @@
             <img
                 src={imageViewerUrl}
                 alt=""
-                class={imageViewerFitToScreen ? 'max-w-full max-h-full object-contain' : 'max-w-none max-h-none'}
+                class={imageViewerFitToScreen ? 'max-w-full max-h-full object-contain' : 'max-w-none max-h-none m-auto block'}
                 style={`transform: translate3d(${translateX}px, ${translateY}px, 0) scale(${scale}); transform-origin: center center;`}
             />
         </div>
