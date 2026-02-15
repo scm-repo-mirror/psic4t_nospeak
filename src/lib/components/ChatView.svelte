@@ -594,7 +594,6 @@
       };
 
       const handleProfilesUpdated = () => {
-        console.log(`[ChatView] handleProfilesUpdated received, partnerNpub=${partnerNpub?.slice(0, 12)}, isGroup=${isGroup}`);
         fetchPartnerProfile();
         if (isGroup && groupConversation?.participants) {
           void refreshGroupParticipantProfiles(groupConversation.participants);

@@ -59,18 +59,14 @@
       $effect(() => {
           const convId = conversationId;
           const user = $currentUser;
-          console.log(`[ChatVisitRefresh] $effect fired: convId=${convId}, user=${user?.npub?.slice(0, 12)}, isGroup=${isGroup}`);
           if (!convId || convId === 'ALL' || !user?.npub) return;
 
           if (isGroup) {
-              // For groups, wait for groupConversation to be loaded
               const group = groupConversation;
               if (group?.participants) {
-                  console.log(`[ChatVisitRefresh] Refreshing ${group.participants.length} group participants`);
                   void chatVisitRefreshService.refreshGroupParticipants(group.participants, user.npub);
               }
           } else {
-              console.log(`[ChatVisitRefresh] Refreshing 1:1 contact: ${convId.slice(0, 12)}`);
               void chatVisitRefreshService.refreshContact(convId);
           }
       });
