@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { nip19 } from 'nostr-tools';
 
 // Hoist mock variables so they're available during module mocking
-const { mockSigner, mockCurrentUser, mockContacts, addContactMock, getContactsMock } = vi.hoisted(() => ({
+const { mockSigner, mockCurrentUser, mockContacts, addContactMock, getContactsMock, removeContactMock } = vi.hoisted(() => ({
     mockSigner: {
         encrypt: vi.fn(),
         decrypt: vi.fn(),
@@ -14,7 +14,8 @@ const { mockSigner, mockCurrentUser, mockContacts, addContactMock, getContactsMo
     },
     mockContacts: [] as { npub: string; lastReadAt?: number; lastActivityAt?: number }[],
     addContactMock: vi.fn(),
-    getContactsMock: vi.fn()
+    getContactsMock: vi.fn(),
+    removeContactMock: vi.fn()
 }));
 
 vi.mock('svelte/store', () => ({
@@ -33,7 +34,8 @@ vi.mock('$lib/stores/auth', () => ({
 vi.mock('$lib/db/ContactRepository', () => ({
     contactRepo: {
         getContacts: getContactsMock,
-        addContact: addContactMock
+        addContact: addContactMock,
+        removeContact: removeContactMock
     }
 }));
 
@@ -69,6 +71,13 @@ describe('ContactSyncService', () => {
             if (!mockContacts.find(c => c.npub === npub)) {
                 mockContacts.push({ npub, lastReadAt, lastActivityAt });
             }
+            return Promise.resolve();
+        });
+
+        // Setup removeContact mock
+        removeContactMock.mockImplementation((npub: string) => {
+            const idx = mockContacts.findIndex(c => c.npub === npub);
+            if (idx >= 0) mockContacts.splice(idx, 1);
             return Promise.resolve();
         });
 
@@ -172,8 +181,8 @@ describe('ContactSyncService', () => {
         });
     });
 
-    describe('union merge behavior (logic verification)', () => {
-        // These tests verify the JSON parsing and filtering logic
+    describe('full sync behavior (logic verification)', () => {
+        // These tests verify the JSON parsing, filtering, and removal logic
         // by testing what would be decrypted and processed
 
         it('parses p-tags correctly from JSON', () => {
@@ -222,7 +231,7 @@ describe('ContactSyncService', () => {
             expect(pubkeys).not.toContain('');
         });
 
-        it('union merge adds only new contacts', () => {
+        it('full sync adds only new contacts', () => {
             const localNpubs = new Set([
                 nip19.npubEncode('a'.repeat(64))
             ]);
@@ -241,7 +250,7 @@ describe('ContactSyncService', () => {
             expect(toAdd[0]).toBe(nip19.npubEncode('b'.repeat(64)));
         });
 
-        it('union merge does not duplicate existing contacts', () => {
+        it('full sync does not duplicate existing contacts', () => {
             const localNpubs = new Set([
                 nip19.npubEncode('a'.repeat(64)),
                 nip19.npubEncode('b'.repeat(64))
@@ -260,22 +269,22 @@ describe('ContactSyncService', () => {
             expect(toAdd.length).toBe(0);
         });
 
-        it('handles empty remote list', () => {
+        it('handles empty remote list by removing all local contacts', () => {
             const localNpubs = new Set([
                 nip19.npubEncode('a'.repeat(64))
             ]);
             
-            const remotePubkeys: string[] = [];
+            const remoteNpubs = new Set<string>();
             
-            const toAdd: string[] = [];
-            for (const pubkey of remotePubkeys) {
-                const npub = nip19.npubEncode(pubkey);
-                if (!localNpubs.has(npub)) {
-                    toAdd.push(npub);
+            const toRemove: string[] = [];
+            for (const localNpub of localNpubs) {
+                if (!remoteNpubs.has(localNpub)) {
+                    toRemove.push(localNpub);
                 }
             }
             
-            expect(toAdd.length).toBe(0);
+            expect(toRemove.length).toBe(1);
+            expect(toRemove[0]).toBe(nip19.npubEncode('a'.repeat(64)));
         });
 
         it('handles empty local list', () => {
@@ -292,6 +301,54 @@ describe('ContactSyncService', () => {
             }
             
             expect(toAdd.length).toBe(2);
+        });
+
+        it('full sync removes local contacts absent from relay', () => {
+            const localNpubs = new Set([
+                nip19.npubEncode('a'.repeat(64)),
+                nip19.npubEncode('b'.repeat(64)),
+                nip19.npubEncode('c'.repeat(64))
+            ]);
+
+            const remotePubkeys = ['a'.repeat(64), 'c'.repeat(64)];
+            const remoteNpubs = new Set(remotePubkeys.map(p => nip19.npubEncode(p)));
+
+            const toAdd: string[] = [];
+            const toRemove: string[] = [];
+
+            for (const pubkey of remotePubkeys) {
+                const npub = nip19.npubEncode(pubkey);
+                if (!localNpubs.has(npub)) toAdd.push(npub);
+            }
+
+            for (const localNpub of localNpubs) {
+                if (!remoteNpubs.has(localNpub)) toRemove.push(localNpub);
+            }
+
+            expect(toAdd.length).toBe(0);
+            expect(toRemove.length).toBe(1);
+            expect(toRemove[0]).toBe(nip19.npubEncode('b'.repeat(64)));
+        });
+
+        it('full sync with identical sets makes no changes', () => {
+            const pubkeys = ['a'.repeat(64), 'b'.repeat(64)];
+            const localNpubs = new Set(pubkeys.map(p => nip19.npubEncode(p)));
+            const remoteNpubs = new Set(pubkeys.map(p => nip19.npubEncode(p)));
+
+            const toAdd: string[] = [];
+            const toRemove: string[] = [];
+
+            for (const pubkey of pubkeys) {
+                const npub = nip19.npubEncode(pubkey);
+                if (!localNpubs.has(npub)) toAdd.push(npub);
+            }
+
+            for (const localNpub of localNpubs) {
+                if (!remoteNpubs.has(localNpub)) toRemove.push(localNpub);
+            }
+
+            expect(toAdd.length).toBe(0);
+            expect(toRemove.length).toBe(0);
         });
     });
 

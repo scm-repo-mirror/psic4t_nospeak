@@ -139,9 +139,10 @@ export class ContactSyncService {
     }
 
     /**
-     * Fetch Kind 30000 dm-contacts from relays and merge into local DB using union merge.
+     * Fetch Kind 30000 dm-contacts from relays and replace local DB with relay state.
+     * The relay event is authoritative — local contacts not present on the relay are removed.
      */
-    async fetchAndMergeContacts(): Promise<void> {
+    async fetchAndSyncContacts(): Promise<void> {
         const currentSigner = get(signer);
         const currentUserData = get(currentUser);
 
@@ -197,30 +198,45 @@ export class ContactSyncService {
 
             console.log(`[ContactSyncService] Found ${remotePubkeys.length} contacts on relay`);
 
-            // Get local contacts for union merge
+            // Get local contacts for full sync
             const localContacts = await contactRepo.getContacts();
             const localNpubs = new Set(localContacts.map(c => c.npub));
 
-            // Union merge: add any remote contacts not in local
-            let added = 0;
-            const newContactNpubs: string[] = [];
+            // Build set of remote npubs for comparison
+            const remoteNpubs = new Set<string>();
             for (const pubkey of remotePubkeys) {
                 try {
-                    const npub = nip19.npubEncode(pubkey);
-                    if (!localNpubs.has(npub)) {
-                        // Add with lastReadAt=now so they don't appear as unread
-                        const now = Date.now();
-                        await contactRepo.addContact(npub, now, now);
-                        newContactNpubs.push(npub);
-                        added++;
-                        console.log(`[ContactSyncService] Added contact from relay: ${npub.substring(0, 12)}...`);
-                    }
+                    remoteNpubs.add(nip19.npubEncode(pubkey));
                 } catch (e) {
-                    console.warn(`[ContactSyncService] Failed to add contact with pubkey: ${pubkey}`, e);
+                    // Already warned during parsing, skip
                 }
             }
 
-            console.log(`[ContactSyncService] Union merge complete: ${added} new contacts added`);
+            // Add any remote contacts not in local
+            let added = 0;
+            const newContactNpubs: string[] = [];
+            for (const npub of remoteNpubs) {
+                if (!localNpubs.has(npub)) {
+                    // Add with lastReadAt=now so they don't appear as unread
+                    const now = Date.now();
+                    await contactRepo.addContact(npub, now, now);
+                    newContactNpubs.push(npub);
+                    added++;
+                    console.log(`[ContactSyncService] Added contact from relay: ${npub.substring(0, 12)}...`);
+                }
+            }
+
+            // Remove local contacts not present on relay
+            let removed = 0;
+            for (const local of localContacts) {
+                if (!remoteNpubs.has(local.npub)) {
+                    await contactRepo.removeContact(local.npub);
+                    removed++;
+                    console.log(`[ContactSyncService] Removed local contact not on relay: ${local.npub.substring(0, 12)}...`);
+                }
+            }
+
+            console.log(`[ContactSyncService] Sync complete: ${added} added, ${removed} removed`);
 
             // Batch resolve profiles for newly added contacts
             if (newContactNpubs.length > 0) {

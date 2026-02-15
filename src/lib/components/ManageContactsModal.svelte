@@ -44,8 +44,18 @@
             ctrl.resetState();
             return;
         }
+        syncContactsFromRelay();
         return ctrl.startSubscription();
     });
+
+    async function syncContactsFromRelay() {
+        try {
+            const { contactSyncService } = await import('$lib/core/ContactSyncService');
+            await contactSyncService.fetchAndSyncContacts();
+        } catch (e) {
+            console.error('Failed to sync contacts from relay:', e);
+        }
+    }
 
     // Connect discovery relays on first keystroke
     $effect(() => {

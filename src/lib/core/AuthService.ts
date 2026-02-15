@@ -403,7 +403,7 @@ export class AuthService {
         // before auto-adding contacts from messages (prevents overwriting saved contacts)
         setLoginSyncActiveStep('fetch-contacts');
         try {
-            await contactSyncService.fetchAndMergeContacts();
+            await contactSyncService.fetchAndSyncContacts();
         } catch (error) {
             console.error(`${context} contact sync failed:`, error);
             // Non-fatal - continue with flow
