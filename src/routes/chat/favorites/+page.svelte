@@ -55,6 +55,8 @@
     onMount(() => {
         clearActiveConversation();
         loadFavorites();
+        // Sync favorites from relays in the background, then refresh UI
+        syncFavoritesFromRelay();
         // Load own profile picture
         if ($currentUser) {
             profileRepo.getProfileIgnoreTTL($currentUser.npub).then((p) => {
@@ -64,6 +66,18 @@
             });
         }
     });
+
+    async function syncFavoritesFromRelay() {
+        try {
+            const { favoriteSyncService } = await import('$lib/core/FavoriteSyncService');
+            const { loadFavorites: loadFavoritesStore } = await import('$lib/stores/favorites');
+            await favoriteSyncService.fetchAndSyncFavorites();
+            await loadFavoritesStore();
+            await loadFavorites();
+        } catch (e) {
+            console.error('Failed to sync favorites from relay:', e);
+        }
+    }
 
     onDestroy(() => {
         clearActiveConversation();

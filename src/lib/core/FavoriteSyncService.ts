@@ -133,9 +133,10 @@ export class FavoriteSyncService {
     }
 
     /**
-     * Fetch Kind 30003 dm-favorites from relays and merge into local DB using union merge.
+     * Fetch Kind 30003 dm-favorites from relays and replace local DB with relay state.
+     * The relay event is authoritative — local favorites not present on the relay are removed.
      */
-    async fetchAndMergeFavorites(): Promise<void> {
+    async fetchAndSyncFavorites(): Promise<void> {
         const currentSigner = get(signer);
         const currentUserData = get(currentUser);
 
@@ -191,10 +192,11 @@ export class FavoriteSyncService {
 
             console.log(`[FavoriteSyncService] Found ${remoteFavorites.length} favorites on relay`);
 
-            // Get local favorites for union merge
+            // Get local favorites for full sync
             const localEventIds = await favoriteRepo.getFavoriteEventIds();
+            const remoteEventIds = new Set(remoteFavorites.map(f => f.eventId));
 
-            // Union merge: add any remote favorites not in local
+            // Add any remote favorites not in local
             let added = 0;
             for (const remote of remoteFavorites) {
                 if (!localEventIds.has(remote.eventId)) {
@@ -204,7 +206,17 @@ export class FavoriteSyncService {
                 }
             }
 
-            console.log(`[FavoriteSyncService] Union merge complete: ${added} new favorites added`);
+            // Remove any local favorites not present on relay
+            let removed = 0;
+            for (const localId of localEventIds) {
+                if (!remoteEventIds.has(localId)) {
+                    await favoriteRepo.removeFavorite(localId);
+                    removed++;
+                    console.log(`[FavoriteSyncService] Removed local favorite not on relay: ${localId.substring(0, 12)}...`);
+                }
+            }
+
+            console.log(`[FavoriteSyncService] Sync complete: ${added} added, ${removed} removed`);
         } catch (e) {
             console.error('[FavoriteSyncService] Failed to fetch and merge favorites:', e);
         }

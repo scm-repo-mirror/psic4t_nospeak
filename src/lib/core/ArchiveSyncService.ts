@@ -144,9 +144,10 @@ export class ArchiveSyncService {
     }
 
     /**
-     * Fetch Kind 30000 dm-archive from relays and merge into local DB using union merge.
+     * Fetch Kind 30000 dm-archive from relays and replace local DB with relay state.
+     * The relay event is authoritative — local archives not present on the relay are removed.
      */
-    async fetchAndMergeArchives(): Promise<void> {
+    async fetchAndSyncArchives(): Promise<void> {
         const currentSigner = get(signer);
         const currentUserData = get(currentUser);
 
@@ -215,10 +216,11 @@ export class ArchiveSyncService {
 
             console.log(`[ArchiveSyncService] Found ${remoteArchives.length} archives on relay`);
 
-            // Get local archives for union merge
+            // Get local archives for full sync
             const localConversationIds = await archiveRepo.getArchivedConversationIds();
+            const remoteConversationIds = new Set(remoteArchives);
 
-            // Union merge: add any remote archives not in local
+            // Add any remote archives not in local
             let added = 0;
             for (const conversationId of remoteArchives) {
                 if (!localConversationIds.has(conversationId)) {
@@ -228,7 +230,17 @@ export class ArchiveSyncService {
                 }
             }
 
-            console.log(`[ArchiveSyncService] Union merge complete: ${added} new archives added`);
+            // Remove any local archives not present on relay
+            let removed = 0;
+            for (const localId of localConversationIds) {
+                if (!remoteConversationIds.has(localId)) {
+                    await archiveRepo.removeArchive(localId);
+                    removed++;
+                    console.log(`[ArchiveSyncService] Removed local archive not on relay: ${localId.substring(0, 12)}...`);
+                }
+            }
+
+            console.log(`[ArchiveSyncService] Sync complete: ${added} added, ${removed} removed`);
         } catch (e) {
             console.error('[ArchiveSyncService] Failed to fetch and merge archives:', e);
         }

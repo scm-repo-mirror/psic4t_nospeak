@@ -55,6 +55,24 @@
     return () => sub.unsubscribe();
   });
 
+  // Sync archives from relays when the archive tab is selected
+  $effect(() => {
+    if (filter === 'archive') {
+      syncArchivesFromRelay();
+    }
+  });
+
+  async function syncArchivesFromRelay() {
+    try {
+      const { archiveSyncService } = await import('$lib/core/ArchiveSyncService');
+      const { loadArchives } = await import('$lib/stores/archive');
+      await archiveSyncService.fetchAndSyncArchives();
+      await loadArchives();
+    } catch (e) {
+      console.error('Failed to sync archives from relay:', e);
+    }
+  }
+
   let filteredChatItems = $derived(
     filter === 'all' ? chatItems.filter(item => !$archivedConversationIds.has(item.id)) :
     filter === 'unread' ? chatItems.filter(item => item.hasUnread && !$archivedConversationIds.has(item.id)) :

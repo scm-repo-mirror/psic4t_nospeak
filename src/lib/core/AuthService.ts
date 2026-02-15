@@ -409,18 +409,18 @@ export class AuthService {
             // Non-fatal - continue with flow
         }
 
-        // 4b. Fetch and merge favorites from Kind 30003 event
+        // 4b. Fetch and sync favorites from Kind 30003 event
         try {
-            await favoriteSyncService.fetchAndMergeFavorites();
+            await favoriteSyncService.fetchAndSyncFavorites();
             await loadFavorites();
         } catch (error) {
             console.error(`${context} favorites sync failed:`, error);
             // Non-fatal - continue with flow
         }
 
-        // 4c. Fetch and merge archives from Kind 30000 event
+        // 4c. Fetch and sync archives from Kind 30000 event
         try {
-            await archiveSyncService.fetchAndMergeArchives();
+            await archiveSyncService.fetchAndSyncArchives();
             await loadArchives();
         } catch (error) {
             console.error(`${context} archives sync failed:`, error);

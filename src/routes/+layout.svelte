@@ -402,16 +402,8 @@
 
             try {
               await discoverUserRelays(user.npub, true);
-              // Also refresh contact list and favorites when profile TTL expired
+              // Also refresh contact list when profile TTL expired
               await contactSyncService.fetchAndMergeContacts();
-              const { favoriteSyncService } = await import("$lib/core/FavoriteSyncService");
-              const { loadFavorites } = await import("$lib/stores/favorites");
-              await favoriteSyncService.fetchAndMergeFavorites();
-              await loadFavorites();
-              const { archiveSyncService } = await import("$lib/core/ArchiveSyncService");
-              const { loadArchives } = await import("$lib/stores/archive");
-              await archiveSyncService.fetchAndMergeArchives();
-              await loadArchives();
               profileRefreshMessage = "Profile refresh completed";
             } catch (error) {
               console.error("Failed to refresh current user profile:", error);
@@ -421,7 +413,7 @@
                 showProfileRefreshBanner = false;
               }, 3000);
             }
-          }
+           }
         }
 
         // Refresh profiles for all contacts in parallel with some concurrency control

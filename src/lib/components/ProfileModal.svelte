@@ -109,9 +109,9 @@
             // Also refresh contact list and favorites when refreshing own profile
             if (isOwn) {
                 await contactSyncService.fetchAndMergeContacts();
-                await favoriteSyncService.fetchAndMergeFavorites();
+                await favoriteSyncService.fetchAndSyncFavorites();
                 await loadFavorites();
-                await archiveSyncService.fetchAndMergeArchives();
+                await archiveSyncService.fetchAndSyncArchives();
                 await loadArchives();
             }
 
